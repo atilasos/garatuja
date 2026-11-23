@@ -71,10 +71,12 @@ export interface ChoiceItem {
   preview?: (ctx: CanvasRenderingContext2D, w: number, h: number, color: string) => void;
   /** Category used to group long lists (stamps, magic). */
   group?: L10n;
+  /** Omit or use 1 to include this choice in the simple interface. */
+  level?: 1 | 2;
 }
 
 export type OptionSpec =
-  | { kind: 'choice'; id: string; label: L10n; items: ChoiceItem[] | (() => ChoiceItem[]); default: string }
+  | { kind: 'choice'; id: string; label: L10n; items: ChoiceItem[] | (() => ChoiceItem[]); default: string; shared?: string }
   | { kind: 'size'; id: string; label: L10n; steps: number[]; default: number }
   | { kind: 'toggle'; id: string; label: L10n; icon: IconSvg; default: boolean };
 
@@ -206,6 +208,8 @@ export interface BrushDef {
   level: 1 | 2;
   /** Dab spacing as a fraction of size (0.1 = dense, 1 = dotted). */
   spacing: number;
+  /** Maximum distance from the dab centre, as a multiple of size. Defaults to 1.5. */
+  extent?: number;
   /** Paint one dab. The engine interpolates dabs along the stroke. */
   dab(ctx: CanvasRenderingContext2D, d: BrushDab): void;
   /** Optional: called when a stroke begins, to reset per-stroke state. */

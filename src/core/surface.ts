@@ -1,0 +1,226 @@
+import { copyCanvas, png, viewport } from './canvas';
+import { clampRect, rgbToHex, seededRandom, unionRect } from './draw';
+import { capturePatch, History } from './history';
+import { basicLabels, type LabelRenderer } from './labels';
+import { CANVAS_H, CANVAS_W, type LabelObject, type L10n, type PageRecord, type Rect, type SoundId } from './types';
+import type { Point, ToolContext } from './types';
+
+interface ToolBindings {
+  color(): string;
+  opt(id: string): string | number | boolean;
+  sound(id: SoundId): void;
+  say(text: L10n): void;
+}
+
+interface Gesture {
+  dirty?: Rect;
+  labels: LabelObject[];
+  random(): number;
+}
+
+export class Surface {
+  readonly element = document.createElement('div');
+  readonly ctx = viewport(CANVAS_W, CANVAS_H, true, true);
+  readonly paper = viewport(CANVAS_W, CANVAS_H, true);
+  readonly foreground = viewport();
+  readonly labels = viewport();
+  readonly overlay = viewport();
+  readonly onion = viewport();
+  private readonly snapshot = viewport(CANVAS_W, CANVAS_H, true, true);
+  private readonly histories = new Map<string, History>();
+  private hasForeground = false;
+  private labelObjects: LabelObject[] = [];
+  private labelRenderer = basicLabels;
+  private activeGesture?: Gesture;
+  private pageId = '';
+  private seed = 0;
+  private onionRequest = 0;
+  onChange = () => {};
+
+  constructor() {
+    this.element.className = 'sheet';
+    this.element.append(this.ctx.canvas, this.foreground.canvas, this.labels.canvas, this.onion.canvas, this.overlay.canvas);
+    this.onion.canvas.className = 'onion';
+  }
+
+  async load(page: PageRecord) {
+    const [bitmap, paper, foreground] = await Promise.all([
+      createImageBitmap(page.bitmap), createImageBitmap(page.paper),
+      page.foreground ? createImageBitmap(page.foreground) : null,
+    ]);
+    this.rollback();
+    this.pageId = page.id;
+    this.labelObjects = structuredClone(page.labels);
+    this.hasForeground = foreground !== null;
+    copyCanvas(this.ctx, bitmap);
+    copyCanvas(this.paper, paper);
+    this.foreground.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    if (foreground) this.foreground.drawImage(foreground, 0, 0);
+    bitmap.close();
+    paper.close();
+    foreground?.close();
+    this.renderLabels();
+    void this.showOnion();
+  }
+
+  async showOnion(page?: PageRecord) {
+    const request = ++this.onionRequest;
+    this.onion.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    if (!page) return;
+    const picture = await createImageBitmap(page.bitmap);
+    if (request === this.onionRequest) this.onion.drawImage(picture, 0, 0);
+    picture.close();
+  }
+
+  private committed() {
+    const bitmap = this.activeGesture ? this.snapshot.canvas : this.ctx.canvas;
+    const labels = structuredClone(this.activeGesture?.labels ?? this.labelObjects);
+    const thumb = viewport(240, 180, true);
+    thumb.drawImage(bitmap, 0, 0, 240, 180);
+    thumb.drawImage(this.foreground.canvas, 0, 0, 240, 180);
+    if (labels.length) {
+      thumb.save();
+      thumb.scale(240 / CANVAS_W, 180 / CANVAS_H);
+      this.labelRenderer.draw(thumb, labels);
+      thumb.restore();
+    }
+    return { bitmap, labels, thumb: thumb.canvas };
+  }
+
+  capture(page: PageRecord): PageRecord {
+    const current = this.committed();
+    return { ...page, bitmap: png(current.bitmap), thumb: png(current.thumb), labels: current.labels };
+  }
+
+  composite(target: CanvasRenderingContext2D) {
+    const { width, height } = target.canvas;
+    for (const layer of [this.ctx, this.foreground, this.labels]) target.drawImage(layer.canvas, 0, 0, width, height);
+  }
+
+  colorAt(p: Point): string {
+    const x = Math.min(CANVAS_W - 1, Math.max(0, Math.floor(p.x)));
+    const y = Math.min(CANVAS_H - 1, Math.max(0, Math.floor(p.y)));
+    let [r, g, b] = this.ctx.getImageData(x, y, 1, 1).data;
+    for (const layer of [this.foreground, this.labels]) {
+      const [red, green, blue, alpha] = layer.getImageData(x, y, 1, 1).data;
+      const coverage = alpha / 255;
+      r += (red - r) * coverage;
+      g += (green - g) * coverage;
+      b += (blue - b) * coverage;
+    }
+    return rgbToHex({ r, g, b });
+  }
+
+  private get history() {
+    let history = this.histories.get(this.pageId);
+    if (!history) {
+      history = new History();
+      this.histories.set(this.pageId, history);
+    }
+    return history;
+  }
+
+  get canUndo() { return this.history.canUndo; }
+  get canRedo() { return this.history.canRedo; }
+  get inGesture() { return this.activeGesture !== undefined; }
+
+  discardHistory(pageId: string) {
+    this.histories.delete(pageId);
+  }
+
+  undo() { this.restore('before'); }
+  redo() { this.restore('after'); }
+
+  private restore(direction: 'before' | 'after') {
+    this.rollback();
+    const step = direction === 'before' ? this.history.undo() : this.history.redo();
+    if (!step) return;
+    const bitmap = step.bitmap;
+    if (bitmap) {
+      const { x, y, w, h } = bitmap.area;
+      const data = new Uint8ClampedArray(bitmap[direction]);
+      this.ctx.putImageData(new ImageData(data, w, h), x, y);
+    }
+    if (step.labels) {
+      this.labelObjects = structuredClone(step.labels[direction]);
+      this.renderLabels();
+    }
+    this.onChange();
+  }
+
+  begin() {
+    if (this.activeGesture) return;
+    copyCanvas(this.snapshot, this.ctx.canvas);
+    this.activeGesture = { labels: structuredClone(this.labelObjects), random: seededRandom(++this.seed) };
+  }
+
+  commit() {
+    const gesture = this.activeGesture;
+    if (!gesture) return;
+    this.activeGesture = undefined;
+    this.clearOverlay();
+    const bitmap = gesture.dirty ? capturePatch(this.snapshot, this.ctx, gesture.dirty) : undefined;
+    const labels = JSON.stringify(gesture.labels) === JSON.stringify(this.labelObjects)
+      ? undefined : { before: gesture.labels, after: structuredClone(this.labelObjects) };
+    if (this.history.add({ bitmap, labels })) this.onChange();
+  }
+
+  rollback() {
+    this.clearOverlay();
+    const gesture = this.activeGesture;
+    if (!gesture) return;
+    this.activeGesture = undefined;
+    const rect = gesture.dirty ? clampRect(gesture.dirty) : undefined;
+    if (rect?.w && rect.h) this.ctx.putImageData(this.snapshot.getImageData(rect.x, rect.y, rect.w, rect.h), rect.x, rect.y);
+    this.labelObjects = gesture.labels;
+    this.renderLabels();
+  }
+
+  clearOverlay() { this.overlay.clearRect(0, 0, CANVAS_W, CANVAS_H); }
+
+  context(bindings: ToolBindings): ToolContext {
+    const foreground = () => this.hasForeground ? this.foreground.canvas : null;
+    const mark = (rect: Rect) => {
+      if (!this.activeGesture) return;
+      this.activeGesture.dirty = this.activeGesture.dirty ? unionRect(this.activeGesture.dirty, rect) : rect;
+    };
+    const idleRandom = seededRandom(0);
+    return {
+      width: CANVAS_W, height: CANVAS_H,
+      ctx: this.ctx, overlay: this.overlay, paper: this.paper.canvas, snapshot: this.snapshot.canvas,
+      get foreground() { return foreground(); },
+      get color() { return bindings.color(); },
+      // The selected tool's OptionSpec defines the value type at the call site.
+      opt: <T extends string | number | boolean>(id: string) => bindings.opt(id) as T,
+      markDirty: mark,
+      markAllDirty: () => mark({ x: 0, y: 0, w: CANVAS_W, h: CANVAS_H }),
+      clearOverlay: () => this.clearOverlay(),
+      commit: () => this.commit(),
+      rollback: () => this.rollback(),
+      random: () => (this.activeGesture?.random ?? idleRandom)(),
+      sound: bindings.sound,
+      say: bindings.say,
+      labels: {
+        list: () => this.labelObjects,
+        add: label => { this.labelObjects.push(structuredClone(label)); this.renderLabels(); },
+        update: (id, patch) => {
+          const label = this.labelObjects.find(item => item.id === id);
+          if (label) Object.assign(label, structuredClone(patch), { id });
+          this.renderLabels();
+        },
+        remove: id => { this.labelObjects = this.labelObjects.filter(item => item.id !== id); this.renderLabels(); },
+        at: p => this.labelRenderer.at(this.labels, this.labelObjects, p),
+      },
+    };
+  }
+
+  setLabelRenderer(renderer: LabelRenderer) {
+    this.labelRenderer = renderer;
+    this.renderLabels();
+  }
+
+  private renderLabels() {
+    this.labels.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    this.labelRenderer.draw(this.labels, this.labelObjects);
+  }
+}
