@@ -1,0 +1,4 @@
+.credits-list { display: grid; gap: 16px; }
+.credits-list h3, .credits-list p { margin: 0 0 6px; }
+.credits-list summary { display: list-item; align-content: center; min-height: 56px; cursor: pointer; }
+.credits-list pre { margin: 0 0 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }

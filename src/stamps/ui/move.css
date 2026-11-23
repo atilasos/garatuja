@@ -1,0 +1,5 @@
+.move-options { display: grid; gap: 10px; }
+.move-options .option-title { margin: 0; }
+.move-options .move-actions { border-top: 1px solid var(--edge); padding-top: 10px; }
+.move-options .choice { min-height: 65px; }
+.move-options .choice .icon { width: 30px; height: 30px; }
