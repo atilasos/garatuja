@@ -1,3 +1,5 @@
+import { png, viewport } from '../../core/canvas';
+import { createProject } from '../../core/document';
 import { t } from '../../core/i18n';
 import type { L10n, ProjectRecord } from '../../core/types';
 import type { App } from '../../ui/app';
@@ -15,6 +17,7 @@ const words = {
   title: { pt: 'Abrir trabalho', en: 'Open work' },
   works: { pt: 'Os meus trabalhos', en: 'My works' },
   tools: { pt: 'Ações da galeria', en: 'Gallery actions' },
+  template: { pt: 'Usar como modelo', en: 'Use as a template' },
   duplicate: { pt: 'Duplicar', en: 'Duplicate' },
   remove: { pt: 'Apagar', en: 'Delete' },
   confirm: { pt: 'Apagar este trabalho?', en: 'Delete this work?' },
@@ -238,11 +241,30 @@ export async function openWork(app: App, trash: Trash) {
         grid.querySelector<HTMLElement>(`[data-project="${copy.id}"] .gallery-open`)?.focus();
         app.say(words.copied);
       }));
+      const template = button(words.template, icons.new, () => app.run(async () => {
+        template.disabled = true;
+        try {
+          const source = (await app.documents.resolveProject(project)).pages[0];
+          const paper = viewport();
+          await app.surface.compositePage(source, paper);
+          if (closed) return;
+          const thumb = viewport(240, 180, true);
+          thumb.drawImage(paper.canvas, 0, 0, 240, 180);
+          const image = png(paper.canvas);
+          const work = createProject({ id: crypto.randomUUID(), bitmap: image, paper: image, thumb: png(thumb.canvas), labels: [], text: '' });
+          if (await app.documents.open(work)) {
+            close();
+            app.say(words.imported);
+          }
+        } finally {
+          template.disabled = false;
+        }
+      }));
       const remove = button(words.remove, extraIcons.trash, () => confirm());
       remove.dataset.focus = 'remove';
       const extra = galleryActions.all().filter(action => action.scope === 'project' && (action.available?.(app) ?? true))
         .map(action => button(action.label, action.icon, () => app.run(() => action.run(app, context(project)))));
-      actions.replaceChildren(duplicate, remove, ...extra);
+      actions.replaceChildren(duplicate, remove, template, ...extra);
       article.classList.remove('confirming');
     }
 
