@@ -1,44 +1,32 @@
-import { viewport } from '../core/canvas';
 import { t, speak } from '../core/i18n';
 import { tools } from '../core/registry';
 import type { State } from '../core/store';
 import type { L10n } from '../core/types';
+import { printLabel, printWork } from '../features/book/print';
+import { editWriting } from '../features/book/writing';
+import { pageStrip } from '../features/pages/strip';
 import type { App, WorkAction } from './app';
 import { art, button, h, pressed, replaceControls, roving } from './dom';
 import { icons } from './icons';
 import { OptionsPanel } from './options';
 import { palette } from './palette';
-import { authorLabel, editWriting, mixColor, showSettings, titleLabel, untitled, WorkField } from './work-fields';
+import { authorLabel, mixColor, showSettings, titleLabel, untitled, WorkField } from './work-fields';
 
 const words = {
   tools: { pt: 'Ferramentas', en: 'Tools' },
   colors: { pt: 'Cores', en: 'Colors' },
-  pages: { pt: 'Páginas', en: 'Pages' },
   actions: { pt: 'Ações do trabalho', en: 'Work actions' },
   files: { pt: 'Trabalho', en: 'Work' },
   history: { pt: 'Histórico', en: 'History' },
   undo: { pt: 'Desfazer', en: 'Undo' },
   redo: { pt: 'Refazer', en: 'Redo' },
   settings: { pt: 'Definições', en: 'Settings' },
-  print: { pt: 'Imprimir', en: 'Print' },
   listen: { pt: 'Ouvir', en: 'Listen' },
   paper: { pt: 'Folha de desenho', en: 'Drawing paper' },
   writing: { pt: 'O meu texto', en: 'My text' },
-  add: { pt: 'Adicionar página', en: 'Add page' },
   picker: { pt: 'Conta-gotas', en: 'Eyedropper' },
   mix: { pt: 'Misturar cor', en: 'Mix color' },
 } satisfies Record<string, L10n>;
-
-function printPage(app: App) {
-  const { title, author, audience } = app.store.get().project;
-  const canvas = viewport();
-  app.surface.composite(canvas);
-  const output = h('article', 'print-only', h('h1', '', title || t(untitled)), h('p', '', author),
-    h('p', '', audience), canvas.canvas, h('p', 'printed-text', app.documents.page.text));
-  document.body.append(output);
-  window.addEventListener('afterprint', () => output.remove(), { once: true });
-  window.print();
-}
 
 function actionButton(app: App, action: WorkAction) {
   const control = button(action.label, action.icon, () => app.run(() => action.run(app)));
@@ -50,7 +38,7 @@ export function mountShell(app: App, root: HTMLElement) {
   const title = new WorkField(titleLabel, untitled, value => app.documents.editProject({ title: value }));
   const author = new WorkField(authorLabel, { pt: 'O teu nome', en: 'Your name' }, value => app.documents.editProject({ author: value }));
   const brand = h('div', 'brand', art(icons.pingo), h('span', '', t({ pt: 'Garatuja', en: 'Garatuja' })));
-  const pages = h('div', 'page-strip');
+  const pages = pageStrip(app);
   const preferences = h('div', 'preferences');
   const header = h('header', 'workbar', brand, h('div', 'work-fields', title.element, author.element), pages, preferences);
   const files = h('div', 'file-actions');
@@ -96,9 +84,6 @@ export function mountShell(app: App, root: HTMLElement) {
     const { locale, level } = state.settings;
     const language = !previous || locale !== previous.settings.locale;
     const settings = language || state.settings !== previous?.settings;
-    const pageChanged = !previous || state.pageId !== previous.pageId ||
-      state.project.pages.length !== previous.project.pages.length ||
-      state.project.pages.some((page, i) => page.id !== previous.project.pages[i]?.id);
     root.classList.toggle('left-handed', state.settings.leftHanded);
     root.classList.toggle('high-contrast', state.settings.highContrast);
     app.surface.element.classList.toggle('large-cursor', state.settings.largeCursor);
@@ -107,29 +92,6 @@ export function mountShell(app: App, root: HTMLElement) {
     title.update(state.project.title);
     author.update(state.project.author);
     title.input.disabled = author.input.disabled = state.busy;
-
-    if (language || pageChanged) {
-      const items = state.project.pages.map((page, index) => {
-        const label = { pt: `Página ${index + 1}`, en: `Page ${index + 1}` };
-        const item = button(label, icons.new, () => app.run(() => app.documents.select(page.id)), 'page');
-        item.dataset.focus = page.id;
-        pressed(item, page.id === state.pageId);
-        return item;
-      });
-      const add = button({ pt: 'Adicionar', en: 'Add' }, icons.plus, () => app.run(() => app.documents.add()), 'add-page');
-      add.setAttribute('aria-label', t(words.add));
-      add.dataset.focus = 'add';
-      replaceControls(pages, [...items, add]);
-      refreshPages();
-      if (pageChanged) {
-        const current = items.find(item => item.getAttribute('aria-pressed') === 'true');
-        if (current) pages.scrollLeft = Math.max(0, current.offsetLeft - pages.offsetLeft - Math.max(0, (pages.clientWidth - current.offsetWidth) / 2));
-      }
-    }
-
-    if (state.busy !== previous?.busy || pageChanged) {
-      for (const control of pages.querySelectorAll('button')) control.setAttribute('aria-disabled', String(state.busy));
-    }
 
     if (settings) {
       const sound = state.settings.sound;
@@ -154,7 +116,7 @@ export function mountShell(app: App, root: HTMLElement) {
     if (language || settings || nextActions.length !== actions.length || nextActions.some((action, i) => action !== actions[i])) {
       actions = nextActions;
       actionButtons = actions.map(action => [action, actionButton(app, action)]);
-      const print = button(words.print, icons.print, () => printPage(app));
+      const print = button(printLabel, icons.print, () => app.run(() => printWork(app)));
       print.dataset.focus = 'print';
       const basic = actionButtons.filter(([action]) => action.placement === 'files').map(([, control]) => control);
       if (state.settings.allowPrint) basic.push(print);
@@ -188,7 +150,7 @@ export function mountShell(app: App, root: HTMLElement) {
         });
       });
       help.replaceChildren(art(icons.pingo), hint, listen);
-      for (const [bar, label] of [[pages, words.pages], [preferences, words.settings], [files, words.files],
+      for (const [bar, label] of [[preferences, words.settings], [files, words.files],
         [featureActions, words.actions], [history, words.history], [toolbox, words.tools], [colors, words.colors]] as const) {
         bar.setAttribute('aria-label', t(label));
       }
@@ -237,7 +199,6 @@ export function mountShell(app: App, root: HTMLElement) {
     hint.textContent = t(state.hint);
   }
 
-  const refreshPages = roving(pages, words.pages);
   const refreshPreferences = roving(preferences, words.settings);
   const refreshFiles = roving(files, words.files);
   const refreshActions = roving(featureActions, words.actions);

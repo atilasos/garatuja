@@ -6,8 +6,6 @@ import { icons } from './icons';
 
 export const titleLabel = { pt: 'Título', en: 'Title' };
 export const authorLabel = { pt: 'Autor', en: 'Author' };
-const audienceLabel = { pt: 'Para quem é?', en: 'Who is it for?' };
-const textLabel = { pt: 'O meu texto', en: 'My text' };
 export const untitled = { pt: 'Sem título', en: 'Untitled' };
 
 export class WorkField {
@@ -24,19 +22,6 @@ export class WorkField {
     this.input.placeholder = t(this.placeholder);
     if (this.input.value !== value) this.input.value = value;
   }
-}
-
-export function editWriting(app: App) {
-  const audience = new WorkField(audienceLabel, { pt: 'Escreve para quem é', en: 'Write who it is for' }, value => app.documents.editProject({ audience: value }));
-  audience.update(app.store.get().project.audience);
-  const text = h('textarea', 'writing');
-  text.value = app.documents.page.text;
-  text.autofocus = true;
-  text.addEventListener('input', () => app.documents.editText(text.value));
-  app.modal({
-    title: textLabel,
-    content: h('div', 'dialog-stack', audience.element, h('label', 'work-field', h('span', '', t(textLabel)), text)),
-  });
 }
 
 export function showSettings(app: App) {

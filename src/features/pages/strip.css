@@ -1,0 +1,85 @@
+.page-strip-component, .page-strip-scroller, .page-strip-controls, .page-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.page-strip-scroller { flex: 1; overflow: hidden; }
+.page-strip-scroller > button, .page-strip-controls > button {
+  flex: none;
+  flex-direction: column;
+  padding: 3px 5px;
+  font-size: .75rem;
+}
+.page-strip-scroller > button { width: 56px; padding-inline: 2px; font-size: .69rem; }
+.page-strip-scroller > button:disabled { opacity: .54; }
+.page-strip-component .icon { width: 26px; height: 26px; }
+.page-strip {
+  flex: 1;
+  overflow-x: auto;
+  padding: 5px;
+  position: relative;
+  scrollbar-width: thin;
+}
+.page-strip .page {
+  flex: none;
+  padding: 4px;
+  gap: 4px;
+  min-width: 78px;
+}
+.page-strip .page img {
+  width: 53px;
+  height: 40px;
+  border-radius: 3px;
+  border: 1px solid var(--edge);
+  object-fit: cover;
+  pointer-events: none;
+}
+.page-strip .page[data-drop] { outline: 3px dashed var(--focus); outline-offset: -2px; }
+.page-ghost-tags {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px;
+  pointer-events: none;
+}
+.page-ghost-tags span {
+  background: #fffdf8;
+  color: #332b25;
+  border: 2px solid #45637a;
+  border-radius: 8px;
+  padding: 3px 9px;
+  font-size: .8rem;
+  font-weight: 700;
+}
+.page-ghost-next { margin-left: auto; border-style: dashed !important; border-color: #684aad !important; }
+.page-arrangement {
+  position: fixed;
+  inset: auto;
+  width: min(330px, calc(100vw - 16px));
+  margin: 0;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--edge);
+  border-radius: 13px;
+  padding: 8px;
+  box-shadow: 0 4px 14px #352b2330;
+}
+.page-arrangement-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 1120px) {
+  .page-strip-controls > button { width: 64px; gap: 2px; padding-inline: 2px; }
+  .page-strip .page { flex-direction: column; gap: 1px; min-width: 56px; padding: 3px; }
+  .page-strip .page img { width: 39px; height: 29px; }
+}
+@media (orientation: portrait), (max-width: 980px) {
+  .page-strip-component { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (max-width: 550px) {
+  .page-strip-component { grid-row: 3; flex-wrap: wrap; }
+  .page-strip-scroller { flex-basis: 100%; }
+  .page-strip-controls { flex-wrap: wrap; }
+}
