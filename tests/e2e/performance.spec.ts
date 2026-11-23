@@ -60,7 +60,7 @@ test('measures the drawing desk at Chromium CPU 4× slowdown', async ({ page, co
 
     await button(page, 'Magia').click();
     await button(page, 'Negativo').click();
-    await button(page, 'Página inteira').click();
+    await button(page, 'Em toda a folha').click();
     await page.waitForFunction(() => [...document.querySelectorAll('.choice-preview')]
       .every(canvas => canvas instanceof HTMLCanvasElement && canvas.dataset.magicReady === '1'));
     magic.push(await measure('pointerdown', () => page.mouse.click(x, y)));
