@@ -4,6 +4,7 @@ import { floodFill, floodRegion, paintRegion, type Painter } from '../../src/cor
 import {
   defaultGradient, fillPainter, gradientEnd, gradientPainter, patternPainter, patternPaper, type PatternKind,
 } from '../../src/core/tooling/fill-styles';
+import { timeBudget } from './time-budget';
 
 const red: Rgb = { r: 200, g: 24, b: 28 };
 const white: Rgb = { r: 255, g: 255, b: 255 };
@@ -248,7 +249,7 @@ describe('speed of a full-page fill', () => {
         expect(result?.dirty.w).toBeGreaterThan(1500);
       }
       timings[mode] = Math.round(best);
-      expect(best, `${mode} took ${best} ms`).toBeLessThan(150);
+      expect(best, `${mode} took ${best} ms`).toBeLessThan(timeBudget(150));
     }
     console.info('full-page fill timings (ms):', JSON.stringify(timings));
   });

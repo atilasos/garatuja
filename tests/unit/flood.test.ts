@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { floodFill } from '../../src/core/flood';
+import { timeBudget } from './time-budget';
 
 const red = { r: 200, g: 24, b: 28 };
 const pixels = (width: number, height: number) => ({ width, height, data: new Uint8ClampedArray(width * height * 4).fill(255) });
@@ -33,5 +34,5 @@ it('fills the entire logical page within 150 ms', () => {
   const elapsed = performance.now() - start;
   expect(result?.dirty).toEqual({ x: 0, y: 0, w: 1600, h: 1200 });
   expect(result?.data.at(-4)).toBe(200);
-  expect(elapsed).toBeLessThan(150);
+  expect(elapsed).toBeLessThan(timeBudget(150));
 });

@@ -3,6 +3,7 @@ import { magic } from '../../src/core/registry';
 import type { PaintPointer, ToolContext } from '../../src/core/types';
 import { makeCanvas } from './soft-canvas';
 import { describe, expect, it } from 'vitest';
+import { timeBudget } from './time-budget';
 
 function pointer(x: number, y: number): PaintPointer {
   return { x, y, t: 0, pressure: .5, pointerType: 'mouse', constrain: false };
@@ -97,7 +98,7 @@ describe('magic effects', () => {
       if (!effect?.whole) throw new Error('Missing whole-page sample');
       const started = performance.now();
       effect.whole(context);
-      expect(performance.now() - started).toBeLessThan(500);
+      expect(performance.now() - started).toBeLessThan(timeBudget(500));
     }
   });
 });
