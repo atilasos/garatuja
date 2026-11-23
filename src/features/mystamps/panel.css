@@ -1,0 +1,24 @@
+.stamp-panel, .stamp-transforms { display: grid; gap: 8px; }
+.stamp-panel button { min-width: 0; min-height: 48px; }
+.stamp-library-header, .stamp-categories-button { width: 100%; }
+.stamp-categories-button { justify-content: flex-start; }
+.stamp-category-name { margin: 0; font-size: .87rem; color: var(--muted); }
+.stamp-gallery { max-height: 180px; padding: 3px; overflow-y: auto; scrollbar-width: thin; }
+.stamp-gallery .stamp-tile { min-height: 78px; line-height: 1.15; }
+.stamp-thumbnail { width: auto; height: 40px; max-width: 100%; object-fit: contain; pointer-events: none; }
+.stamp-categories { padding: 3px; }
+.stamp-categories .stamp-category { min-height: 66px; line-height: 1.15; }
+.stamp-category-image { height: 28px; max-width: 100%; object-fit: contain; }
+.stamp-empty { margin: 4px 0; font-size: .86rem; }
+.stamp-transforms { border-top: 1px solid var(--edge); padding-top: 8px; }
+.stamp-transforms .option-title { margin: 0; }
+.stamp-sizes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.stamp-sizes .stamp-size { min-height: 52px; padding: 0; flex-direction: column; gap: 0; }
+.stamp-size .icon { width: 28px; height: 28px; }
+.stamp-size .button-label { font-size: .68rem; }
+.stamp-toggle-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.stamp-toggle-row .stamp-transform { padding: 3px; gap: 3px; line-height: 1.1; font-size: .75rem; }
+.stamp-transform .icon { width: 23px; height: 23px; }
+.stamp-angle-title { display: flex; justify-content: space-between; }
+.stamp-angle-value { font-variant-numeric: tabular-nums; }
+.stamp-angle-slider { width: 100%; min-height: 48px; margin: 0; accent-color: #23578d; }

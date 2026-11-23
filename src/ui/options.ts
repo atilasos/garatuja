@@ -59,13 +59,14 @@ export class OptionsPanel {
     this.list.addEventListener('scroll', () => this.updateScroll());
   }
 
-  update(tool: Tool, state: State, set: OptionSetter, value: (spec: OptionSpec) => string | number | boolean) {
+  update(tool: Tool, state: State, set: OptionSetter, value: (spec: OptionSpec) => string | number | boolean, custom?: HTMLElement) {
     const top = tool === this.tool ? this.list.scrollTop : 0;
     this.tool = tool;
     this.title.textContent = t({ pt: 'Opções', en: 'Options' });
     this.element.setAttribute('aria-label', this.title.textContent);
     const sections: HTMLElement[] = [];
-    for (const spec of tool.options ?? []) {
+    if (custom) sections.push(custom);
+    for (const spec of custom ? [] : tool.options ?? []) {
       const current = value(spec);
       const label = h('h3', 'option-title', t(spec.label));
       if (spec.kind === 'size') {

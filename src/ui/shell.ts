@@ -211,7 +211,7 @@ export function mountShell(app: App, root: HTMLElement) {
 
     if (language || state.toolId !== previous?.toolId || state.color !== previous.color ||
       level !== previous.settings.level || state.options !== previous.options || state.registryVersion !== previous.registryVersion) {
-      options.update(app.tool, state, (id, value) => app.setOption(id, value), spec => app.option(app.tool, spec));
+      options.update(app.tool, state, (id, value) => app.setOption(id, value), spec => app.option(app.tool, spec), app.renderOptions());
     }
 
     if (language || state.color !== previous?.color || state.pickingColor !== previous?.pickingColor) {

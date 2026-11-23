@@ -46,6 +46,7 @@ export class App {
   readonly input: PointerInput;
   private readonly sounds = new Sounds();
   private readonly actions = new Map<string, WorkAction>();
+  private readonly optionPanels = new Map<string, (app: App) => HTMLElement>();
   private readonly screens = new Map<string, Screen>();
 
   constructor(readonly surface: Surface, readonly storage: Storage, project: ProjectRecord, pageId: string, settings: Settings) {
@@ -78,6 +79,14 @@ export class App {
     const tool = tools.get(this.store.get().toolId);
     if (!tool) throw new Error('The active tool is unavailable');
     return tool;
+  }
+
+  registerOptions(toolId: string, render: (app: App) => HTMLElement) {
+    this.optionPanels.set(toolId, render);
+  }
+
+  renderOptions() {
+    return this.optionPanels.get(this.tool.id)?.(this);
   }
 
   get workActions() {

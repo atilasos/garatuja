@@ -1,5 +1,11 @@
 import type { ProjectRecord } from './types';
 
+export interface StoredStamp {
+  id: string;
+  picture: Blob;
+  number: number;
+}
+
 function result<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
@@ -11,12 +17,38 @@ export class Storage {
   private constructor(private db: IDBDatabase) {}
 
   static async open(): Promise<Storage> {
-    const request = indexedDB.open('garatuja', 1);
-    request.onupgradeneeded = () => {
-      request.result.createObjectStore('projects', { keyPath: 'id' });
-      request.result.createObjectStore('workspace');
+    const request = indexedDB.open('garatuja', 2);
+    request.onupgradeneeded = event => {
+      if (event.oldVersion < 1) {
+        request.result.createObjectStore('projects', { keyPath: 'id' });
+        request.result.createObjectStore('workspace');
+      }
+      if (event.oldVersion < 2) request.result.createObjectStore('stamps', { keyPath: 'id' });
     };
-    return new Storage(await result(request));
+    const db = await result(request);
+    db.onversionchange = () => db.close();
+    return new Storage(db);
+  }
+
+  listStamps(): Promise<StoredStamp[]> {
+    return result(this.db.transaction('stamps').objectStore('stamps').getAll());
+  }
+
+  saveStamp(stamp: StoredStamp): Promise<void> {
+    return this.editStamps(store => { store.put(stamp); });
+  }
+
+  removeStamp(id: string): Promise<void> {
+    return this.editStamps(store => { store.delete(id); });
+  }
+
+  private editStamps(edit: (store: IDBObjectStore) => void): Promise<void> {
+    const transaction = this.db.transaction('stamps', 'readwrite', { durability: 'strict' });
+    edit(transaction.objectStore('stamps'));
+    return new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onabort = () => reject(transaction.error);
+    });
   }
 
   list(): Promise<ProjectRecord[]> {

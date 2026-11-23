@@ -21,7 +21,7 @@ export class PointerInput {
     element.addEventListener('lostpointercapture', event => {
       if (!this.active?.fixed) this.lost(event);
     });
-    element.addEventListener('pointerleave', () => { if (!this.active) surface.clearOverlay(); });
+    element.addEventListener('pointerleave', () => { if (!this.active && !surface.inGesture) surface.clearOverlay(); });
     element.addEventListener('contextmenu', event => event.preventDefault());
     window.addEventListener('pointerdown', event => {
       if (event.pointerType !== 'touch') return;

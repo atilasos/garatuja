@@ -16,6 +16,8 @@ export function stampImage(stamp: StampDef): HTMLImageElement {
   return image;
 }
 
+export function forgetStampImage(src: string) { images.delete(src); }
+
 export function drawStamp(ctx: CanvasRenderingContext2D, stamp: StampDef, x: number, y: number, size: number,
   color: string, mirror = false, flip = false) {
   const image = stampImage(stamp);
