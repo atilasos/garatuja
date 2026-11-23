@@ -54,6 +54,7 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
   let pageIndex = first;
   let player: Player | undefined;
   let closed = false;
+  let closing = false;
   let wasFull = false;
   const animatePlay = { pt: 'Reproduzir animação', en: 'Play animation' };
   const animateBack = { pt: 'Voltar à página', en: 'Back to the page' };
@@ -89,14 +90,14 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
     pressed(speed, ms === delay);
     return speed;
   }));
-  const closeButton = button({ pt: 'Sair', en: 'Exit' }, icons.close, () => close());
+  const closeButton = button({ pt: 'Sair', en: 'Exit' }, icons.close, () => dismiss());
   const content = h('div', presenting ? 'book-reader class-presentation' : 'book-reader',
     presenting ? h('header', 'book-presentation-bar', h('h2', '', t(title)), slides ? automatic : animation, slides ? speedRow : null, closeButton) : null,
     display, h('nav', 'book-navigation', previous, h('div', '', position, boundary), next));
 
   function fullscreenChanged() {
     if (document.fullscreenElement === content) wasFull = true;
-    else if (wasFull) close();
+    else if (wasFull) dismiss();
   }
 
   const close = app.modal({ title, content, onClose: () => {
@@ -108,10 +109,25 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
   } });
   const dialog = content.closest('dialog');
   dialog?.classList.add(presenting ? 'presentation-dialog' : 'book-dialog');
+  dialog?.addEventListener('cancel', event => {
+    if (!presenting) return;
+    event.preventDefault();
+    dismiss();
+  });
   if (presenting) {
     document.addEventListener('fullscreenchange', fullscreenChanged);
     void content.requestFullscreen?.().catch(() => {});
     position.focus();
+  }
+
+  function dismiss() {
+    if (closing || closed) return;
+    closing = true;
+    if (!feedback) { close(); return; }
+    app.run(async () => {
+      await app.documents.save();
+      close();
+    });
   }
 
   function closeAnimation() {
@@ -133,7 +149,7 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
 
   function schedule() {
     window.clearTimeout(timer);
-    if (autoplay && !closed) timer = window.setTimeout(() => move(1), delay);
+    if (autoplay && !closed && !closing) timer = window.setTimeout(() => move(1), delay);
   }
 
   function render() {
@@ -186,7 +202,7 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
   dialog?.addEventListener('keydown', event => {
     if (event.key === 'Escape' && presenting) {
       event.preventDefault();
-      close();
+      dismiss();
       return;
     }
     if (event.target instanceof HTMLElement && event.target.matches('input, textarea, select, [contenteditable="true"]')) return;

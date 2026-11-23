@@ -278,6 +278,15 @@ export class Documents {
     }
   }
 
+  /**
+   * Queue the current revision before a UI action that may be followed by a
+   * reload, even when another revision still owns the normal write queue.
+   */
+  checkpoint() {
+    this.stageOnExit();
+    return this.save();
+  }
+
   private stageOnExit = () => {
     if (!this.pending || this.stopped) return;
     try {

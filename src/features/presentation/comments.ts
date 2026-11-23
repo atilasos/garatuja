@@ -40,7 +40,7 @@ export function commentsPanel(app: App) {
 
   function update(comments: Comment[]) {
     app.documents.editProject({ comments });
-    app.run(() => app.documents.save());
+    app.run(() => app.documents.checkpoint());
     render();
   }
 
