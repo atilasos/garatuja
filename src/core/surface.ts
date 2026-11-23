@@ -1,6 +1,6 @@
 import { copyCanvas, png, viewport } from './canvas';
 import { clampRect, rgbToHex, seededRandom, unionRect } from './draw';
-import { capturePatch, History } from './history';
+import { applyDelta, capturePatch, History, HISTORY_BUDGET } from './history';
 import { basicLabels, type LabelRenderer } from './labels';
 import { CANVAS_H, CANVAS_W, type LabelObject, type L10n, type PageRecord, type Rect, type SoundId } from './types';
 import type { Point, ToolContext } from './types';
@@ -50,6 +50,11 @@ export class Surface {
     ]);
     this.rollback();
     this.pageId = page.id;
+    const history = this.histories.get(page.id);
+    if (history) {
+      this.histories.delete(page.id);
+      this.histories.set(page.id, history);
+    }
     this.labelObjects = structuredClone(page.labels);
     this.hasForeground = foreground !== null;
     copyCanvas(this.ctx, bitmap);
@@ -74,10 +79,16 @@ export class Surface {
     if (following) {
       await this.compositePage(following, ghost);
       if (request !== this.onionRequest) return;
-      ghost.fillStyle = '#684aad44';
-      ghost.fillRect(0, 0, 800, 600);
+      const image = ghost.getImageData(0, 0, 800, 600);
+      // Lift the red and blue channels of dark marks. White stays neutral.
+      for (let i = 0; i < image.data.length; i += 4) {
+        image.data[i] += (255 - image.data[i]) * .25;
+        image.data[i + 2] += (255 - image.data[i + 2]) * .5;
+      }
+      ghost.putImageData(image, 0, 0);
       this.onion.save();
       this.onion.globalAlpha = page ? .5 : 1;
+      this.onion.globalCompositeOperation = 'multiply';
       this.onion.drawImage(ghost.canvas, 0, 0, CANVAS_W, CANVAS_H);
       this.onion.restore();
     }
@@ -163,8 +174,23 @@ export class Surface {
   get canRedo() { return this.history.canRedo; }
   get inGesture() { return this.activeGesture !== undefined; }
 
-  discardHistory(pageId: string) {
-    this.histories.delete(pageId);
+  get historyBytes() {
+    return [...this.histories.values()].reduce((total, history) => total + history.retainedBytes, 0);
+  }
+
+  discardHistory(pageId?: string) {
+    if (pageId === undefined) this.histories.clear();
+    else this.histories.delete(pageId);
+  }
+
+  private trimHistory() {
+    let excess = this.historyBytes - HISTORY_BUDGET;
+    for (const [id, history] of this.histories) {
+      if (excess <= 0) break;
+      if (id === this.pageId) continue;
+      excess -= history.retainedBytes;
+      this.discardHistory(id);
+    }
   }
 
   undo() { this.restore('before'); }
@@ -177,8 +203,9 @@ export class Surface {
     const bitmap = step.bitmap;
     if (bitmap) {
       const { x, y, w, h } = bitmap.area;
-      const data = new Uint8ClampedArray(bitmap[direction]);
-      this.ctx.putImageData(new ImageData(data, w, h), x, y);
+      const image = this.ctx.getImageData(x, y, w, h);
+      applyDelta(image.data, bitmap);
+      this.ctx.putImageData(image, x, y);
     }
     if (step.labels) {
       this.labelObjects = structuredClone(step.labels[direction]);
@@ -201,7 +228,10 @@ export class Surface {
     const bitmap = gesture.dirty ? capturePatch(this.snapshot, this.ctx, gesture.dirty) : undefined;
     const labels = JSON.stringify(gesture.labels) === JSON.stringify(this.labelObjects)
       ? undefined : { before: gesture.labels, after: structuredClone(this.labelObjects) };
-    if (this.history.add({ bitmap, labels })) this.onChange();
+    if (this.history.add({ bitmap, labels })) {
+      this.trimHistory();
+      this.onChange();
+    }
   }
 
   rollback() {

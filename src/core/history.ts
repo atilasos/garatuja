@@ -7,8 +7,13 @@ interface Patch {
   after: Uint8ClampedArray;
 }
 
+interface BitmapDelta {
+  area: Rect;
+  xor: Uint8Array;
+}
+
 interface Step {
-  bitmap?: Patch;
+  bitmap?: BitmapDelta;
   labels?: { before: LabelObject[]; after: LabelObject[] };
 }
 
@@ -50,50 +55,68 @@ export function pixelPatch(area: Rect, before: Uint8ClampedArray, after: Uint8Cl
   };
 }
 
-function bytes(step: Step) {
-  return (step.bitmap?.before.byteLength ?? 0) * 2 + (step.labels ? JSON.stringify(step.labels).length * 2 : 0);
+// The drawing bitmap is opaque. An RGB XOR can reconstruct either side from
+// the other, with a fixed upper bound even for incompressible full-page art.
+export function bitmapDelta(patch: Patch): BitmapDelta {
+  const { area, before, after } = patch;
+  const xor = new Uint8Array(area.w * area.h * 3);
+  for (let src = 0, dst = 0; src < before.length; src += 4) {
+    xor[dst++] = before[src] ^ after[src];
+    xor[dst++] = before[src + 1] ^ after[src + 1];
+    xor[dst++] = before[src + 2] ^ after[src + 2];
+  }
+  return { area, xor };
 }
+
+export function applyDelta(data: Uint8ClampedArray, { xor }: BitmapDelta) {
+  for (let dst = 0, src = 0; dst < data.length; dst += 4) {
+    data[dst] ^= xor[src++];
+    data[dst + 1] ^= xor[src++];
+    data[dst + 2] ^= xor[src++];
+  }
+}
+
+function bytes(step: Step) {
+  return (step.bitmap?.xor.byteLength ?? 0) + (step.labels ? JSON.stringify(step.labels).length * 2 : 0);
+}
+
+export const HISTORY_BUDGET = 168 * 1024 * 1024;
 
 export class History {
   private past: Step[] = [];
   private future: Step[] = [];
-  private pastBytes = 0;
+  retainedBytes = 0;
 
-  // Enough space for 30 consecutive full-page RGBA replacements.
-  constructor(private limit = 512 * 1024 * 1024, private steps = 60) {}
+  constructor(private limit = HISTORY_BUDGET, private steps = 60) {}
 
   get canUndo() { return this.past.length > 0; }
   get canRedo() { return this.future.length > 0; }
 
   add(step: Step): boolean {
     if (!step.bitmap && !step.labels) return false;
+    for (const undone of this.future) this.retainedBytes -= bytes(undone);
     this.future = [];
-    this.push(step);
+    this.past.push(step);
+    this.retainedBytes += bytes(step);
+    while (this.past.length > this.steps || this.retainedBytes > this.limit) this.trim();
     return true;
+  }
+
+  trim() {
+    const oldest = this.past.shift() ?? this.future.shift();
+    if (oldest) this.retainedBytes -= bytes(oldest);
   }
 
   undo() {
     const step = this.past.pop();
-    if (step) {
-      this.pastBytes -= bytes(step);
-      this.future.push(step);
-    }
+    if (step) this.future.push(step);
     return step;
   }
 
   redo() {
     const step = this.future.pop();
-    if (step) this.push(step);
+    if (step) this.past.push(step);
     return step;
-  }
-
-  private push(step: Step) {
-    this.past.push(step);
-    this.pastBytes += bytes(step);
-    while (this.past.length > this.steps || this.pastBytes > this.limit) {
-      const oldest = this.past.shift();
-      if (oldest) this.pastBytes -= bytes(oldest);
-    }
   }
 }
 
@@ -101,5 +124,6 @@ export function capturePatch(before: CanvasRenderingContext2D, after: CanvasRend
   const area = clampRect(rect, after.canvas.width, after.canvas.height);
   if (!area.w || !area.h) return;
   const read = (ctx: CanvasRenderingContext2D) => ctx.getImageData(area.x, area.y, area.w, area.h).data;
-  return pixelPatch(area, read(before), read(after));
+  const patch = pixelPatch(area, read(before), read(after));
+  return patch && bitmapDelta(patch);
 }
