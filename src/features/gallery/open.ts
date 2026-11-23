@@ -9,7 +9,7 @@ import { showReader, slidesLabel } from '../book/reader';
 import { pageIcons } from '../pages/icons';
 import { extraIcons } from '../settings/icons';
 import { galleryActions, type GalleryContext } from './actions';
-import type { Trash } from './trash';
+import { deleteFailure, type Trash } from './trash';
 import { duplicateProject, projectFromImage } from './works';
 
 const words = {
@@ -81,7 +81,7 @@ export function chooseImage(app: App, done: () => void) {
 }
 
 export async function openWork(app: App, trash: Trash) {
-  await app.documents.save();
+  await app.documents.save(false);
   const urls: string[] = [];
   const toolbar = h('div', 'gallery-toolbar');
   const refreshToolbar = roving(toolbar, words.tools);
@@ -114,12 +114,17 @@ export async function openWork(app: App, trash: Trash) {
   }, 'primary');
   const refreshFromStorage = () => { if (!closed) app.run(refresh); };
   const stopListening = trash.onChange(refreshFromStorage);
+  const stopSettings = app.store.subscribe(({ settings }, previous) => {
+    if (settings.allowImport !== previous.settings.allowImport) renderToolbar();
+  });
   app.storage.changes.addEventListener('message', refreshFromStorage);
   const close = app.modal({
     title: words.title, content,
     onClose() {
       closed = true;
+      trash.onFailure = undefined;
       stopListening();
+      stopSettings();
       app.storage.changes.removeEventListener('message', refreshFromStorage);
       app.removeSaveRecovery(recovery);
       urls.forEach(url => URL.revokeObjectURL(url));
@@ -138,6 +143,8 @@ export async function openWork(app: App, trash: Trash) {
       status.textContent = t(message);
     },
   });
+
+  trash.onFailure = changed => context().notice(deleteFailure(changed), true);
 
   function renderToolbar() {
     const controls = [choose];
@@ -204,7 +211,7 @@ export async function openWork(app: App, trash: Trash) {
       if (open.disabled) return;
       open.disabled = true;
       try {
-        const fresh = await app.storage.get(project.id) ?? project;
+        const fresh = app.documents.recoveryProjects.find(local => local.id === project.id) ?? await app.storage.get(project.id) ?? project;
         if (!await app.documents.open(fresh, undefined, true)) return;
         close();
         app.say(words.opened);
@@ -257,14 +264,20 @@ export async function openWork(app: App, trash: Trash) {
   async function removeWork(project: ProjectRecord) {
     if (app.store.get().project.id === project.id) {
       // Leave the work being deleted: start on a fresh sheet instead.
-      if (await app.documents.save()) await app.documents.open(createProject(createPage()));
+      const editedHere = app.documents.hasUnsavedChanges;
+      if (!await app.documents.save()) return;
+      const current = app.store.get().project;
+      await app.documents.open(createProject(createPage()));
+      if (editedHere) project = current;
     }
     trash.put(project);
   }
 
   async function refresh() {
     if (closed) return;
-    projects = (await app.storage.list())
+    const all = new Map((await app.storage.list()).map(work => [work.id, work]));
+    for (const local of app.documents.recoveryProjects) all.set(local.id, local);
+    projects = [...all.values()]
       .filter(project => !trash.has(project.id) && project.pages.length)
       .sort((a, b) => b.updatedAt - a.updatedAt);
     if (closed) return;

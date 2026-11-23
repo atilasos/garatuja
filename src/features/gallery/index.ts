@@ -6,7 +6,7 @@ import { newWork } from './new-work';
 import { openWork } from './open';
 import { paintStarter } from './papers';
 import { saveWork } from './save';
-import { Trash } from './trash';
+import { deleteFailure, Trash } from './trash';
 
 declare global {
   interface Window {
@@ -18,7 +18,8 @@ declare global {
 export default {
   id: 'gallery',
   mount(app) {
-    const trash = new Trash(app.storage);
+    const trash = new Trash(app.storage, undefined, changed => app.notify(deleteFailure(changed)));
+    app.isTrashed = id => trash.has(id);
     app.onClearData(() => trash.discard());
     app.registerScreen('gallery.new', newWork);
     app.registerScreen('gallery.open', app => openWork(app, trash));

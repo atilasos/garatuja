@@ -410,6 +410,7 @@ test('works offline after the first visit, including new dialogs', async ({ page
   await context.setOffline(true);
   await page.reload();
   await page.waitForFunction(() => Boolean(window.__garatuja));
+  await page.locator('.sheet').click();
   await newWork(page, 'scene-space');
   await choose(page, 'Abrir');
   await expect(page.getByRole('dialog', { name: 'Abrir trabalho' }).getByRole('listitem')).toHaveCount(2);

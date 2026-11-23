@@ -54,7 +54,7 @@ function chooseArchive(app: App, gallery: GalleryContext) {
       const count = projects.length;
       const notice: L10n = count === 1 ? { pt: 'Importaste um trabalho.', en: 'You imported one work.' }
         : { pt: `Importaste ${count} trabalhos.`, en: `You imported ${count} works.` };
-      app.notify(notice);
+      app.confirm(notice);
     } catch (error) {
       console.error(error);
       if (gallery.isOpen()) gallery.notice(saveFailed, true);
@@ -74,6 +74,7 @@ export default {
     galleryActions.add({
       id: 'export-png', scope: 'gallery', label: { pt: 'Guardar página em PNG', en: 'Save page as PNG' }, icon: pageIcons.download,
       run(app) {
+        app.input.flushPending();
         const canvas = viewport();
         app.surface.composite(canvas);
         download(png(canvas.canvas), app.store.get().project.title, 'png');
@@ -86,7 +87,9 @@ export default {
         if (!entry) return;
         gallery.notice(preparing);
         try {
-          const project = await app.storage.get(entry.id) ?? entry;
+          const current = app.documents.snapshot();
+          const project = current.id === entry.id && app.documents.hasUnsavedChanges ? current
+            : app.documents.recoveryProjects.find(work => work.id === entry.id) ?? await app.storage.get(entry.id) ?? entry;
           const file = await serializeWorks([project]);
           if (!gallery.isOpen()) return;
           download(file, project.title, 'garatuja');

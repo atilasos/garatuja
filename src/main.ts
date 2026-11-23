@@ -39,7 +39,6 @@ async function start(target: HTMLElement) {
     pt: 'Recuperei as tuas alterações numa cópia do trabalho.',
     en: 'I recovered your changes in a copy of the work.',
   });
-  if (!recent) app.run(() => app.documents.save());
   if (import.meta.env.MODE === 'test') {
     window.__garatuja = { app, pixel: (x, y) => Array.from(surface.ctx.getImageData(x, y, 1, 1).data) };
   }
