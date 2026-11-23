@@ -42,6 +42,27 @@
 - Teclado no ecrã → QWERTY, cedilha, vogais acentuadas, maiúsculas, apagar e nova linha funcionaram em campos de escrita da folha e dos diálogos. Foi possível misturar toques nas teclas e teclado físico. Um comentário escrito no teclado foi submetido com o primeiro clique — 2026-11-23
 - Categorias e confirmações → os separadores mostraram ícone e seleção. Em toda a folha teve ícone próprio. A confirmação de gravação apareceu no rodapé e desapareceu ao fim de quatro segundos — 2026-11-23
 
+## Regressões da terceira ronda
+
+- Desfazer a meio de um gesto ou durante a escrita → botão e Ctrl+Z cancelaram a edição pendente em nove ferramentas ou efeitos. O traço já confirmado só desapareceu no passo seguinte. Refazer reabriu as sessões de Texto e Legenda — 2026-11-23
+- Apagar o conteúdo de O meu texto e fechar → Desfazer repôs o texto anterior e Refazer voltou a apagá-lo. Título, autor e destinatário foram reversíveis num passo por sessão — 2026-11-23
+- Ler, Apresentar à turma e Diapositivos com uma ou duas páginas → as setas e Page Down percorreram o texto antes de mudar de página. Anterior funcionou na primeira página quando havia texto acima. O avanço automático parou no último ecrã de escrita — 2026-11-23
+- Carregamento de Ler e impressão em Livro inteiro → com a composição atrasada 500 ms, a miniatura apareceu antes da ilustração completa. As amostras curta e longa imprimiram com 18 pt e 16 pt — 2026-11-23
+- Teclado no ecrã na metade inferior → a matriz manteve à vista o campo, as ações e a última fila de teclas em Texto, Só texto e balões nos oito formatos. As teclas 0–9, «º», «ª» e hífen escreveram nos três campos. Um campo multilinha a meio da folha também deixou disponíveis os comandos e os números — 2026-11-23
+- Conflito com dois separadores e falha de quota → a cópia de segurança do professor incluiu a versão guardada e a versão em memória com «(cópia)». Duplicar e Diapositivos usaram o rascunho local, mesmo depois de trocar de trabalho — 2026-11-23
+- Apagar o trabalho aberto com a quota esgotada → a galeria retirou o trabalho. Anular repôs a revisão guardada e o rascunho descartado deixou de aparecer nas recuperações — 2026-11-23
+- Navegar para fora aos 0, 50, 100, 250, 350 e 500 ms do primeiro traço → o Chromium recuperou o traço nas três repetições de cada intervalo. A escrita do rascunho também concluiu com a publicação bloqueada por outra transação. Em `e94402c` reproduzi perdas aos 0, 100 e 350 ms. Num ensaio instrumentado aos 0 ms, o IndexedDB ficou com zero trabalhos e zero rascunhos — 2026-11-23
+- Papel vegetal com papel Noite, Céu e Floresta → só as marcas diferentes do papel ou guia surgiram na camada fantasma. Fora das marcas a camada ficou transparente — 2026-11-23
+- Misturar cor → Enter e as setas juntaram tintas primárias. Mais uma gota alterou a mistura. A prateleira conservou as seis últimas cores após recarregar — 2026-11-23
+- Encher em duas vinhetas → Pincel pintou a partir da região tocada sem atravessar o contorno. Apagar zona repôs a cor do papel e Desfazer recuperou a tinta — 2026-11-23
+- Carimbos a 1366 × 768 e 1024 × 768 → a grelha mostrou pelo menos três e duas filas inteiras. Espelhar, virar e os dois botões de rotação ficaram numa fila — 2026-11-23
+- Legendas em clique fixo → Só texto e Narrador abriram o campo no primeiro toque — 2026-11-23
+- Texto demasiado alto → o aviso apareceu junto aos comandos enquanto se escrevia. Ao reduzir a letra, desapareceu e o texto pôde ser pousado — 2026-11-23
+- Ações lado a lado → o tipo Só texto distingue-se da ferramenta Texto. A organização da página e o recorte têm ações de duplicação com nomes próprios — 2026-11-23
+- Ferramentas desativadas no professor → a ajuda omitiu Mover e Magia. Os meus carimbos deixou de sugerir Mover e o painel Mover ocultou Fazer carimbo quando Carimbo ficou desativado. Os dois botões de língua partilharam um ícone próprio — 2026-11-23
+- Português → English → português sem recarregar → os nomes de botões, barras e avisos mudaram de língua e o estado da mesa manteve-se — 2026-11-23
+- Novo nos oito formatos → a grelha deslocou-se numa área acima de Começar. O primeiro e o último modelos ficaram ao alcance do foco, com folga em relação ao botão — 2026-11-23
+
 ## Layout
 
 | Janela CSS | Mínimo com faixa visível | Mínimo com faixa recolhida |
@@ -62,8 +83,12 @@
 Capturas da [mesa a 1024](screens/final-1024x768.png), [mesa a 1280](screens/final-1280x800.png), [mesa a 1366](screens/final-1366x768.png), [mesa a 1920](screens/final-1920x1080.png), [mesa em retrato](screens/final-768x1024.png), [retrato a 810](screens/final-810x1080.png), [retrato a 834](screens/final-834x1194.png), [telemóvel](screens/final-390x844.png), [interface simples](screens/final-simples-1024x768.png), [faixa de texto](screens/final-faixa-texto-1366x768.png), [capa](screens/final-capa-1366x768.png), [leitura](screens/final-leitura-1366x768.png), [galeria em modo Diapositivos](screens/final-diapositivos-1366x768.png), [leitor de diapositivos](screens/final-diapositivos-leitor-1366x768.png), [apresentação](screens/final-apresentacao-1366x768.png), [comentários](screens/final-comentarios-1366x768.png), [impressão](screens/final-impressao-1366x768.png), [esquema](screens/final-esquema-1920x1080.png), [papel vegetal](screens/final-papel-vegetal-1366x768.png), [animação](screens/final-animacao-1366x768.png), [Magia](screens/final-magia-1366x768.png), [carimbos](screens/final-carimbos-1366x768.png) e [área do professor](screens/final-professor-1366x768.png).
 
 ```sh
-GARATUJA_CAPTURE_SCREENS=1 npm run e2e -- integration.spec.ts layout.spec.ts council-workflows.spec.ts batch-g.spec.ts layout-matrix.spec.ts
+GARATUJA_CAPTURE_SCREENS=1 npm run e2e -- integration.spec.ts layout.spec.ts council-workflows.spec.ts batch-g.spec.ts layout-matrix.spec.ts council-regressions.spec.ts
 ```
+
+A terceira ronda acrescenta capturas do [misturador de cor](screens/final-misturador-1366x768.png),
+do [teclado com o campo em baixo](screens/final-teclado-em-baixo-1366x768.png) e do
+[papel vegetal sobre papel Noite](screens/final-papel-vegetal-noite-1366x768.png).
 
 ## Desempenho
 
@@ -92,6 +117,12 @@ O codificador GIF fica num worker separado. As licenças carregam ao abrir Créd
 - `npm run e2e` → 278 passaram e 9 ficaram fora da execução normal em cada uma das duas execuções consecutivas. A primeira demorou 2,7 min e a segunda 2,8 min — 2026-11-23
 - Capturas finais → 88 testes passaram na execução de captura. Depois do ajuste à miniatura, os quatro testes de captura em retrato passaram de novo — 2026-11-23
 - Benchmark Chromium 4× → o enchimento ficou abaixo da meta de 150 ms. O traço teve mediana de 94 ms e p95 de 112 ms nesta execução — 2026-11-23
+
+## Execuções da terceira ronda
+
+- `npm run check`, duas execuções consecutivas → tipos, lint e build passaram. Cada execução passou 273 testes em 17 ficheiros. O JavaScript inicial ficou em 128,73 kB gzip — 2026-11-23
+- `npm run e2e`, duas execuções consecutivas → 337 passaram e 9 ficaram fora da execução normal em cada execução. A primeira demorou 3,6 min e a segunda 3,5 min — 2026-11-23
+- Regeneração das capturas → 118 testes passaram em 1,4 min. Conferi as 26 imagens `final-*.png`, incluindo a posição do teclado, a poça do misturador e as cores do papel Noite — 2026-11-23
 
 ## Limitações observadas
 
