@@ -5,6 +5,7 @@ const spacing = 1.2;
 
 export default {
   id: 'footprints', label: { pt: 'Pegadas', en: 'Footprints' }, order: 310, level: 2, spacing,
+  hint: { pt: 'Deixa um caminho de pegadas por onde passas.', en: 'Drag to leave a trail of footprints.' },
   dab(ctx, d) {
     // Left and right feet take turns, one on each side of the path.
     const side = stepIndex(d.travelled, d.size, spacing) % 2 ? 1 : -1;

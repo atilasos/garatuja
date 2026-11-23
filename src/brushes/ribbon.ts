@@ -5,6 +5,7 @@ let width = 0;
 
 export default {
   id: 'ribbon', label: { pt: 'Fita', en: 'Ribbon' }, order: 60, level: 2, spacing: .06,
+  hint: { pt: 'Muda a velocidade da mão para alargar ou estreitar a fita.', en: 'Change speed to make the ribbon wider or narrower.' },
   begin() { width = 0; },
   dab(ctx, d) {
     // A flat ribbon: its width across the path shrinks when the hand moves faster.

@@ -1,5 +1,4 @@
 import { flushLayers } from './brush-kit';
-import './option-panel.css';
 import { clampRect, interpolateDabs, seededRandom, strokeBounds, unionRect } from '../draw';
 import { brushes } from '../registry';
 import type { BrushDef, ChoiceItem, L10n, OptionSpec, PaintPointer, Point, Rect, ToolContext } from '../types';
@@ -42,7 +41,7 @@ export function drawBrushPreview(brush: BrushDef, ctx: CanvasRenderingContext2D,
 export const brushChoice: OptionSpec = {
   kind: 'choice', id: 'brush', shared: 'brush', label: { pt: 'Pincel', en: 'Brush' }, default: 'round',
   items: () => brushes.all().map((brush): ChoiceItem => ({
-    value: brush.id, label: brush.label, level: brush.level, group: brushGroup(brush),
+    value: brush.id, label: brush.label, hint: brush.hint, level: brush.level, group: brushGroup(brush),
     preview: (ctx, w, h, color) => drawBrushPreview(brush, ctx, w, h, color),
   })),
 };
@@ -103,6 +102,10 @@ export class BrushStroke {
 
   private lay(ctx: CanvasRenderingContext2D, from: PaintPointer, to: PaintPointer, angle?: number) {
     const length = Math.hypot(to.x - from.x, to.y - from.y);
+    if (this.brush.segment) {
+      this.brush.segment(ctx, from, to, this.size, this.color);
+      return strokeBounds(from, to, this.padding);
+    }
     this.remaining = interpolateDabs(from, to, this.spacing, this.remaining, (p, fraction, direction, distance) => {
       this.angle = angle ?? direction;
       this.brush.dab(ctx, { ...p, angle: this.angle, pressure: from.pressure + (to.pressure - from.pressure) * fraction,

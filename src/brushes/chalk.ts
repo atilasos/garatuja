@@ -3,6 +3,7 @@ import type { BrushDef } from '../core/types';
 
 export default {
   id: 'chalk', label: { pt: 'Giz', en: 'Chalk' }, order: 110, level: 1, spacing: .13,
+  hint: { pt: 'Desenha como se tivesses um giz na mão.', en: 'Draw as if you were holding chalk.' },
   dab(ctx, d) {
     const radius = pressureSize(d.size, d.pressure) / 2;
     ctx.save();

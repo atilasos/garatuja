@@ -268,7 +268,7 @@ export const shapeOption = {
 } satisfies NonNullable<Tool['options']>[number];
 
 export default {
-  id: 'move', label: { pt: 'Mover', en: 'Move' }, icon: stampIcons.move, order: 95, level: 1, usesColor: false,
+  id: 'move', label: { pt: 'Mover', en: 'Move' }, icon: stampIcons.move, order: 95, level: 2, usesColor: false,
   hint, manualCommit: true, options: [shapeOption],
   down(p, c) {
     if (state.kind !== 'floating') state = { kind: 'trace', points: [p, p], shape: c.opt<SelectionShape>('selection') };

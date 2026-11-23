@@ -61,13 +61,32 @@ function apply(c: ToolContext, source: ImageData, region: Region, mode: FillMode
   c.sound('fill');
 }
 
+function uniform(data: Uint8ClampedArray) {
+  const words = new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4);
+  const first = words[0];
+  for (let i = 1; i < words.length; i++) {
+    if (words[i] !== first) return false;
+  }
+  return true;
+}
+
 function start(p: PaintPointer, c: ToolContext) {
   pending = undefined;
   const source = c.ctx.getImageData(0, 0, c.width, c.height);
   const guide = c.foreground?.getContext('2d')?.getImageData(0, 0, c.width, c.height).data;
+  const mode = c.opt<FillMode>('mode');
+  // A flat sheet has no boundary to discover or antialiased fringe to rebuild.
+  if (mode === 'solid' && !guide && uniform(source.data)) {
+    c.ctx.save();
+    c.ctx.fillStyle = c.color;
+    c.ctx.fillRect(0, 0, c.width, c.height);
+    c.ctx.restore();
+    c.markAllDirty();
+    c.sound('fill');
+    return;
+  }
   const region = floodRegion(source, p, TOLERANCE, guide);
   if (!region) return;
-  const mode = c.opt<FillMode>('mode');
   if (gradientModes.has(mode)) {
     pending = { region, source, guide, start: { x: p.x, y: p.y }, mode: mode as 'linear' | 'radial' };
     preview(c, pending, p);

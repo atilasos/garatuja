@@ -10,6 +10,7 @@ let strokes = 0;
 
 export default {
   id: 'bristle', label: { pt: 'Cerdas', en: 'Bristles' }, order: 130, level: 2, spacing: .04,
+  hint: { pt: 'Arrasta para deixar as marcas dos pelos do pincel.', en: 'Drag to leave individual bristle marks.' },
   begin(_color, size) {
     const random = seededRandom(++strokes * 7919);
     bristles = Array.from({ length: 18 }, () => {

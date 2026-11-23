@@ -3,6 +3,7 @@ import type { BrushDef } from '../core/types';
 
 export default {
   id: 'spray', label: { pt: 'Spray', en: 'Spray' }, order: 150, level: 1, spacing: .11,
+  hint: { pt: 'Espalha muitos pontinhos de cor.', en: 'Scatter lots of little colored dots.' },
   dab(ctx, d) {
     const radius = pressureSize(d.size, d.pressure) * .7;
     ctx.save();

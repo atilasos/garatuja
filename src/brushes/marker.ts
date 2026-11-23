@@ -6,6 +6,7 @@ const wash = new Layer(.52);
 
 export default {
   id: 'marker', label: { pt: 'Marcador', en: 'Marker' }, order: 30, level: 1, spacing: .08,
+  hint: { pt: 'Pinta por cima e deixa ver o que está por baixo.', en: 'Paint over your work and see what is underneath.' },
   begin() { wash.reset(); },
   dab(ctx, d) {
     // A rounded square nib: flat, translucent, and clearly not a round brush.

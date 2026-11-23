@@ -38,10 +38,10 @@ export class Player {
   play() {
     if (this.playing) return;
     this.playing = true;
+    this.changed();
     if (this.index === this.pages.length - 1) {
       this.render(0);
     } else {
-      this.changed();
       this.schedule();
     }
   }

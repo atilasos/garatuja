@@ -2,6 +2,7 @@ import type { BrushDef } from '../core/types';
 
 export default {
   id: 'double', label: { pt: 'Linha dupla', en: 'Double line' }, order: 90, level: 2, spacing: .07,
+  hint: { pt: 'Arrasta para desenhar duas linhas lado a lado.', en: 'Drag to draw two lines side by side.' },
   dab(ctx, d) {
     const offset = d.size * .32;
     const radius = Math.max(1.1, d.size * .1);

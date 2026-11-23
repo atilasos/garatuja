@@ -31,7 +31,7 @@ function syncChrome() {
   const effect = selectedEffect();
   const toggle = document.querySelector<HTMLElement>('[data-focus="whole"]');
   toggle?.closest('.option-section')?.classList.toggle('magic-whole-on', Boolean(effect?.stroke && effect.whole));
-  if (effect && effect.id !== announced) {
+  if (effect && !announced) {
     announced = effect.id;
     host.say(effect.hint);
   }
@@ -49,7 +49,7 @@ export default {
         .sort((a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category)
           || a.order - b.order || a.id.localeCompare(b.id))
         .map(effect => ({
-          value: effect.id, label: effect.label, group: groups[effect.category], level: effect.level,
+          value: effect.id, label: effect.label, hint: effect.hint, group: groups[effect.category], level: effect.level,
           preview: (ctx: CanvasRenderingContext2D, w: number, h: number, color: string) => previewMagic(effect, ctx, w, h, color),
         }));
     },

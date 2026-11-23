@@ -4,6 +4,7 @@ import type { BrushDef } from '../core/types';
 
 export default {
   id: 'balls', label: { pt: 'Bolinhas', en: 'Beads' }, order: 210, level: 1, spacing: .5,
+  hint: { pt: 'Arrasta para fazer um fio de bolinhas.', en: 'Drag to make a string of beads.' },
   dab(ctx, d) {
     const reach = pressureSize(d.size, d.pressure) / 2;
     const radius = Math.max(2, reach * (.34 + d.random() * .3));

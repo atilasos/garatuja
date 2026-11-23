@@ -6,6 +6,7 @@ const wax = { key: 'crayon', seed: 11, cells: [2, 4, 8], threshold: .38, softnes
 
 export default {
   id: 'crayon', label: { pt: 'Lápis de cera', en: 'Wax crayon' }, order: 100, level: 1, spacing: .1,
+  hint: { pt: 'Pinta com a textura de um lápis de cera.', en: 'Paint with the texture of a wax crayon.' },
   dab(ctx, d) {
     const radius = pressureSize(d.size, d.pressure) / 2;
     grainDab(ctx, d.x, d.y, radius, grain(wax), .8, (s, x, y) => {

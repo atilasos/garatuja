@@ -4,6 +4,7 @@ import type { BrushDef } from '../core/types';
 
 export default {
   id: 'grass', label: { pt: 'Relva', en: 'Grass' }, order: 330, level: 2, spacing: .12,
+  hint: { pt: 'Arrasta para fazer crescer relva na folha.', en: 'Drag to grow grass on the paper.' },
   dab(ctx, d) {
     // Blades grow to one side of the path, perpendicular to where the hand is going.
     const reach = pressureSize(d.size, d.pressure);

@@ -171,6 +171,7 @@ export class LabelEditor {
     if (this.selectedId === id) return;
     this.selectedId = id;
     this.syncChrome();
+    if (!id && this.app) this.app.say(this.app.tool.hint);
     if (id) {
       this.app?.say(words.selected);
       queueMicrotask(() => this.syncPanelFrom(id));
@@ -332,6 +333,7 @@ export class LabelEditor {
     this.selectedId = keep;
     this.repaint();
     if (keep && commit) this.layer?.focusItem(keep);
+    if (this.app?.tool.id === 'label') this.app.say(keep ? words.selected : this.app.tool.hint);
     return true;
   }
 

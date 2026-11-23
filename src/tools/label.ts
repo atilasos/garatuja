@@ -7,7 +7,7 @@ import { fontOption, labelSizes, sizeOption, typeOption } from '../features/labe
 type Drag =
   | { mode: 'move'; id: string; origin: LabelObject; start: Point; moved: boolean }
   | { mode: 'target'; id: string }
-  | { mode: 'create'; start: Point; type: LabelType; moved: boolean };
+  | { mode: 'create'; start: Point; type: LabelType; moved: boolean; wasSelected: boolean };
 
 let drag: Drag | undefined;
 let lastTap: { id: string; t: number } | undefined;
@@ -50,7 +50,7 @@ export default {
   onDeselect() { drag = undefined; labelEditor.deactivate(); },
   down(p, c) {
     const editor = labelEditor;
-    editor.finish(true);
+    const wasTyping = editor.finish(true);
     const selected = editor.selected();
     if (selected?.target && hasTarget(variantOf(selected)) && Math.hypot(p.x - selected.target.x, p.y - selected.target.y) <= grab()) {
       drag = { mode: 'target', id: selected.id };
@@ -62,9 +62,8 @@ export default {
       drag = { mode: 'move', id: hit.id, origin: structuredClone(hit), start: { x: p.x, y: p.y }, moved: false };
       return;
     }
-    // Empty paper: a tap starts a new label (and lets go of the selected one).
     editor.select(undefined);
-    drag = { mode: 'create', start: { x: p.x, y: p.y }, type: c.opt<LabelType>('type'), moved: false };
+    drag = { mode: 'create', start: { x: p.x, y: p.y }, type: c.opt<LabelType>('type'), moved: false, wasSelected: !wasTyping && Boolean(selected) };
   },
   move(p, _previous, c) {
     if (!drag) return;
@@ -91,7 +90,7 @@ export default {
       // Start typing once this gesture is closed, so creating a label stays a single undo step.
       queueMicrotask(() => {
         if (finished.moved) labelEditor.startNew(finished.type, { x: p.x, y: p.y }, finished.start);
-        else labelEditor.startNew(finished.type, finished.start);
+        else if (!finished.wasSelected) labelEditor.startNew(finished.type, finished.start);
       });
     } else if (finished.mode === 'move' && !finished.moved) {
       const quick = lastTap?.id === finished.id && p.t - lastTap.t < 500;

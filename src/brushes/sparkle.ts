@@ -4,6 +4,7 @@ import type { BrushDef } from '../core/types';
 
 export default {
   id: 'sparkle', label: { pt: 'Cintilante', en: 'Sparkle' }, order: 200, level: 1, spacing: .38,
+  hint: { pt: 'Deixa pequenos brilhos por onde passas.', en: 'Leave little sparkles as you drag.' },
   dab(ctx, d) {
     const radius = pressureSize(d.size, d.pressure) / 2;
     for (let i = 0; i < 2; i++) {

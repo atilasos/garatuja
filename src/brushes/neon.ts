@@ -6,6 +6,7 @@ const tube = new Layer(1);
 
 export default {
   id: 'neon', label: { pt: 'Néon', en: 'Neon' }, order: 230, level: 2, spacing: .08,
+  hint: { pt: 'Desenha uma linha com um rebordo luminoso.', en: 'Draw a line with a glowing edge.' },
   begin() { tube.reset(); },
   dab(ctx, d) {
     const radius = pressureSize(d.size, d.pressure) / 2;

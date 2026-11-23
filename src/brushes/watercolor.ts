@@ -4,6 +4,7 @@ import type { BrushDef } from '../core/types';
 
 export default {
   id: 'watercolor', label: { pt: 'Aguarela', en: 'Watercolor' }, order: 140, level: 2, spacing: .07,
+  hint: { pt: 'Pinta manchas suaves como as da aguarela.', en: 'Paint soft patches like watercolor.' },
   dab(ctx, d) {
     // Soft blobs with a slightly darker rim; the paint builds up where the brush lingers or returns.
     const radius = pressureSize(d.size, d.pressure) / 2;

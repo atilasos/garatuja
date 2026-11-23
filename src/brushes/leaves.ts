@@ -5,6 +5,7 @@ const spacing = .75;
 
 export default {
   id: 'leaves', label: { pt: 'Folhas', en: 'Leaves' }, order: 320, level: 2, spacing,
+  hint: { pt: 'Arrasta para espalhar folhas no teu desenho.', en: 'Drag to scatter leaves on your drawing.' },
   dab(ctx, d) {
     const side = stepIndex(d.travelled, d.size, spacing) % 2 ? 1 : -1;
     const length = d.size * (.75 + d.random() * .3) * (.7 + .5 * d.pressure);

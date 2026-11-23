@@ -6,6 +6,7 @@ let start = { h: 0, s: .8, l: .55 };
 
 export default {
   id: 'rainbow', label: { pt: 'Arco de tons', en: 'Rainbow' }, order: 220, level: 1, spacing: .1,
+  hint: { pt: 'Desenha uma linha que muda de cor.', en: 'Draw a line that changes color.' },
   begin(color) {
     // The hue starts at the chosen colour and keeps turning along the stroke.
     const base = hslOf(color);

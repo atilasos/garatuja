@@ -3,6 +3,7 @@ import type { BrushDef } from '../core/types';
 
 export default {
   id: 'calligraphy', label: { pt: 'Caligrafia', en: 'Calligraphy' }, order: 40, level: 2, spacing: .05,
+  hint: { pt: 'Muda a direção do traço para o fazer mais fino ou mais grosso.', en: 'Change direction to make thin and thick lines.' },
   dab(ctx, d) {
     // A flat nib held at a fixed angle: thick across the nib, hairline along it.
     const length = pressureSize(d.size, d.pressure);

@@ -6,6 +6,7 @@ const soot = { key: 'charcoal', seed: 23, cells: [3, 6, 12], threshold: .46, sof
 
 export default {
   id: 'charcoal', label: { pt: 'Carvão', en: 'Charcoal' }, order: 120, level: 2, spacing: .07,
+  hint: { pt: 'Faz um traço escuro com textura de carvão.', en: 'Make a dark line with the texture of charcoal.' },
   dab(ctx, d) {
     const radius = pressureSize(d.size, d.pressure) / 2;
     grainDab(ctx, d.x, d.y, radius, grain(soot), .3, (s, x, y) => {

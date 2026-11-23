@@ -1,8 +1,8 @@
 /* The writing layer sits inside the sheet; sizes use --k (screen px per page px). */
 .label-layer { position: absolute; inset: 0; pointer-events: none; --k: .5; overflow: clip; }
 .label-item {
-  position: absolute; min-width: 0; min-height: 0; padding: 0; border: 0; border-radius: 10px;
-  background: transparent; box-shadow: none; pointer-events: none; transform: none;
+  position: absolute; min-width: 48px; min-height: 48px; padding: 0; border: 0; border-radius: 10px;
+  background: transparent; box-shadow: none; pointer-events: none; transform: translate(-50%, -50%);
 }
 .label-item[aria-pressed="true"], .label-item[aria-pressed="true"]:hover { background: transparent; box-shadow: none; border: 0; }
 /* A focused label is always the selected one, and the selection outline is the focus ring. */
@@ -12,7 +12,7 @@
   box-shadow: 0 0 0 2px #fff, inset 0 0 0 2px #fff; pointer-events: none;
 }
 .label-handle {
-  position: absolute; width: 44px; height: 44px; transform: translate(-50%, -50%); pointer-events: none;
+  position: absolute; width: 48px; height: 48px; transform: translate(-50%, -50%); pointer-events: none;
   border-radius: 50%; border: 4px solid var(--focus); background: #ffffff59;
   box-shadow: 0 0 0 3px #fff, 0 2px 6px #0004;
 }
@@ -28,9 +28,12 @@
 }
 .label-field:focus-visible { outline: 3px dashed var(--focus); outline-offset: 8px; }
 .label-bar {
-  position: absolute; display: flex; gap: 6px; padding: 6px; pointer-events: auto; cursor: default;
+  position: absolute; display: flex; flex-wrap: wrap; max-width: calc(100% - 8px); width: max-content; gap: 6px; padding: 6px; pointer-events: auto; cursor: default;
   background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; box-shadow: 0 3px 0 var(--lift), 0 6px 16px #46352233;
 }
 .label-bar .bar-button { min-height: 48px; min-width: 48px; padding: 4px 12px 4px 8px; white-space: nowrap; }
 .label-bar .bar-button .icon { width: 30px; height: 30px; }
 .high-contrast .label-bar { border-color: var(--edge); }
+
+.label-bar-docked { position: static; max-width: 100%; flex: none; box-shadow: none; }
+.label-bar-docked .bar-button { padding-inline: 5px; font-size: .75rem; flex: 1 1 40%; }

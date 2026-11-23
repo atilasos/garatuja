@@ -34,7 +34,8 @@ type Style = 'solid' | 'outline' | 'both';
 
 /** The shape being sized (start) or, once sized, waiting to be turned (placed). */
 let start: PaintPointer | undefined;
-let placed: { shape: ShapeId; box: Box; heading: Heading } | undefined;
+let placed: { from: PaintPointer; to: PaintPointer } | undefined;
+let turnPointer: Point | undefined;
 let angle = 0;
 let turning = false;
 
@@ -95,8 +96,7 @@ function drawTurnGuide(c: ToolContext, box: Box, pointer: Point) {
   ctx.restore();
 }
 
-function dragBox(p: PaintPointer, c: ToolContext) {
-  if (!start) return undefined;
+function dragBox(start: PaintPointer, p: PaintPointer, c: ToolContext) {
   const shape = c.opt<ShapeId>('shape');
   const square = p.constrain || regularShapes.has(shape);
   const fromCenter = c.opt<boolean>('center');
@@ -111,14 +111,23 @@ function dragBox(p: PaintPointer, c: ToolContext) {
 function show(p: PaintPointer, c: ToolContext) {
   c.clearOverlay();
   if (placed) {
-    const turned = turnTowards({ x: placed.box.cx, y: placed.box.cy }, p, p.constrain);
+    const { box } = dragBox(placed.from, placed.to, c);
+    const turned = turnTowards({ x: box.cx, y: box.cy }, p, p.constrain);
     if (turned !== undefined) angle = turned;
-    paint(c, placed.shape, placed.box, placed.heading, angle, true);
-    drawTurnGuide(c, placed.box, p);
-  } else {
-    const target = dragBox(p, c);
-    if (target) paint(c, target.shape, target.box, target.heading, 0, true);
+    turnPointer = p;
+    showPending(c);
+  } else if (start) {
+    const { shape, box, heading } = dragBox(start, p, c);
+    paint(c, shape, box, heading, 0, true);
   }
+}
+
+function showPending(c: ToolContext) {
+  if (!placed) return;
+  const { shape, box, heading } = dragBox(placed.from, placed.to, c);
+  c.clearOverlay();
+  paint(c, shape, box, heading, angle, true);
+  if (turnPointer) drawTurnGuide(c, box, turnPointer);
 }
 
 function place(c: ToolContext, shape: ShapeId, box: Box, heading: Heading, turn: number) {
@@ -142,6 +151,8 @@ export default {
     kind: 'choice', id: 'shape', label: { pt: 'Forma', en: 'Shape' }, default: 'rectangle',
     items: shapeIds.map(shape => ({
       value: shape, label: names[shape], level: simple.has(shape) ? 1 : 2,
+      hint: { pt: names[shape].pt + ' · Arrasta na folha para lhe dar tamanho.',
+        en: names[shape].en + ' · Drag on the paper to give it a size.' },
       preview(ctx, w, h, color) {
         const box = Math.min(w, h) * .74;
         const outline = shapeOutline(shape, shape === 'rectangle' || shape === 'ellipse' ? box * 1.45 : box, box, 0);
@@ -174,7 +185,7 @@ export default {
   move(p, _previous, c) { show(p, c); },
   up(p, c) {
     if (placed) {
-      const { shape, box, heading } = placed;
+      const { shape, box, heading } = dragBox(placed.from, placed.to, c);
       const turned = turnTowards({ x: box.cx, y: box.cy }, p, p.constrain);
       if (turned !== undefined) angle = turned;
       placed = undefined;
@@ -182,15 +193,16 @@ export default {
       place(c, shape, box, heading, angle);
       return;
     }
-    const target = dragBox(p, c);
+    const from = start;
     start = undefined;
-    if (!target) return;
+    if (!from) return;
+    const target = dragBox(from, p, c);
     if (c.opt('turn')) {
-      placed = target;
+      placed = { from, to: p };
+      turnPointer = undefined;
       angle = 0;
       // Show it upright until the pointer moves; the release point is just a corner of the box.
-      c.clearOverlay();
-      paint(c, target.shape, target.box, target.heading, 0, true);
+      showPending(c);
       turning = true;
       c.say(rotateHint);
       return;
@@ -201,5 +213,6 @@ export default {
     if (placed) show(p, c);
     else showCrossCursor(c, p);
   },
+  updatePending(c) { showPending(c); },
   cancel() { start = undefined; placed = undefined; angle = 0; turning = false; },
 } satisfies Tool;

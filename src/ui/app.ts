@@ -15,6 +15,7 @@ import { Toasts, type ToastAction } from './toast';
 export interface WorkAction {
   id: string;
   label: L10n;
+  hint?: L10n;
   icon: IconSvg;
   order?: number;
   placement?: 'files' | 'work';
@@ -126,8 +127,7 @@ export class App {
     const { options, toolId } = this.store.get();
     const spec = this.tool.options?.find(candidate => candidate.id === id);
     const scope = spec?.kind === 'choice' && spec.shared ? '@' + spec.shared : toolId;
-    this.input.cancel();
-    this.store.set({ options: { ...options, [scope]: { ...options[scope], [id]: value } } });
+    this.input.changeAppearance(() => this.store.set({ options: { ...options, [scope]: { ...options[scope], [id]: value } } }));
     this.sounds.play('tap');
   }
 
@@ -140,15 +140,13 @@ export class App {
   }
 
   setColor(color: string) {
-    this.input.cancel();
     this.cancelPicker();
-    this.store.set({ color });
+    this.input.changeAppearance(() => this.store.set({ color }));
   }
 
   togglePicker() {
     if (this.store.get().pickingColor) { this.cancelPicker(); return; }
-    this.input.cancel();
-    this.input.pickColor = point => this.setColor(this.surface.colorAt(point));
+    this.input.changeAppearance(() => { this.input.pickColor = point => this.setColor(this.surface.colorAt(point)); });
     this.store.set({ pickingColor: true, hint: { pt: 'Toca numa cor da folha para a apanhar.', en: 'Tap a color on the paper to pick it up.' } });
   }
 
@@ -182,6 +180,7 @@ export class App {
     if (!this.surface.canUndo) return;
     this.surface.undo();
     this.sounds.play('undo');
+    this.say({ pt: 'Voltaste atrás um passo.', en: 'You went back one step.' });
   }
 
   redo() {
@@ -189,6 +188,7 @@ export class App {
     if (!this.surface.canRedo) return;
     this.surface.redo();
     this.sounds.play('redo');
+    this.say({ pt: 'Voltaste a pôr o que tinhas tirado.', en: 'You put back what you had undone.' });
   }
 
   run(action: () => void | Promise<void>) {
@@ -224,8 +224,9 @@ export class App {
 
   refresh() { this.store.set({ registryVersion: this.store.get().registryVersion + 1 }); }
 
-  modal(options: ModalOptions) {
-    this.input.cancel();
+  modal(options: ModalOptions & { preservePending?: boolean }) {
+    if (options.preservePending) this.input.changeAppearance(() => {});
+    else this.input.cancel();
     return openModal(options);
   }
 

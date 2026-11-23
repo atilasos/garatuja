@@ -22,7 +22,7 @@ function draw(p: PaintPointer, c: ToolContext, preview: boolean) {
 }
 
 export default {
-  id: 'lines', label: { pt: 'Linhas', en: 'Lines' }, icon: icons.lines, order: 30, level: 1, usesColor: true,
+  id: 'lines', label: { pt: 'Linhas', en: 'Lines' }, icon: icons.lines, order: 30, level: 2, usesColor: true,
   hint: { pt: 'Arrasta para fazer uma linha reta. Usa Shift para acertar o ângulo.', en: 'Drag to draw a straight line. Hold Shift to snap the angle.' },
   options: [brushSizes, brushChoice],
   down(p, c) { start = p; seed = Math.floor(c.random() * 4294967296); draw(p, c, true); },

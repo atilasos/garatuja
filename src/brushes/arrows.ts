@@ -2,6 +2,7 @@ import type { BrushDef } from '../core/types';
 
 export default {
   id: 'arrows', label: { pt: 'Setas', en: 'Arrows' }, order: 300, level: 2, spacing: 1.35,
+  hint: { pt: 'Arrasta para deixar setas a apontar na direção da tua mão.', en: 'Drag to leave arrows pointing the way you move.' },
   dab(ctx, d) {
     const s = d.size * (.6 + .5 * d.pressure);
     ctx.save();

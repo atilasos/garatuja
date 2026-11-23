@@ -6,6 +6,7 @@ let sawPressure = false;
 
 export default {
   id: 'pen', label: { pt: 'Caneta', en: 'Pen' }, order: 50, level: 2, spacing: .06,
+  hint: { pt: 'Arrasta mais devagar para fazer um traço mais grosso.', en: 'Drag more slowly to make a thicker line.' },
   begin() { width = 0; sawPressure = false; },
   dab(ctx, d) {
     // A stylus reports real pressure; a mouse or finger does not, so speed stands in for it.

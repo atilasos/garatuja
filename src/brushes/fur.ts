@@ -4,6 +4,7 @@ import type { BrushDef } from '../core/types';
 
 export default {
   id: 'fur', label: { pt: 'Pelo', en: 'Fur' }, order: 340, level: 2, spacing: .07,
+  hint: { pt: 'Arrasta para fazer um traço coberto de pelos.', en: 'Drag to make a furry line.' },
   dab(ctx, d) {
     // Short hairs on both sides of the path, combed backwards.
     const reach = pressureSize(d.size, d.pressure) / 2;

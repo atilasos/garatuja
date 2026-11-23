@@ -3,6 +3,7 @@ import type { BrushDef } from '../core/types';
 
 export default {
   id: 'round', label: { pt: 'Redondo', en: 'Round' }, order: 10, level: 1, spacing: .12,
+  hint: { pt: 'Desenha um traço suave e redondo.', en: 'Draw a smooth, rounded line.' },
   dab(ctx, d) {
     ctx.fillStyle = d.color;
     ctx.beginPath();

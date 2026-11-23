@@ -66,6 +66,7 @@ export type SoundId =
 export interface ChoiceItem {
   value: string;
   label: L10n;
+  hint?: L10n;
   icon?: IconSvg;
   /** Draw a live preview into a small canvas instead of a static icon. */
   preview?: (ctx: CanvasRenderingContext2D, w: number, h: number, color: string) => void;
@@ -177,6 +178,8 @@ export interface Tool {
   up(p: PaintPointer, c: ToolContext): void;
   /** Pointer moving without a button pressed — draw the cursor preview on the overlay. */
   hover?(p: PaintPointer, c: ToolContext): void;
+  /** Refresh a preview that is waiting for another pointer gesture. */
+  updatePending?(c: ToolContext): void;
   /** Gesture aborted (second finger, Escape, tool switch). Default: rollback. */
   cancel?(c: ToolContext): void;
   /** Return true when the key was handled. */
@@ -206,6 +209,7 @@ export interface BrushDab {
 export interface BrushDef {
   id: string;
   label: L10n;
+  hint?: L10n;
   order: number;
   level: 1 | 2;
   /** Dab spacing as a fraction of size (0.1 = dense, 1 = dotted). */
@@ -214,6 +218,8 @@ export interface BrushDef {
   extent?: number;
   /** Paint one dab. The engine interpolates dabs along the stroke. */
   dab(ctx: CanvasRenderingContext2D, d: BrushDab): void;
+  /** Fill a continuous segment when individual dabs would leave stepped edges. */
+  segment?(ctx: CanvasRenderingContext2D, from: PaintPointer, to: PaintPointer, size: number, color: string): void;
   /** Optional: called when a stroke begins, to reset per-stroke state. */
   begin?(color: string, size: number): void;
 }

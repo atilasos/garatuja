@@ -51,6 +51,17 @@ export class PointerInput {
     this.surface.rollback();
   }
 
+  changeAppearance(update: () => void) {
+    const { tool, context } = this.selected;
+    if (!this.active && this.surface.inGesture && tool.updatePending) {
+      update();
+      tool.updatePending(context);
+    } else {
+      this.cancel();
+      update();
+    }
+  }
+
   key(event: KeyboardEvent) {
     const { tool, context } = this.selected;
     if (!tool.key) return false;
