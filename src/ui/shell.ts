@@ -95,6 +95,8 @@ export function mountShell(app: App, root: HTMLElement) {
   arrangeFocus();
   stacked.addEventListener('change', arrangeFocus);
   const colors = h('div', 'palette');
+  const paletteControls = h('div', 'palette-controls');
+  const colorRow = h('div', 'color-row', colors, paletteControls);
   scrollCue(colors);
   colors.addEventListener('wheel', event => {
     if (event.ctrlKey || event.deltaX || colors.scrollWidth <= colors.clientWidth) return;
@@ -106,7 +108,15 @@ export function mountShell(app: App, root: HTMLElement) {
   hint.id = 'pingo-hint';
   hint.setAttribute('role', 'status');
   const help = h('div', 'help');
-  const footer = h('footer', 'footer', colors, help);
+  const helpCopy = h('div', 'help-copy', hint);
+  const footer = h('footer', 'footer', colorRow, help);
+  const narrowDesk = matchMedia('(max-width: 540px)');
+  const arrangePalette = () => {
+    if (narrowDesk.matches) options.element.before(colorRow);
+    else footer.prepend(colorRow);
+  };
+  arrangePalette();
+  narrowDesk.addEventListener('change', arrangePalette);
   const removeTabstop = roving(history, words.history);
   let actions: WorkAction[] = [];
   let actionButtons: [WorkAction, HTMLButtonElement][] = [];
@@ -126,6 +136,8 @@ export function mountShell(app: App, root: HTMLElement) {
     keyboardCursor.style.left = point.x * 100 / app.surface.ctx.canvas.width + '%';
     keyboardCursor.style.top = point.y * 100 / app.surface.ctx.canvas.height + '%';
   });
+
+  const busyHint = { pt: 'Espera que a folha esteja pronta.', en: 'Wait until the paper is ready.' };
 
   function render(state: State, previous?: State) {
     const { locale, level } = state.settings;
@@ -181,7 +193,7 @@ export function mountShell(app: App, root: HTMLElement) {
       refreshFiles();
       refreshActions();
     }
-    const wait = state.busy ? { pt: 'Espera que a folha esteja pronta.', en: 'Wait until the paper is ready.' } : undefined;
+    const wait = state.busy ? busyHint : undefined;
     const say = (message: L10n) => app.say(message);
     for (const [action, control] of actionButtons) {
       unavailable(control, wait ?? (action.unavailable?.(app)), say);
@@ -208,10 +220,12 @@ export function mountShell(app: App, root: HTMLElement) {
           en: 'Reading aloud needs a voice installed on this device.',
         });
       });
-      help.replaceChildren(art(icons.pingo), hint, listen, preferences);
+      help.replaceChildren(art(icons.pingo), helpCopy, listen, preferences);
       refreshPreferences();
 
     }
+    undo.setAttribute('aria-busy', String(state.busy));
+    redo.setAttribute('aria-busy', String(state.busy));
     unavailable(undo, wait ?? (!app.canUndo ? { pt: 'Ainda não há nada para desfazer.', en: 'There’s nothing to undo yet.' } : undefined), say);
     unavailable(redo, wait ?? (!app.surface.canRedo ? { pt: 'Desfaz um passo para o poderes refazer.', en: 'Undo a step before redoing it.' } : undefined), say);
     removeTabstop();
@@ -254,7 +268,8 @@ export function mountShell(app: App, root: HTMLElement) {
       mix.dataset.focus = 'mix';
       showHelpOnFocus(app, mix, paletteColor ? { pt: 'Escolhe uma cor para juntar à paleta.', en: 'Choose a color to add to the palette.' } : colorName(state.color));
       if (!paletteColor) mix.style.setProperty('--custom-color', state.color);
-      replaceControls(colors, [...swatches, picker, mix]);
+      replaceControls(colors, swatches);
+      replaceControls(paletteControls, [picker, mix]);
       refreshColors();
       if (state.color !== previous?.color) requestAnimationFrame(() => revealInStrip(colors, colors.querySelector('[aria-pressed="true"]')));
     }
@@ -265,18 +280,22 @@ export function mountShell(app: App, root: HTMLElement) {
   const refreshFiles = roving(files, words.files);
   const refreshActions = roving(featureActions, words.actions);
   const refreshTools = roving(toolbox, words.tools);
-  const refreshColors = roving(colors, words.colors);
+  const refreshColors = roving(colorRow, words.colors);
   app.store.subscribe(render);
   render(app.store.get());
 
   window.addEventListener('keydown', event => {
-    if (event.defaultPrevented || app.store.get().busy || document.querySelector('dialog[open]')) return;
+    if (event.defaultPrevented || document.querySelector('dialog[open]')) return;
     const key = event.key.toLowerCase();
     const shortcut = (event.ctrlKey || event.metaKey) && (key === 'z' || key === 'y');
     if (event.target instanceof HTMLElement && event.target.matches('input, textarea, select, [contenteditable="true"]') &&
       !(shortcut && event.target.matches('.label-field'))) return;
+    if (app.store.get().busy) {
+      if (shortcut) { event.preventDefault(); app.say(busyHint); }
+      return;
+    }
     if (key === 'escape') {
-      app.input.cancel();
+      app.cancelGesture();
       app.cancelPicker();
     } else if (shortcut) {
       event.preventDefault();

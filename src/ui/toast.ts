@@ -9,6 +9,11 @@ export class Toasts {
   readonly element = h('div', 'toasts');
   private readonly labels = new WeakMap<HTMLElement, L10n>();
 
+  localize<T extends HTMLElement>(element: T, label: L10n): T {
+    this.labels.set(element, label);
+    return element;
+  }
+
   refreshLocale() {
     for (const element of document.querySelectorAll<HTMLElement>('.success-message, .toast-message, .toast button')) {
       const label = this.labels.get(element);
@@ -24,7 +29,7 @@ export class Toasts {
   confirm(message: L10n, region: HTMLElement) {
     const status = h('span', 'success-message', t(message));
     status.setAttribute('role', 'status');
-    this.labels.set(status, message);
+    this.localize(status, message);
     region.querySelector('.success-message')?.remove();
     region.append(status);
     window.setTimeout(() => status.remove(), 4000);

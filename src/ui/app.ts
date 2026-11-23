@@ -104,12 +104,14 @@ export class App {
   }
 
   saveRecovery() {
-    const notice = h('div', 'toast save-recovery', h('span', 'toast-message', t(saveFailed)),
-      button(retry, icons.undo, () => this.run(() => this.documents.save())),
-      button({ pt: 'Guardar num ficheiro', en: 'Save to a file' }, icons.save, () => this.run(async () => {
+    const fileLabel = { pt: 'Guardar num ficheiro', en: 'Save to a file' };
+    const notice = h('div', 'toast save-recovery',
+      this.toasts.localize(h('span', 'toast-message', t(saveFailed)), saveFailed),
+      this.toasts.localize(button(retry, icons.undo, () => this.run(() => this.documents.save())), retry),
+      this.toasts.localize(button(fileLabel, icons.save, () => this.run(async () => {
         const project = this.documents.snapshot();
         download(await serializeWorks([project, ...this.documents.recoveryProjects]), project.title, 'garatuja');
-      })));
+      })), fileLabel));
     notice.setAttribute('role', 'status');
     notice.hidden = !this.saveFailed;
     this.recovery.add(notice);
@@ -267,7 +269,7 @@ export class App {
   get canUndo() { return this.input.inGesture || this.tool.hasPendingEdit?.() || this.surface.canUndo; }
 
   undo() {
-    if (this.input.cancel()) return;
+    if (this.cancelGesture()) return;
     const tool = this.tool;
     if (tool.hasPendingEdit?.()) {
       const restore = tool.undoPendingEdit?.();
@@ -279,8 +281,14 @@ export class App {
     this.sounds.play('undo');
   }
 
+  cancelGesture() {
+    const canceled = this.input.cancel();
+    if (canceled) this.store.set({ hint: this.toolHint() });
+    return canceled;
+  }
+
   redo() {
-    this.input.cancel();
+    this.cancelGesture();
     if (!this.surface.canRedo) return;
     this.surface.redo();
     this.sounds.play('redo');
@@ -323,14 +331,18 @@ export class App {
 
   modal(options: ModalOptions) {
     this.input.flushPending();
-    return openModal(options);
+    this.cancelPicker();
+    return openModal({ ...options, onClose: () => {
+      this.store.set({ hint: this.toolHint() });
+      options.onClose?.();
+    } });
   }
 
   /** Play one of the interface sounds (silent when sound is off). */
   sound(id: SoundId) { this.sounds.play(id); }
 
   confirm(message: L10n) {
-    const region = document.querySelector<HTMLElement>('dialog[open] .dialog-head') ?? document.querySelector<HTMLElement>('#app .help');
+    const region = document.querySelector<HTMLElement>('dialog[open] .dialog-head') ?? document.querySelector<HTMLElement>('#app .help-copy');
     if (region) this.toasts.confirm(message, region);
   }
 
