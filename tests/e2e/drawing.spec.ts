@@ -113,6 +113,7 @@ test('switches pages and work, keeping original paper and author text', async ({
   await expect(page.getByRole('button', { name: 'Página 2' })).toHaveAttribute('aria-pressed', 'true');
   expect(await read(page, 480, 400)).toEqual(white);
   await choose(page, 'Página 1');
+  await expect(page.getByRole('button', { name: 'Página 1' })).toHaveAttribute('aria-pressed', 'true');
   await choose(page, 'Desfazer');
   expect(await read(page, 480, 400)).toEqual(white);
   await choose(page, 'Refazer');

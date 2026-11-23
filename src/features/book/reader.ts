@@ -118,7 +118,7 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
     if (!presenting) return;
     event.preventDefault();
     dismiss();
-  });
+  }, { capture: true });
   if (presenting) {
     document.addEventListener('fullscreenchange', fullscreenChanged);
     void content.requestFullscreen?.().catch(() => {});

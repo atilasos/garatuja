@@ -28,6 +28,7 @@ export class Surface {
   readonly overlay = viewport();
   readonly onion = viewport();
   private readonly snapshot = viewport(CANVAS_W, CANVAS_H, true, true);
+  private bookHistory = new History();
   private readonly histories = new Map<string, History>();
   private hasForeground = false;
   private labelObjects: LabelObject[] = [];
@@ -44,11 +45,12 @@ export class Surface {
     this.onion.canvas.className = 'onion';
   }
 
-  async load(page: PageRecord) {
+  async load(page: PageRecord, beforeShow?: () => Promise<void>) {
     const [bitmap, paper, foreground] = await Promise.all([
       createImageBitmap(page.bitmap), createImageBitmap(page.paper),
       page.foreground ? createImageBitmap(page.foreground) : null,
     ]);
+    if (beforeShow) await beforeShow();
     this.rollback();
     this.pageId = page.id;
     const history = this.histories.get(page.id);
@@ -179,17 +181,19 @@ export class Surface {
     return history;
   }
 
-  get canUndo() { return this.history.canUndo; }
-  get canRedo() { return this.history.canRedo; }
+  get canUndo() { return this.history.canUndo || this.bookHistory.canUndo; }
+  get canRedo() { return this.history.canRedo || this.bookHistory.canRedo; }
   get inGesture() { return this.activeGesture !== undefined; }
 
   get historyBytes() {
-    return [...this.histories.values()].reduce((total, history) => total + history.retainedBytes, 0);
+    return [...this.histories.values()].reduce((total, history) => total + history.retainedBytes, this.bookHistory.retainedBytes);
   }
 
   discardHistory(pageId?: string) {
-    if (pageId === undefined) this.histories.clear();
-    else this.histories.delete(pageId);
+    if (pageId === undefined) {
+      this.histories.clear();
+      this.bookHistory = new History();
+    } else this.histories.delete(pageId);
   }
 
   private trimHistory() {
@@ -200,10 +204,24 @@ export class Surface {
       excess -= history.retainedBytes;
       this.discardHistory(id);
     }
+    while (excess > 0 && this.bookHistory.retainedBytes > 0) {
+      const before = this.bookHistory.retainedBytes;
+      this.bookHistory.trim();
+      excess -= before - this.bookHistory.retainedBytes;
+    }
   }
 
   rememberWriting(before: () => void, after: () => void, bytes: number) {
-    if (this.history.add({ writing: { before, after, bytes } })) this.trimHistory();
+    if (this.history.add({ writing: { before, after, bytes } })) {
+      this.bookHistory.clearRedo();
+      this.trimHistory();
+    }
+  }
+
+  rememberDetails(before: () => void, after: () => void, bytes: number) {
+    this.history.clearRedo();
+    this.bookHistory.add({ writing: { before, after, bytes } });
+    this.trimHistory();
   }
 
   rememberUndoneWriting(edit: { resume(): void; bytes: number }) {
@@ -216,7 +234,10 @@ export class Surface {
 
   private restore(direction: 'before' | 'after') {
     this.rollback();
-    const step = direction === 'before' ? this.history.undo() : this.history.redo();
+    const order = direction === 'before' ? 'undoOrder' : 'redoOrder';
+    const local = this.history;
+    const history = this.bookHistory[order] > local[order] ? this.bookHistory : local;
+    const step = direction === 'before' ? history.undo() : history.redo();
     if (!step) return;
     if (step.writing) { step.writing[direction](); return; }
     const bitmap = step.bitmap;
@@ -254,6 +275,7 @@ export class Surface {
     const labels = JSON.stringify(gesture.labels) === JSON.stringify(this.labelObjects)
       ? undefined : { before: gesture.labels, after: structuredClone(this.labelObjects) };
     if (this.history.add({ bitmap, labels, solid: gesture.solid })) {
+      this.bookHistory.clearRedo();
       this.trimHistory();
       this.onChange();
     }

@@ -17,7 +17,16 @@ export function openModal({ title, content, footer, onClose }: ModalOptions): ()
   const heading = h('h2', '', t(title));
   heading.id = `dialog-title-${++count}`;
   dialog.setAttribute('aria-labelledby', heading.id);
-  const close = () => { if (dialog.open) dialog.close(); };
+  const close = () => {
+    if (!dialog.open) return;
+    dialog.close();
+    finish();
+  };
+  dialog.addEventListener('cancel', event => {
+    if (event.defaultPrevented) return;
+    event.preventDefault();
+    close();
+  });
   const dismiss = button({ pt: 'Fechar', en: 'Close' }, icons.close, close);
   // A fade with an arrow at the bottom while the dialog still has content below the fold.
   const more = h('div', 'dialog-more');
@@ -48,12 +57,14 @@ export function openModal({ title, content, footer, onClose }: ModalOptions): ()
       first?.focus();
     }
   });
-  dialog.addEventListener('close', () => {
+  function finish() {
+    if (!dialog.isConnected) return;
     watcher.disconnect();
     dialog.remove();
     if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     onClose?.();
-  }, { once: true });
+  }
+  dialog.addEventListener('close', finish, { once: true });
   document.body.append(dialog);
   dialog.showModal();
   (dialog.querySelector<HTMLElement>('[autofocus]') ?? dismiss).focus();

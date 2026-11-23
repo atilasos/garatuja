@@ -12,6 +12,8 @@ interface BitmapDelta {
   xor: Uint8Array;
 }
 
+let sequence = 0;
+
 interface Step {
   transient?: boolean;
   solid?: { before: string; after: string };
@@ -86,27 +88,33 @@ function bytes(step: Step) {
 export const HISTORY_BUDGET = 168 * 1024 * 1024;
 
 export class History {
-  private past: Step[] = [];
-  private future: Step[] = [];
+  private past: (Step & { order: number })[] = [];
+  private future: (Step & { order: number; undoneAt: number })[] = [];
   retainedBytes = 0;
 
   constructor(private limit = HISTORY_BUDGET, private steps = 60) {}
 
   get canUndo() { return this.past.length > 0; }
   get canRedo() { return this.future.length > 0; }
+  get undoOrder() { return this.past.at(-1)?.order ?? 0; }
+  get redoOrder() { return this.future.at(-1)?.undoneAt ?? 0; }
+
+  clearRedo() {
+    for (const undone of this.future) this.retainedBytes -= bytes(undone);
+    this.future = [];
+  }
 
   add(step: Step): boolean {
     if (!step.bitmap && !step.labels && !step.writing && !step.solid) return false;
-    for (const undone of this.future) this.retainedBytes -= bytes(undone);
-    this.future = [];
-    this.past.push(step);
+    this.clearRedo();
+    this.past.push({ ...step, order: ++sequence });
     this.retainedBytes += bytes(step);
     while (this.past.length > this.steps || this.retainedBytes > this.limit) this.trim();
     return true;
   }
 
   addUndone(step: NonNullable<Step['writing']>) {
-    this.future.push({ writing: step, transient: true });
+    this.future.push({ writing: step, transient: true, order: 0, undoneAt: ++sequence });
     this.retainedBytes += step.bytes;
     while (this.past.length + this.future.length > this.steps || this.retainedBytes > this.limit) this.trim();
   }
@@ -118,7 +126,7 @@ export class History {
 
   undo() {
     const step = this.past.pop();
-    if (step) this.future.push(step);
+    if (step) this.future.push({ ...step, undoneAt: ++sequence });
     return step;
   }
 

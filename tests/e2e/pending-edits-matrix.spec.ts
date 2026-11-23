@@ -243,3 +243,33 @@ test('page writing and work details are reversible as sessions on the page', asy
   await button(page, 'Refazer').click();
   expect(await details()).toEqual(['Na escola', 'Ana', 'A turma']);
 });
+
+test('closing page writing records it before an immediate mark', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => Boolean(window.__garatuja));
+  await button(page, 'O meu texto').click();
+  await page.getByRole('textbox', { name: 'O meu texto' }).fill('Cheguei à ponte.');
+  for (const close of ['Fechar', 'Escape']) {
+    if (close === 'Escape') {
+      await button(page, 'O meu texto').click();
+      await page.getByRole('textbox', { name: 'O meu texto' }).fill('Atravessei a ponte.');
+    }
+    // Run both normal entry points in one task, before a queued native close event.
+    await page.evaluate(close => {
+      const dialog = document.querySelector('dialog[open]');
+      if (!(dialog instanceof HTMLDialogElement)) throw new Error('Missing writing dialog');
+      if (close === 'Escape') dialog.requestClose();
+      else dialog.querySelector('button')?.click();
+      const { input } = window.__garatuja!.app;
+      input.drawWithKeyboard(new KeyboardEvent('keydown', { key: 'Enter' }));
+      input.drawWithKeyboard(new KeyboardEvent('keydown', { key: 'Enter' }));
+    }, close);
+    const pixel = () => page.evaluate(() => window.__garatuja!.app.surface.ctx.getImageData(800, 600, 1, 1).data[0]);
+    expect(await pixel()).toBeLessThan(100);
+    await button(page, 'Desfazer').click();
+    expect(await pixel()).toBe(255);
+    await expect(page.locator('.writing-preview')).toContainText(close === 'Escape' ? 'Atravessei a ponte.' : 'Cheguei à ponte.');
+    await button(page, 'Desfazer').click();
+    await expect(page.locator('.writing-preview')).toContainText('Escreve aqui o teu texto');
+  }
+});

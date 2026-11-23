@@ -94,7 +94,7 @@ export class Documents {
     const { title, author, audience } = this.store.get().project;
     const after = { title, author, audience };
     if (title !== before.title || author !== before.author || audience !== before.audience) {
-      this.surface.rememberWriting(() => this.editProject(before), () => this.editProject(after),
+      this.surface.rememberDetails(() => this.editProject(before), () => this.editProject(after),
         2 * (title.length + author.length + audience.length + before.title.length + before.author.length + before.audience.length));
       this.store.set({});
     }
@@ -272,6 +272,7 @@ export class Documents {
     if (this.store.get().busy) return false;
     this.input.flushPending();
     this.store.set({ busy: true });
+    let published = false;
     try {
       const saved = await this.saveCommitted();
       const current = saved ? this.store.get().project : this.capture();
@@ -288,7 +289,14 @@ export class Documents {
       if (opening && target.project.id === current.id && target.project.updatedAt === current.updatedAt) {
         target = { project: current, page: current.pages.find(page => page.id === target?.page.id) ?? previousPage };
       }
-      if (target.page !== previousPage) await this.surface.load(target.page);
+      const changed = opening === false || (opening === undefined && target.project !== current);
+      const { project: nextProject, page: nextPage } = target;
+      const recovered = changingWork ? this.memory.get(nextProject.id) : undefined;
+      const savedAt = changingWork ? recovered ? recovered.expectedAt : opening ? nextProject.updatedAt : undefined : this.savedAt;
+      const remember = saved && !changed && savedAt !== undefined && (opening !== undefined || previousPage.id !== nextPage.id)
+        ? () => this.storage.remember(nextProject.id, nextPage.id).catch(() => {}) : undefined;
+      if (target.page !== previousPage) await this.surface.load(target.page, remember);
+      else await remember?.();
       if (!saved) {
         this.pixelsChanged = false;
         this.prepared = undefined;
@@ -296,28 +304,26 @@ export class Documents {
       }
       if (departingDraft) this.memory.set(current.id, departingDraft);
       if (changingWork) {
-        const recovered = this.memory.get(target.project.id);
         this.memory.delete(target.project.id);
         this.pending = Boolean(recovered);
         this.staged = recovered;
         if (recovered?.pageId === target.page.id) this.prepared = { revision: this.revision, draft: recovered };
         this.checkpointedPixels = Boolean(recovered);
         this.surface.discardHistory();
-        this.savedAt = recovered ? recovered.expectedAt : opening ? target.project.updatedAt : undefined;
+        this.savedAt = savedAt;
       } else {
         const kept = new Set(target.project.pages.map(page => page.id));
         for (const page of current.pages) if (!kept.has(page.id)) this.surface.discardHistory(page.id);
       }
-      this.store.set({ project: target.project, pageId: target.page.id });
-      if (opening === false || (opening === undefined && target.project !== current)) {
+      published = !changed;
+      this.store.set({ project: nextProject, pageId: nextPage.id, busy: changed });
+      if (changed) {
         this.schedule();
         await this.saveCommitted();
-      } else if (saved && this.savedAt !== undefined && (opening !== undefined || previousPage.id !== target.page.id)) {
-        await this.storage.remember(target.project.id, target.page.id).catch(() => {});
       }
       return true;
     } finally {
-      this.store.set({ busy: false });
+      if (!published) this.store.set({ busy: false });
     }
   }
 
