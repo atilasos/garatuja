@@ -92,13 +92,13 @@ Pingo · Ouvir · Som · Definições
 
 | Ferramenta | id | Conteúdo |
 | --- | --- | --- |
-| Pintar | `paint` | ≥ 20 pincéis (`BrushDef`): redondo, quadrado, caligrafia, giz, lápis de cera, aguarela, spray, marcador, pontilhado, direcionais (seta, pegadas), animados (cintilante), pressão da caneta; 5 tamanhos |
+| Pintar | `paint` | ≥ 20 pincéis (`BrushDef`): redondo, quadrado, caligrafia, giz, lápis de cera, aguarela, spray, marcador, pontilhado, direcionais (seta, pegadas), animados (cintilante), pressão da caneta e 5 tamanhos. Espaçamento em três passos na interface completa |
 | Carimbo | `stamp` | categorias, tamanho, espelhar, virar, rodar; carimbos tingíveis; **«Os meus carimbos»** |
-| Linhas | `lines` | reta com qualquer pincel; Shift = ângulos de 15° |
+| Linhas | `lines` | reta com qualquer pincel e o espaçamento escolhido em Pintar; Shift = ângulos de 15° |
 | Formas | `shapes` | quadrado, retângulo, círculo, elipse, triângulo, pentágono, hexágono, octógono, losango, estrelas 5/6 pontas, coração, seta; cheio/contorno; do centro/do canto; rodar |
-| Texto | `text` | escreve no bitmap; fontes: Andika, manuscrita escolar (Playwrite PT), título, máquina de escrever; tamanhos; o bloco sobe para caber na folha e avisa durante a escrita quando excede a altura da folha; opção Só maiúsculas em toda a interface |
+| Texto | `text` | escreve no bitmap; fontes: Andika, manuscrita escolar (Playwrite PT), título, máquina de escrever; tamanhos; o bloco sobe e desloca-se para a esquerda para caber na folha. A largura respeita a palavra mais longa até ao limite da folha. O aviso aparece quando o bloco excede a folha; opção Só maiúsculas em toda a interface |
 | Legenda | `label` | texto que continua editável (mover, reescrever, apagar). Em clique fixo, Só texto e Narrador abrem ao primeiro toque numa zona livre. Mover uma legenda ou a sua pega continua a usar dois cliques. Pronto mantém aberto o campo se o texto exceder a folha e liberta a seleção quando a edição é aceite; **seta de legenda** e **número** para esquemas de texto informativo; **balões** de fala/pensamento/grito para narrativa |
-| Encher | `fill` | sólido, gradiente linear, radial, padrões, Pincel limitado à zona tocada e Apagar zona para repor o papel; tolerância que respeita linhas do modelo |
+| Encher | `fill` | sólido, gradiente linear, radial, padrões, Pincel com cinco tamanhos, limitado à zona tocada e Apagar zona para repor o papel; tolerância que respeita linhas do modelo |
 | Magia | `magic` | ≥ 60 efeitos (`MagicEffect`) em 5 categorias: pintar, cor, distorcer, padrões, página inteira |
 | Borracha | `eraser` | redonda/quadrada, 5 tamanhos; repõe o papel |
 | Mover | `move` | recortar um retângulo ou um laço, mover/aumentar/rodar/duplicar; **guardar como carimbo** |
@@ -129,7 +129,7 @@ inteira, o interruptor Em toda a folha fica junto dos tamanhos.
   o avanço percorre primeiro o texto da página por ecrãs. No fim, painel de comentários «Gostei / Pergunto / Sugiro» (texto livre, com nome de quem diz).
 - **Ler/Imprimir como livro** tem capa tipográfica com título, autor, destinatário e turma, quando definida.
   Cada ilustração aparece junto do seu texto. Ler mostra a miniatura enquanto prepara a imagem completa.
-  O livro impresso usa letra de 16 a 18 pt consoante o comprimento do texto. O rodapé acompanha o fim do texto.
+  O livro impresso usa letra de 16 a 18 pt consoante o comprimento do texto. A capa usa 36 pt no título e 20 pt no autor. O rodapé acompanha o fim do texto.
   Um trabalho de uma página sem título nem autor começa na própria página.
 - **Abrir → Diapositivos** permite selecionar trabalhos pela ordem em que a turma os vai ver.
   O leitor em ecrã inteiro passa por todas as páginas e mostra o título e autor de cada trabalho.
@@ -156,7 +156,7 @@ Apagar um trabalho aberto descarta o rascunho e envia a revisão guardada para a
 A exportação exclui a reciclagem e mostra o progresso. Quando o arquivo excede 160 MiB, apresenta
 volumes `.garatuja` importáveis individualmente. Um trabalho maior do que um volume divide-se nas
 fronteiras entre páginas.
-A eliminação exige escrever APAGAR (DELETE na interface em inglês). Limpa os trabalhos, carimbos,
+A eliminação exige escrever APAGAR (DELETE na interface em inglês). Aceita espaços antes e depois da palavra. Limpa os trabalhos, carimbos,
 reciclagem, rascunhos de recuperação e definições.
 
 Opções: interface
@@ -167,10 +167,10 @@ permitir importar ficheiros, clique fixo, cursor grande, alto contraste, mão es
 O teclado no ecrã é opcional e também está nas definições da criança. A disposição pode ser
 alfabética ou QWERTY. Texto, Legenda, O meu texto, os dados do trabalho e os comentários aceitam
 rato, toque e teclado físico. O teclado no ecrã tem teclas de pelo menos 48 px, maiúsculas, vogais acentuadas,
-cedilha, algarismos, pontuação, «º», «ª», hífen, espaço, apagar e nova linha nos campos com várias linhas.
+cedilha, algarismos, pontuação incluindo os sinais do discurso direto, «º», «ª», hífen, espaço, apagar e nova linha nos campos com várias linhas.
 Na folha, o teclado muda de posição para deixar o campo e as ações visíveis.
 Nos ecrãs estreitos, a tecla «á ç 123» dá acesso a acentos, números e sinais.
-Só maiúsculas aplica-se ao texto introduzido enquanto a opção está ativa. Os caracteres já escritos conservam a sua forma guardada.
+Só maiúsculas aplica-se à interface e ao texto introduzido enquanto a opção está ativa. Os caracteres já escritos conservam a grafia no editor e em todas as saídas. Ctrl+Z dentro de um campo usa o histórico desse campo.
 
 ## 7. Arquitetura
 
@@ -199,7 +199,7 @@ Só maiúsculas aplica-se ao texto introduzido enquanto a opção está ativa. O
   também em clique fixo.
 - O primeiro traço prepara o PNG e grava um rascunho em IndexedDB antes da gravação automática.
   A publicação do trabalho usa uma transação separada da escrita do rascunho. Se a página fechar
-  durante a publicação, o arranque seguinte pode recuperar o rascunho.
+  durante a publicação, o arranque seguinte pode recuperar o rascunho. Se a publicação continuar a falhar, a mesa abre o rascunho ativo e mantém um aviso com nova tentativa e exportação. Os rascunhos de outros trabalhos continuam disponíveis na galeria.
 - Se faltar espaço para guardar, a criança pode mudar de página ou começar outro trabalho. A
   versão em memória continua disponível na galeria e no ficheiro de recuperação. O aviso de
   gravação mantém-se até a gravação das alterações. A folha inicial intacta fica fora da galeria.

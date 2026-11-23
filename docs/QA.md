@@ -148,9 +148,39 @@ O codificador GIF fica num worker separado. As licenças carregam ao abrir Créd
 - `npm run check` → TypeScript, ESLint, 273 testes unitários e compilação passaram — 2026-11-23
 - Cinco execuções seguidas de `npm run e2e` → cada uma teve 356 testes aprovados, 9 ignorados pela configuração e zero falhas. Duração por ordem em minutos: 3,6, 3,6, 3,6, 3,5 e 3,6 — 2026-11-23
 
+## Quinta ronda
+
+### Recuperação e autoria
+
+- Quota de publicação esgotada ao recarregar → abre o texto e o desenho do rascunho, mostra o aviso âmbar, exporta para `.garatuja` e publica quando a próxima tentativa tem espaço — 2026-11-23
+- Saída durante a publicação ou depois do primeiro traço → o rascunho é recuperado e o trabalho reaparece uma única vez. Um rascunho de outro trabalho conserva a entrada na galeria e fornece a imagem atual a Usar como modelo. Rascunhos independentes do mesmo trabalho ficam disponíveis em separado — 2026-11-23
+- Publicações simultâneas, cópia alterada noutro separador e Anular → página e comentário são repostos na cópia em que a eliminação ficou gravada. Anular um carimbo repõe o carimbo apagado mesmo que outro separador crie um novo — 2026-11-23
+- Reciclagem, expiração e apagar dados → a expiração confirma a revisão, Anular repõe um trabalho que só tinha rascunho, um aviso antigo de Anular só vale para a eliminação que o criou e um separador antigo não recria os trabalhos apagados pelo professor — 2026-11-23
+- Importação e exportação do professor → a importação valida as imagens antes de publicar o lote, atribui identificadores novos e abre o primeiro trabalho importado sem substituir o anterior. A exportação inclui os rascunhos e as revisões guardadas em conflito, exclui a reciclagem e divide arquivos grandes em volumes importáveis — 2026-11-23
+- Só maiúsculas em Ler, Apresentar, Diapositivos, impressão e faixa da mesa → texto e autoria mantêm a grafia. Miniatura, PNG, GIF e `.garatuja` têm o mesmo conteúdo com a opção ligada ou desligada — 2026-11-23
+- Capa e texto em PDF A4 → o PDF conserva «A Lia chegou ao Funchal.» e usa 36 pt no título, 20 pt no autor e 18 pt no corpo do exemplo — 2026-11-23
+- Texto junto ao lado direito e balão de fala → os blocos acomodam a palavra mais comprida e deslocam-se para dentro da folha. Ctrl+Z mantém a edição e desfaz a escrita nativa. Desfazer na mesa cancela a edição — 2026-11-23
+
+- Confirmação de eliminação na área do professor → aceita espaços antes e depois de APAGAR na confirmação final — 2026-11-23
+
+### Controlos e layout
+
+- Matriz de oito formatos e três modos → verifica alvos de 48 px, quebras entre palavras e rótulos dentro dos botões com legenda selecionada, recorte ativo, forma por rodar, texto em edição e diálogos abertos — 2026-11-23
+- Teclado nos oito formatos, com Só maiúsculas ligado e desligado → teclas de comando cabem e os sinais do discurso direto são introduzidos no campo — 2026-11-23
+- Tinta branca, amarela e limão → pincéis, linhas, formas, letras e carimbos tingíveis ganham um fundo escuro abaixo de 1,6:1 de contraste — 2026-11-23
+- Ouvir sem vozes e comentário incompleto → o aviso aparece junto de Ouvir. Os dois campos de comentário apresentam a validação da app em português e inglês — 2026-11-23
+- Fazer carimbo, Encher e espaçamento → o carimbo novo fica selecionado em Os meus carimbos. Encher tem dicas por modo e cinco tamanhos no Pincel. Junto, Normal e Afastado mudam a distância entre marcas em Pintar e Linhas na interface completa — 2026-11-23
+
+### Execuções
+
+- `npm run check` → tipos, lint, 274 testes unitários em 17 ficheiros e build passaram — 2026-11-23
+- Três execuções consecutivas de `npm run e2e` → 400 testes passaram e 9 ficaram fora da execução normal em cada uma. As três execuções duraram 4,4 min, 4,6 min e 4,6 min — 2026-11-23
+- Regeneração das capturas → 163 testes passaram em 2,3 min. Foram revistas as 25 imagens alteradas ou novas, incluindo a [legenda selecionada](screens/final-legenda-selecionada-1024x768.png), o [teclado no telemóvel](screens/final-teclado-em-baixo-390x844.png) e a [pré-visualização de impressão](screens/final-impressao-1366x768.png) — 2026-11-23
+
 ## Limitações observadas
 
 - Usei Chromium automatizado com ratos, teclados, toque e caneta simulados. A prova de autonomia de crianças, o toque num dispositivo físico e o tempo num Chromebook real continuam por verificar.
+- Os testes simulam uma quota esgotada na publicação com espaço no armazenamento de rascunhos. O esgotamento simultâneo dos dois armazenamentos continua por verificar.
 - A impressão foi verificada em PDF A4, incluindo a orientação dos dois formatos. A saída numa impressora física depende do dispositivo.
 - Os títulos longos podem aparecer abreviados no cartão. O diálogo e o nome acessível mostram o título integral. As faixas de retrato deslocam-se na horizontal e os telemóveis mais baixos podem exigir deslocamento vertical.
 - Os modelos antigos guardam o papel e as guias como imagens. As linhas novas dos modelos aplicam-se às páginas criadas com esses modelos.
