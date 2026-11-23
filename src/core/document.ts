@@ -113,9 +113,10 @@ export class Documents {
     this.store.set({ busy: true });
     try {
       await this.save(false);
-      const target = await select(this.store.get().project);
+      const current = this.store.get().project;
+      const target = await select(current);
       if (!target) return;
-      await this.surface.load(target.page);
+      if (target.project.id !== current.id || target.page !== this.page) await this.surface.load(target.page);
       this.store.set({ project: target.project, pageId: target.page.id });
       this.schedule();
       await this.save(false);
