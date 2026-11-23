@@ -4,6 +4,11 @@ Ateliê de desenho para crianças dos 4 aos 11 anos. Ilustra textos, faz livros,
 
 A criança é autora do desenho e do texto. Pode desfazer, retomar o trabalho e partilhá-lo como livro, apresentação ou ficheiro. A Garatuja dispensa contas, telemetria e recompensas.
 
+- A faixa **O meu texto** mantém o texto da página à vista enquanto se desenha. **Ler** e **Imprimir** juntam cada ilustração ao texto.
+- Em **Abrir → Diapositivos**, a turma escolhe a ordem dos trabalhos e apresenta todas as páginas em ecrã inteiro.
+- A gravação é automática. Se dois separadores alterarem o mesmo trabalho, a Garatuja preserva uma cópia. Se faltar espaço, podes voltar a tentar ou **Guardar num ficheiro** sem perder o que está na folha.
+- Em **Definições → Adulto**, mantém premido para entrar na área do professor. Podes definir um PIN local, exportar os trabalhos ou apagar os dados do dispositivo.
+
 ## Correr
 
 Usa Node.js 24.

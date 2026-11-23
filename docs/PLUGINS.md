@@ -27,7 +27,7 @@ Os pincéis ficam em grupos pela ordem: 10–99 básicos, 100–199 texturas, 20
 
 ## Efeito de magia
 
-Cria `src/magic/dots.ts`. Usa `stroke` para pincelar e `whole` para atuar sobre a folha inteira. Se o efeito tiver ambos, a opção **Página inteira** escolhe qual se aplica. O anfitrião corre o efeito numa imagem de amostra para gerar a miniatura. Usa as dimensões de `c.width` e `c.height`. Reinicia o estado do traço em `begin` e recebe o tamanho pelo argumento `size`.
+Cria `src/magic/dots.ts`. Usa `stroke` para pincelar e `whole` para atuar sobre a folha inteira. Se o efeito tiver ambos, a opção **Em toda a folha**, junto dos tamanhos, escolhe qual se aplica. O anfitrião corre o efeito numa imagem de amostra para gerar a miniatura. Usa as dimensões de `c.width` e `c.height`. Reinicia o estado do traço em `begin` e recebe o tamanho pelo argumento `size`.
 
 ```ts
 import { strokeBounds } from '../core/draw';
@@ -137,7 +137,7 @@ export default {
 ```
 
 - Lê o estado em `app.store.get()` e observa-o com `app.store.subscribe(listener)`. A função devolvida termina a subscrição. Usa `app.configure(patch)` para guardar definições.
-- Usa `app.documents` para abrir trabalhos, editar texto, reordenar páginas e guardar a folha atual. Antes de consumir os PNG do trabalho chama `await app.documents.save()`. Para ler ou gerir outros trabalhos, usa `app.storage`.
+- Usa `app.documents` para abrir trabalhos, editar texto, reordenar páginas e guardar a folha atual. Usa `app.documents.snapshot()` para obter os PNG atuais sem depender do armazenamento. Verifica o booleano devolvido por `await app.documents.save()` quando a ação precisa mesmo de gravar. Para ler ou gerir outros trabalhos, usa `app.storage`.
 - Usa `app.surface.composite(ctx)` para desenhar a folha atual com o guia e as legendas. Usa `app.surface.compositePage(page, ctx)` para desenhar uma página guardada com as mesmas camadas. Usa `showOnion(page)` para mostrar uma página em papel vegetal e `showOnion()` para a retirar. Instala um renderizador de legendas com `setLabelRenderer({ draw, at })`.
 - `app.modal({ title, content, onClose })` devolve uma função que fecha o diálogo. O diálogo contém o foco e devolve-o ao controlo de origem. Usa `app.notify(message, { label, run })` para ligar um aviso âmbar a uma ação como **Anular**.
 - Usa `app.run(action)` para tratar erros de ações assíncronas. Usa `app.say(message)` para enviar instruções curtas ao Pingo.
