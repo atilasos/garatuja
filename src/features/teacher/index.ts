@@ -21,7 +21,8 @@ const words = {
     pt: 'Tudo fica neste dispositivo. A Garatuja não envia nada para a internet: não há contas, anúncios nem estatísticas.',
     en: 'Everything stays on this device. Garatuja sends nothing to the internet: no accounts, ads or statistics.',
   },
-  interface: { pt: 'Interface', en: 'Interface' },
+  interface: { pt: 'Interface e língua', en: 'Interface and language' },
+  byDefault: { pt: 'Interface', en: 'Interface' },
   simple: { pt: 'Simples', en: 'Simple' },
   full: { pt: 'Completa', en: 'Full' },
   language: { pt: 'Língua', en: 'Language' },
@@ -124,7 +125,7 @@ async function panel(app: App) {
     return h('div', 'teacher-row', h('span', 'teacher-label', t(label)), row);
   };
 
-  const level = choiceRow(words.interface, [{ value: 1 as const, label: words.simple }, { value: 2 as const, label: words.full }],
+  const level = choiceRow(words.byDefault, [{ value: 1 as const, label: words.simple }, { value: 2 as const, label: words.full }],
     () => settings().level, value => app.configure({ level: value }));
   const language = choiceRow(words.language, [
     { value: 'pt' as const, label: { pt: 'Português', en: 'Português' } },

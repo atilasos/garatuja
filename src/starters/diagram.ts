@@ -7,7 +7,7 @@ export default {
   paper(ctx, w, h) {
     const zone = { x: w / 2 - 340, y: h / 2 - 300, w: 680, h: 600 };
     roundRect(ctx, zone, 60);
-    guideStroke(ctx, '#9fb6cc', 5, [4, 18]);
+    guideStroke(ctx, '#8fa8c0', 5, [14, 14]);
     ctx.save();
     ctx.fillStyle = '#9fb6cc';
     for (const side of [-1, 1]) {

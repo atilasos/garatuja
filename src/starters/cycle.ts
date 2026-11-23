@@ -18,10 +18,19 @@ export default {
     for (let i = 0; i < 4; i++) {
       const [ax, ay] = spots[i];
       const [bx, by] = spots[(i + 1) % 4];
-      const angle = Math.atan2(by - ay, bx - ax);
-      const gap = r + 30;
-      arrow(ctx, ax + Math.cos(angle + 0.55) * gap, ay + Math.sin(angle + 0.55) * gap,
-        bx - Math.cos(angle - 0.55) * gap, by - Math.sin(angle - 0.55) * gap, 60);
+      // Bow each arrow outwards, away from the centre, so the cycle reads as a ring.
+      const mx = (ax + bx) / 2;
+      const my = (ay + by) / 2;
+      const out = Math.hypot(mx - cx, my - cy);
+      const qx = mx + (mx - cx) / out * 120;
+      const qy = my + (my - cy) / out * 120;
+      const towards = (x: number, y: number) => {
+        const d = Math.hypot(qx - x, qy - y);
+        return [x + (qx - x) / d * (r + 26), y + (qy - y) / d * (r + 26)] as const;
+      };
+      const [sx, sy] = towards(ax, ay);
+      const [ex, ey] = towards(bx, by);
+      arrow(ctx, sx, sy, ex, ey, -Math.hypot(qx - (sx + ex) / 2, qy - (sy + ey) / 2) * 1.4);
     }
   },
 } satisfies StarterDef;
