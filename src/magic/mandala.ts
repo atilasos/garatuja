@@ -1,5 +1,5 @@
 import type { MagicEffect, Point } from '../core/types';
-import { edgeShade, highlightTint, rgba, shiftColor } from './_util/c-color';
+import { highlightTint, rgba, shiftColor } from './_util/c-color';
 import { DirtyTracker } from './_util/c-geom';
 
 const folds = 8;
@@ -24,9 +24,8 @@ export default {
     const cx = c.width * 0.5;
     const cy = c.height * 0.5;
     const width = Math.max(2.6, size * 0.28);
-    const rim = edgeShade(c.color);
-    const alt = shiftColor(c.color, 14, 0.04, 0.05);
-    const shine = rgba(highlightTint(c.color), 0.36);
+    const alt = shiftColor(c.color, 16, 0.04, 0.06);
+    const shine = rgba(highlightTint(c.color), 0.34);
 
     ctx.save();
     ctx.lineCap = 'round';
@@ -38,13 +37,6 @@ export default {
       const sin = Math.sin(angle);
       const a = rotateAround(from, cx, cy, cos, sin);
       const b = rotateAround(to, cx, cy, cos, sin);
-
-      ctx.strokeStyle = rim;
-      ctx.lineWidth = width + 1.6;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x + 0.05, b.y);
-      ctx.stroke();
 
       ctx.strokeStyle = i % 2 === 0 ? c.color : alt;
       ctx.lineWidth = width;

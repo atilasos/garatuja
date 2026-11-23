@@ -62,17 +62,17 @@ export default {
     const ctx = c.ctx;
     const dirty = new DirtyTracker();
     const spacing = Math.max(10, size * 0.45);
-    const silkW = Math.max(1, size * 0.042);
+    const silkW = Math.max(1.2, size * 0.048);
 
     if (from.x === to.x && from.y === to.y) {
-      drawMiniHub(ctx, hub, size * 0.52, c.color, dirty);
-      prevSpoke = { x: hub.x + size * 0.52, y: hub.y };
+      drawMiniHub(ctx, hub, size * 0.54, c.color, dirty);
+      prevSpoke = { x: hub.x + size * 0.54, y: hub.y };
       remaining = spacing;
       dirty.flush(c);
       return;
     }
 
-    const silkColor = rgba(edgeShade(c.color), 0.72);
+    const silkColor = rgba(edgeShade(c.color), 0.78);
     ctx.save();
     ctx.strokeStyle = silkColor;
     ctx.lineWidth = silkW;
@@ -88,7 +88,7 @@ export default {
 
       // Sagging catenary concentric silk rungs connecting to the previous spoke
       if (prevSpoke) {
-        const rings = 4;
+        const rings = 5;
         for (let r = 1; r <= rings; r++) {
           const t = r / rings;
           const ax = hub.x + (prevSpoke.x - hub.x) * t;

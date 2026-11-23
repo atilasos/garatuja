@@ -1,5 +1,5 @@
 import type { MagicEffect, Point } from '../core/types';
-import { edgeShade, highlightTint, rgba } from './_util/c-color';
+import { highlightTint, rgba } from './_util/c-color';
 import { DirtyTracker } from './_util/c-geom';
 
 export default {
@@ -15,8 +15,7 @@ export default {
     const dirty = new DirtyTracker();
     const width = Math.max(3, size * 0.34);
     const step = Math.max(26, Math.min(Math.round(c.width / 3.4), Math.round(size * 2.2)));
-    const rim = edgeShade(c.color);
-    const shine = rgba(highlightTint(c.color), 0.38);
+    const shine = rgba(highlightTint(c.color), 0.34);
 
     const minX = Math.min(from.x, to.x);
     const maxX = Math.max(from.x, to.x);
@@ -33,13 +32,6 @@ export default {
       const a: Point = { x: from.x + dx, y: from.y };
       const b: Point = { x: to.x + dx, y: to.y };
 
-      ctx.strokeStyle = rim;
-      ctx.lineWidth = width + 1.8;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x + 0.05, b.y);
-      ctx.stroke();
-
       ctx.strokeStyle = c.color;
       ctx.lineWidth = width;
       ctx.beginPath();
@@ -48,7 +40,7 @@ export default {
       ctx.stroke();
 
       ctx.strokeStyle = shine;
-      ctx.lineWidth = Math.max(1, width * 0.3);
+      ctx.lineWidth = Math.max(1, width * 0.28);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x + 0.05, b.y);

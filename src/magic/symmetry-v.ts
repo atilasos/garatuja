@@ -1,18 +1,11 @@
 import type { MagicEffect, Point } from '../core/types';
-import { edgeShade, highlightTint, rgba } from './_util/c-color';
+import { highlightTint, rgba } from './_util/c-color';
 import { DirtyTracker } from './_util/c-geom';
 
 function drawTwinStroke(ctx: CanvasRenderingContext2D, a: Point, b: Point, width: number, color: string, dirty: DirtyTracker) {
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-
-  ctx.strokeStyle = edgeShade(color);
-  ctx.lineWidth = width + 2;
-  ctx.beginPath();
-  ctx.moveTo(a.x, a.y);
-  ctx.lineTo(b.x + 0.05, b.y);
-  ctx.stroke();
 
   ctx.strokeStyle = color;
   ctx.lineWidth = width;
@@ -21,8 +14,8 @@ function drawTwinStroke(ctx: CanvasRenderingContext2D, a: Point, b: Point, width
   ctx.lineTo(b.x + 0.05, b.y);
   ctx.stroke();
 
-  ctx.strokeStyle = rgba(highlightTint(color), 0.35);
-  ctx.lineWidth = Math.max(1, width * 0.3);
+  ctx.strokeStyle = rgba(highlightTint(color), 0.32);
+  ctx.lineWidth = Math.max(1, width * 0.28);
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
   ctx.lineTo(b.x + 0.05, b.y);

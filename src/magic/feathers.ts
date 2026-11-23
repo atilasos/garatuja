@@ -14,18 +14,27 @@ function drawFeather(
   rand: () => number,
   dirty: DirtyTracker,
 ) {
-  const len = size * (0.72 + rand() * 0.3);
-  const maxW = len * 0.34;
-  const curve = (rand() - 0.5) * len * 0.18;
+  const len = size * (0.76 + rand() * 0.28);
+  const maxW = len * 0.36;
+  const curve = (rand() - 0.5) * len * 0.16;
   const quillColor = highlightTint(color);
   const barbDark = edgeShade(color);
   const barbMid = shiftColor(color, (rand() - 0.5) * 14, 0.04, (rand() - 0.4) * 0.1);
-  const barbs = 15;
+  const barbs = 16;
 
   ctx.save();
   ctx.translate(p.x, p.y);
-  ctx.rotate(angle + (rand() - 0.5) * 0.55);
+  ctx.rotate(angle + (rand() - 0.5) * 0.5);
   ctx.lineCap = 'round';
+
+  // Soft translucent plume vane backdrop for richer feather volume
+  ctx.fillStyle = rgba(barbMid, 0.42);
+  ctx.beginPath();
+  ctx.moveTo(len * 0.1, 0);
+  ctx.quadraticCurveTo(len * 0.52, -maxW * 1.15 + curve, len * 0.98, 0);
+  ctx.quadraticCurveTo(len * 0.52, maxW * 1.15 + curve, len * 0.1, 0);
+  ctx.closePath();
+  ctx.fill();
 
   // Fine silky barbs fanning off both sides of the curved rachis
   for (let i = 2; i < barbs; i++) {
@@ -33,13 +42,12 @@ function drawFeather(
     const bx = t * len;
     const by = Math.sin(t * Math.PI) * curve;
     const envelope = Math.sin(t * Math.PI) * (0.65 + 0.35 * (1 - t));
-    // Natural tiny notch splits in the plumage
     const notch = i === 6 || i === 11 ? 0.62 : 1;
     const span = maxW * envelope * notch;
-    const sweep = len * 0.14;
+    const sweep = len * 0.15;
 
-    ctx.strokeStyle = i % 3 === 0 ? rgba(barbDark, 0.72) : rgba(barbMid, 0.85);
-    ctx.lineWidth = Math.max(1.1, size * 0.045);
+    ctx.strokeStyle = i % 3 === 0 ? rgba(barbDark, 0.78) : rgba(barbMid, 0.92);
+    ctx.lineWidth = Math.max(1.2, size * 0.048);
 
     ctx.beginPath();
     ctx.moveTo(bx, by);
@@ -51,7 +59,7 @@ function drawFeather(
 
   // Tapered pale central quill (rachis)
   ctx.strokeStyle = quillColor;
-  ctx.lineWidth = Math.max(1.3, size * 0.055);
+  ctx.lineWidth = Math.max(1.4, size * 0.055);
   ctx.beginPath();
   ctx.moveTo(-len * 0.12, 0);
   ctx.quadraticCurveTo(len * 0.48, curve * 1.15, len * 0.98, 0);
@@ -62,7 +70,7 @@ function drawFeather(
 }
 
 function scatterFeathers(p: Point, angle: number, c: ToolContext, size: number, dirty: DirtyTracker) {
-  const spread = size * 0.25;
+  const spread = size * 0.24;
   const fx = p.x + (c.random() - 0.5) * spread * 2;
   const fy = p.y + (c.random() - 0.5) * spread * 2;
   drawFeather(c.ctx, { x: fx, y: fy }, angle, size, c.color, c.random, dirty);

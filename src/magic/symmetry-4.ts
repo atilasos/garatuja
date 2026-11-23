@@ -1,15 +1,8 @@
 import type { MagicEffect, Point } from '../core/types';
-import { edgeShade, highlightTint, rgba } from './_util/c-color';
+import { highlightTint, rgba } from './_util/c-color';
 import { DirtyTracker } from './_util/c-geom';
 
 function paintSegment(ctx: CanvasRenderingContext2D, a: Point, b: Point, width: number, color: string, dirty: DirtyTracker) {
-  ctx.strokeStyle = edgeShade(color);
-  ctx.lineWidth = width + 1.8;
-  ctx.beginPath();
-  ctx.moveTo(a.x, a.y);
-  ctx.lineTo(b.x + 0.05, b.y);
-  ctx.stroke();
-
   ctx.strokeStyle = color;
   ctx.lineWidth = width;
   ctx.beginPath();
@@ -17,7 +10,7 @@ function paintSegment(ctx: CanvasRenderingContext2D, a: Point, b: Point, width: 
   ctx.lineTo(b.x + 0.05, b.y);
   ctx.stroke();
 
-  ctx.strokeStyle = rgba(highlightTint(color), 0.34);
+  ctx.strokeStyle = rgba(highlightTint(color), 0.3);
   ctx.lineWidth = Math.max(1, width * 0.28);
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
