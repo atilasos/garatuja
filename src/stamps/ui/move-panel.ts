@@ -1,4 +1,6 @@
 import { t } from '../../core/i18n';
+import { tools } from '../../core/registry';
+import { toolAllowed } from '../../core/store';
 import moveTool, { editSelection, hasSelection, makeStamp, observeSelection, resizeSelectionPreview, shapeOption } from '../../tools/move';
 import type { App } from '../../ui/app';
 import { button, h, pressed, roving, unavailable } from '../../ui/dom';
@@ -7,7 +9,7 @@ import { stampIcons } from './icons';
 import './move.css';
 
 const actions = [
-  { id: 'duplicate', label: { pt: 'Duplicar', en: 'Duplicate' }, icon: stampIcons.duplicate },
+  { id: 'duplicate', label: { pt: 'Duplicar recorte', en: 'Duplicate cutout' }, icon: stampIcons.duplicate },
   { id: 'mirror', label: { pt: 'Espelhar', en: 'Mirror' }, icon: icons.mirror },
   { id: 'delete', label: { pt: 'Apagar recorte', en: 'Delete cutout' }, icon: stampIcons.delete },
   { id: 'drop', label: { pt: 'Pousar', en: 'Put down' }, icon: stampIcons.place },
@@ -42,6 +44,9 @@ export function registerMovePanel(app: App, save: (picture: Blob) => void) {
       buttons.append(item);
     }
     roving(buttons, { pt: 'Ações do recorte', en: 'Cutout actions' });
+    const panel = h('div', 'move-options', h('h3', 'option-title', t(shapeOption.label)), shapes, buttons);
+    const stamp = tools.get('stamp');
+    if (!stamp || !toolAllowed(app.store.get().settings, stamp)) return panel;
     const create = button({ pt: 'Fazer carimbo', en: 'Make stamp' }, icons.stamp, () => {
       const picture = makeStamp();
       if (picture) save(picture);
@@ -49,6 +54,7 @@ export function registerMovePanel(app: App, save: (picture: Blob) => void) {
     });
     unavailable(create, selected ? undefined : first, say);
     create.dataset.focus = 'move:stamp';
-    return h('div', 'move-options', h('h3', 'option-title', t(shapeOption.label)), shapes, buttons, create);
+    panel.append(create);
+    return panel;
   });
 }

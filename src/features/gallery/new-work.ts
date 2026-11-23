@@ -100,10 +100,9 @@ export function newWork(app: App) {
   const content = h('div', 'new-work', recovery,
     hadWork && !app.documents.hasUnsavedChanges ? h('p', 'pingo-note', art(icons.pingo), h('span', '', t(words.kept))) : null,
     h('section', 'new-step', h('h3', 'step-title', t(words.paper)), colorRow),
-    h('section', 'new-step', h('h3', 'step-title', t(words.model)), ...groups),
-    h('div', 'dialog-actions sticky-actions', create));
+    h('section', 'new-step', h('h3', 'step-title', t(words.model)), ...groups));
   roving(colorRow, words.paper);
-  const close = app.modal({ title: words.title, content, onClose: () => app.removeSaveRecovery(recovery) });
+  const close = app.modal({ title: words.title, content, footer: h('div', 'dialog-actions', create), onClose: () => app.removeSaveRecovery(recovery) });
   content.closest('dialog')?.classList.add('dialog-wide');
   paintThumbs();
   modelControls.find(([, id]) => id === chosen)?.[0].scrollIntoView({ block: 'nearest' });

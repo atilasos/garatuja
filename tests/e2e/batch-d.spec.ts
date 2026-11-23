@@ -105,7 +105,7 @@ test('moves and duplicates a rectangular cutout with one undo, and Escape restor
 
   await drag(page, [220, 260], [560, 490]);
   await drag(page, [390, 375], [790, 575]);
-  await control(page, 'Duplicar').click();
+  await control(page, 'Duplicar recorte').click();
   await tap(page, 1470, 1020);
   await expect(control(page, 'Pousar')).toBeDisabled();
   expect(await pixel(page, 370, 375)).toEqual(white);

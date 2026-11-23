@@ -1,29 +1,32 @@
 .writing-keyboard {
   display: flex;
   flex-direction: column;
-  max-height: 40dvh;
-  overflow: auto;
-  gap: 4px;
-  padding: 6px;
+  gap: 2px;
+  padding: 4px;
   background: var(--panel);
   color: var(--ink);
   border: 1px solid var(--edge);
   border-radius: 12px;
   z-index: 4;
 }
-.writing-key-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px; }
-.writing-keyboard button { font-size: 1rem; min-height: 48px; min-width: 48px; }
-.writing-keyboard .writing-key { flex: 1 0 auto; }
-.writing-keyboard .icon { width: 22px; height: 22px; }
+.writing-key-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 2px; }
+.writing-keyboard button { font-size: 1rem; height: 48px; min-height: 48px; min-width: 48px; }
+.writing-keyboard .writing-key { flex: 1; font-size: .85rem; line-height: 1.1; }
+.writing-keyboard .icon { width: 20px; height: 20px; }
 .stage .writing-keyboard {
   position: fixed;
   bottom: 6px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(96vw, 900px);
+  width: min(98vw, 740px);
 }
-/* In a dialog the keyboard sits under the field, which shrinks so the last row of keys stays in view. */
-.dialog > .writing-keyboard { position: sticky; bottom: -14px; margin-top: 8px; }
-.writing-dialog > .writing-keyboard { position: static; max-height: none; overflow: visible; }
-.writing-dialog:has(> .writing-keyboard) .book-writing { min-height: 96px; height: clamp(96px, 88dvh - 456px, 360px); resize: none; }
+.stage .writing-keyboard-top { top: 6px; bottom: auto; }
+.stage:has(.writing-keyboard) .label-field { max-height: min(23dvh, 70%); overflow-y: auto !important; }
+.writing-symbol-switch { display: flex; justify-content: center; }
+.dialog > .writing-keyboard { margin-top: 8px; }
+.writing-dialog:has(> .writing-keyboard) .book-writing { min-height: 96px; height: clamp(96px, 88dvh - 470px, 360px); resize: none; }
 .class-presentation:has(.writing-keyboard) { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+@media (max-width: 629px) {
+  .writing-key-row:not(.writing-commands) button { padding-inline: 0; width: 48px; }
+  .writing-commands .writing-key { gap: 2px; flex-direction: column; padding: 2px; min-width: min(20%, 70px); }
+}

@@ -120,3 +120,125 @@ for (const [width, height, minOpen, minClosed] of formats) {
     });
   }
 }
+
+for (const [width, height] of formats) {
+  test(`lower-half keyboard and fixed dialog actions at ${width}×${height}`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/');
+    await page.waitForFunction(() => Boolean(window.__garatuja));
+    await page.evaluate(() => window.__garatuja!.app.configure({ screenKeyboard: true }));
+    const board = page.getByRole('toolbar', { name: 'Teclado no ecrã' });
+    const sheet = page.locator('.sheet');
+    for (const [tool, kind, action] of [['text', '', 'Pousar'], ['label', 'text', 'Pronto'], ['label', 'speech', 'Pronto']]) {
+      await page.evaluate(({ tool, kind }) => {
+        const app = window.__garatuja!.app;
+        app.chooseTool(tool);
+        if (kind) app.setOption('type', kind);
+        window.scrollTo(0, 0);
+      }, { tool, kind });
+      const size = await sheet.boundingBox();
+      if (!size) throw new Error('Missing paper');
+      await sheet.click({ position: { x: size.width * .35, y: size.height * .90 } });
+      const field = page.locator('.label-field');
+      const done = page.getByRole('button', { name: action, exact: true });
+      const cancel = page.getByRole('button', { name: 'Cancelar', exact: true });
+      await expect(board).toBeVisible();
+      await expect(board).toHaveClass(/writing-keyboard-top/);
+      await expect.poll(async () => {
+        const keyboard = await board.boundingBox();
+        if (!keyboard) return false;
+        const bottom = keyboard.y + keyboard.height;
+        const controls = await Promise.all([field.boundingBox(), done.boundingBox(), cancel.boundingBox()]);
+        return controls.every(box => box && box.y >= bottom && box.y + box.height <= height);
+      }).toBe(true);
+      for (const key of ['Maiúsculas', 'Espaço', 'Apagar', 'Nova linha']) {
+        const target = board.getByRole('button', { name: key, exact: true });
+        await expect(target).toBeInViewport({ ratio: 1 });
+        const box = await target.boundingBox();
+        expect(box?.width).toBeGreaterThanOrEqual(48);
+        expect(box?.height).toBeGreaterThanOrEqual(48);
+      }
+      if (width === 390) await board.getByRole('button', { name: 'Números e sinais' }).click();
+      for (const key of '0123456789ºª-') {
+        const target = board.getByRole('button', { name: key, exact: true });
+        await expect(target).toBeInViewport({ ratio: 1 });
+        await target.click();
+      }
+      await expect(field).toHaveValue('0123456789ºª-');
+      if (tool === 'text' && width === 1366 && process.env.GARATUJA_CAPTURE_SCREENS === '1') {
+        await page.screenshot({ path: 'docs/screens/final-teclado-em-baixo-1366x768.png' });
+      } else if (tool === 'text' && width === 1366) {
+        await page.screenshot({ path: info.outputPath('final-teclado-em-baixo-1366x768.png') });
+      }
+      await cancel.click();
+      await expect(board).toHaveCount(0);
+    }
+
+    await page.getByRole('button', { name: 'Novo', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Novo trabalho' });
+    const region = dialog.locator('.dialog-scroll');
+    const footer = dialog.getByRole('button', { name: 'Começar' });
+    await expect(footer).toBeInViewport({ ratio: 1 });
+    const models = region.locator('.model-choice');
+    for (const model of [models.first(), models.last()]) {
+      await model.focus();
+      await expect(model).toBeInViewport({ ratio: .95 });
+      const bounds = await model.boundingBox();
+      const start = await footer.boundingBox();
+      expect(bounds && start && bounds.y + bounds.height < start.y).toBe(true);
+      await expect(model).toBeEnabled();
+    }
+    await footer.click();
+    await expect(dialog).toHaveCount(0);
+  });
+}
+
+for (const [width, rows] of [[1366, 3], [1024, 2]]) {
+  test(`stamp controls leave ${rows} full rows of choices at ${width}×768`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 768 });
+    await page.goto('/');
+    await page.waitForFunction(() => Boolean(window.__garatuja));
+    await page.getByRole('button', { name: 'Carimbo', exact: true }).click();
+    await page.getByRole('button', { name: 'Categorias', exact: true }).click();
+    await page.getByRole('button', { name: 'Animais', exact: true }).click();
+    const visibleRows = await page.locator('.stamp-gallery .stamp-tile').evaluateAll(items => {
+      const limit = items[0].closest('.options-scroll')!.getBoundingClientRect();
+      return new Set(items.map(item => item.getBoundingClientRect())
+        .filter(box => box.bottom <= limit.bottom && box.top >= limit.top).map(box => box.top)).size;
+    });
+    expect(visibleRows).toBeGreaterThanOrEqual(rows);
+    const alignment = await page.locator('.stamp-actions button').evaluateAll(items => new Set(items.map(item => item.getBoundingClientRect().top)).size);
+    expect(alignment).toBe(1);
+  });
+}
+
+test('the keyboard leaves room for a multiline field and its actions around mid-sheet', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => Boolean(window.__garatuja));
+  await page.evaluate(() => {
+    const app = window.__garatuja!.app;
+    app.configure({ screenKeyboard: true });
+    app.chooseTool('text');
+  });
+  const sheet = page.locator('.sheet');
+  const size = await sheet.boundingBox();
+  if (!size) throw new Error('Missing paper');
+  await sheet.click({ position: { x: size.width * .35, y: size.height * .50 } });
+  const field = page.locator('.label-field');
+  await field.fill('No meio da folha\nEscrevi duas linhas\nE ainda cabe outra.');
+  const board = page.getByRole('toolbar', { name: 'Teclado no ecrã' });
+  await expect.poll(async () => {
+    const keyboard = await board.boundingBox();
+    if (!keyboard) return false;
+    const controls = [field, page.getByRole('button', { name: 'Pousar' }), page.getByRole('button', { name: 'Cancelar' })];
+    const boxes = await Promise.all(controls.map(control => control.boundingBox()));
+    return boxes.every(box => box && box.y >= 0 && box.y + box.height <= 768 &&
+      (box.y + box.height <= keyboard.y || box.y >= keyboard.y + keyboard.height));
+  }).toBe(true);
+  const symbols = board.getByRole('button', { name: 'Números e sinais' });
+  await symbols.click();
+  await board.getByRole('button', { name: '7', exact: true }).click();
+  await expect(field).toHaveValue(/7$/);
+  await page.getByRole('button', { name: 'Pousar' }).click();
+  await expect(board).toHaveCount(0);
+});

@@ -23,10 +23,10 @@
   position: absolute; min-height: 0; min-width: 0; margin: 0; padding: 0; border: 0; resize: none; overflow: hidden;
   background: transparent; white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal;
   pointer-events: auto; user-select: text; -webkit-user-select: text; touch-action: auto; cursor: text;
-  outline: 3px dashed var(--focus); outline-offset: 8px; border-radius: 4px;
+  outline: 3px dashed var(--focus); outline-offset: 4px; border-radius: 4px;
   font-kerning: normal;
 }
-.label-field:focus-visible { outline: 3px dashed var(--focus); outline-offset: 8px; }
+.label-field:focus-visible { outline: 3px dashed var(--focus); outline-offset: 4px; }
 .label-bar {
   position: absolute; display: flex; flex-wrap: wrap; max-width: calc(100% - 8px); width: max-content; gap: 6px; padding: 6px; pointer-events: auto; cursor: default;
   background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; box-shadow: 0 3px 0 var(--lift), 0 6px 16px #46352233;
@@ -37,3 +37,17 @@
 
 .label-bar-docked { position: static; max-width: 100%; flex: none; box-shadow: none; }
 .label-bar-docked .bar-button { padding-inline: 5px; font-size: .75rem; flex: 1 1 40%; }
+.label-fit-warning {
+  flex-basis: 100%;
+  max-width: 28ch;
+  margin: 0;
+  padding: 3px 6px;
+  color: #533810;
+  background: #fff0ce;
+  border-radius: 6px;
+  font-size: .82rem;
+}
+
+@media (max-width: 540px) {
+  .label-field, .label-field:focus-visible { outline-offset: 0; }
+}

@@ -124,7 +124,6 @@ export class LabelLayer {
   }
 
   setBar(buttons: HTMLElement[], anchor?: Rect, label = '') {
-    if (label) this.bar.setAttribute('aria-label', label);
     const same = buttons.length === this.bar.children.length && buttons.every((button, i) => button === this.bar.children[i]);
     if (!same) {
       this.placeBarInLayer();
@@ -134,6 +133,7 @@ export class LabelLayer {
     this.anchor = anchor;
     if (!anchor || !buttons.length) this.placeBarInLayer();
     this.refreshBar();
+    if (label) this.bar.setAttribute('aria-label', label);
     this.reposition();
   }
 
@@ -159,15 +159,17 @@ export class LabelLayer {
     const box = this.anchor;
     const left = box.x * k;
     const right = (box.x + box.w) * k;
-    const top = box.y * k;
-    const bottom = (box.y + box.h) * k;
+    const sheet = this.sheet.getBoundingClientRect();
+    const keyboardVisible = this.field.visible && this.sheet.closest('.stage')?.querySelector('.writing-keyboard');
+    const field = keyboardVisible ? this.field.element.getBoundingClientRect() : undefined;
+    const top = field ? field.top - sheet.top : box.y * k;
+    const bottom = field ? field.bottom - sheet.top : (box.y + box.h) * k;
     const safeX = Math.max(4, Math.min(width - w - 4, left));
     const safeY = Math.max(4, Math.min(height - h - 4, top));
     const candidates = [
       { x: safeX, y: bottom + 10 }, { x: safeX, y: top - h - 10 },
       { x: right + 10, y: safeY }, { x: left - w - 10, y: safeY },
     ];
-    const sheet = this.sheet.getBoundingClientRect();
     const handle = this.handle.hidden ? undefined : this.handle.getBoundingClientRect();
     const clearsHandle = (x: number, y: number) => !handle || x + w <= handle.left - sheet.left ||
       x >= handle.right - sheet.left || y + h <= handle.top - sheet.top || y >= handle.bottom - sheet.top;

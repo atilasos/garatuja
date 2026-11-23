@@ -28,6 +28,7 @@ async function seed(page: Page) {
     ['scene-night', 'A coruja acordada', 'Leonor', '#ffffff'],
     ['book-cover', 'O livro da turma', 'Turma B', '#fdf0b0'],
     ['diagram', 'As partes da flor', 'Afonso', '#ffffff'],
+    ['notebook', 'A nossa lista', 'Beatriz', '#ffffff'],
   ];
   for (const [model, title, author, color] of works) {
     await page.evaluate(async ([model, title, author, color, index]) => {

@@ -73,3 +73,12 @@
   .options-fixed .stamp-angle-slider { min-width: 0; }
   .options-scroll .stamp-gallery { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
 }
+@media (orientation: landscape) and (min-width: 801px) {
+  .stamp-actions { grid-template-columns: repeat(4, minmax(48px, 1fr)); }
+  .stamp-actions .stamp-transform { font-size: .65rem; }
+  .uppercase .stamp-actions .stamp-transform { font-size: .57rem; }
+  .stamp-angle { display: grid; grid-template-columns: max-content minmax(48px, 1fr); gap: 6px; align-items: center; }
+  .stamp-angle-title { flex-direction: column; }
+  .stamp-gallery .stamp-tile { min-height: 68px; }
+  .stamp-thumbnail { height: 34px; }
+}

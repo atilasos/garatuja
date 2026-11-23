@@ -6,11 +6,12 @@ import { icons } from './icons';
 export interface ModalOptions {
   title: L10n;
   content: HTMLElement;
+  footer?: HTMLElement;
   onClose?: () => void;
 }
 
 let count = 0;
-export function openModal({ title, content, onClose }: ModalOptions): () => void {
+export function openModal({ title, content, footer, onClose }: ModalOptions): () => void {
   const previous = document.activeElement;
   const dialog = h('dialog', 'dialog');
   const heading = h('h2', '', t(title));
@@ -21,9 +22,15 @@ export function openModal({ title, content, onClose }: ModalOptions): () => void
   // A fade with an arrow at the bottom while the dialog still has content below the fold.
   const more = h('div', 'dialog-more');
   more.setAttribute('aria-hidden', 'true');
-  dialog.append(h('header', 'dialog-head', heading, dismiss), content, more);
-  const checkMore = () => { more.hidden = dialog.scrollHeight - dialog.scrollTop - dialog.clientHeight < 2; };
-  dialog.addEventListener('scroll', checkMore, { passive: true });
+  dialog.append(h('header', 'dialog-head', heading, dismiss));
+  if (footer) {
+    dialog.classList.add('dialog-with-footer');
+    footer.classList.add('dialog-footer');
+    dialog.append(h('div', 'dialog-scroll', content, more), footer);
+  } else dialog.append(content, more);
+  const scroll = content.closest('.dialog-scroll') ?? dialog;
+  const checkMore = () => { more.hidden = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 2; };
+  scroll.addEventListener('scroll', checkMore, { passive: true });
   const watcher = new ResizeObserver(checkMore);
   watcher.observe(dialog);
   watcher.observe(content);

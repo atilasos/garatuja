@@ -1,5 +1,6 @@
 import { speak, t } from '../../core/i18n';
 import { tools } from '../../core/registry';
+import { toolAllowed } from '../../core/store';
 import type { IconSvg, L10n } from '../../core/types';
 import type { App, Feature } from '../../ui/app';
 import { art, button, h } from '../../ui/dom';
@@ -45,8 +46,8 @@ function card(icon: IconSvg, label: L10n, text: L10n) {
 }
 
 function showHelp(app: App) {
-  const level = app.store.get().settings.level;
-  const toolList = tools.all().filter(tool => tool.level <= level);
+  const settings = app.store.get().settings;
+  const toolList = tools.all().filter(tool => toolAllowed(settings, tool));
   const spoken: L10n = {
     pt: [words.hello.pt, ...toolList.map(tool => `${tool.label.pt}: ${tool.hint.pt}`), ...workCards.map(item => `${item.label.pt}: ${item.text.pt}`)].join(' '),
     en: [words.hello.en, ...toolList.map(tool => `${tool.label.en}: ${tool.hint.en}`), ...workCards.map(item => `${item.label.en}: ${item.text.en}`)].join(' '),

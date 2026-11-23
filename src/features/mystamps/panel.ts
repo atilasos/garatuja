@@ -1,5 +1,6 @@
 import { t } from '../../core/i18n';
-import { stamps } from '../../core/registry';
+import { stamps, tools } from '../../core/registry';
+import { toolAllowed } from '../../core/store';
 import { drawStamp, stampImage } from '../../core/tooling/stamp-art';
 import type { L10n, StampDef } from '../../core/types';
 import { stampIcons } from '../../stamps/ui/icons';
@@ -166,8 +167,9 @@ export function stampPanel(remove: (id: string) => void) {
     roving(list, stampsLabel);
 
     const panel = h('div', 'stamp-panel', h('h3', 'stamp-category-name', t(category.label)));
+    const move = tools.get('move');
     if (category.items.length) panel.append(list);
-    else panel.append(h('p', 'stamp-empty', t(app.store.get().settings.level === 1 ? {
+    else panel.append(h('p', 'stamp-empty', t(!move || !toolAllowed(app.store.get().settings, move) ? {
       pt: 'Ainda não tens carimbos teus. Nas Categorias podes escolher outros carimbos.',
       en: 'You don’t have any stamps of your own yet. Pick other stamps in Categories.',
     } : {

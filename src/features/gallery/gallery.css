@@ -8,10 +8,6 @@
 }
 .pingo-note .icon { width: 42px; height: 42px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
-.sticky-actions {
-  position: sticky; bottom: 0; padding: 10px 0 14px; margin-top: 6px;
-  background: linear-gradient(#fff9ed00, var(--panel) 30%);
-}
 .big-action { min-height: 64px; padding-inline: 22px; font-size: 1.05rem; }
 .big-action .icon { width: 36px; height: 36px; }
 
