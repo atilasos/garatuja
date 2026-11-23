@@ -162,3 +162,26 @@ test('save confirmation is neutral, leaves controls reachable and clears in four
   await page.clock.fastForward(4100);
   await expect(notice).toHaveCount(0);
 });
+
+test('a comment entered with the on-screen keyboard submits on the first click', async ({ page }) => {
+  await ready(page);
+  await page.evaluate(() => window.__garatuja!.app.configure({ screenKeyboard: true }));
+  await control(page, 'Apresentar à turma').click();
+  await expect(page.locator('.book-position')).toHaveText('Página 1 de 1');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.book-position')).toHaveText('Comentários');
+  const board = page.getByRole('toolbar', { name: 'Teclado no ecrã' });
+  const name = page.getByRole('textbox', { name: 'Quem diz?' });
+  const comment = page.getByRole('textbox', { name: 'Comentário', exact: true });
+  await name.focus();
+  await board.getByRole('button', { name: 'Maiúsculas', exact: true }).click();
+  for (const letter of 'ANA') await board.getByRole('button', { name: letter, exact: true }).click();
+  await expect(name).toHaveValue('ANA');
+  await comment.focus();
+  for (const letter of 'AÇÃO!') await board.getByRole('button', { name: letter, exact: true }).click();
+  await expect(comment).toHaveValue('AÇÃO!');
+  await control(page, 'Adicionar comentário').click();
+  await expect(page.locator('.class-comment')).toContainText('AÇÃO!');
+  await control(page, 'Sair').click();
+  await expect(board).toHaveCount(0);
+});

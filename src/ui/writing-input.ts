@@ -102,18 +102,17 @@ export function mountWritingKeyboard(app: App) {
   document.addEventListener('focusin', event => {
     const target = event.target;
     if (target instanceof Node && board.contains(target)) return;
+    // Keep the form steady while a button receives focus, including on pointer-down.
+    // The observer removes the keyboard when the editing field closes or leaves the dialog.
     if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) ||
-      target.dataset.writingInput === undefined || !app.store.get().settings.screenKeyboard) {
-      close();
-      return;
-    }
+      target.dataset.writingInput === undefined || !app.store.get().settings.screenKeyboard) return;
     if (field === target && builtFor === app.store.get().settings) return;
     field = target;
     const dialog = target.closest('dialog');
     (dialog?.querySelector('.book-reader') ?? dialog ?? app.surface.element.closest('.stage'))?.append(board);
     observer.disconnect();
     observer.observe(target, { attributes: true, attributeFilter: ['hidden'] });
-    if (dialog) observer.observe(dialog, { attributes: true, attributeFilter: ['open'] });
+    if (dialog) observer.observe(dialog, { childList: true, subtree: true, attributes: true, attributeFilter: ['open'] });
     render();
   });
   app.store.subscribe((state, previous) => {
