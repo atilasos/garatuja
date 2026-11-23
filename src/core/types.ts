@@ -76,10 +76,14 @@ export interface ChoiceItem {
   level?: 1 | 2;
 }
 
-export type OptionSpec =
+export type OptionSpec = {
+  level?: 1 | 2;
+  visible?: (option: (id: string) => string | number | boolean) => boolean;
+} & (
   | { kind: 'choice'; id: string; label: L10n; items: ChoiceItem[] | (() => ChoiceItem[]); default: string; shared?: string }
   | { kind: 'size'; id: string; label: L10n; steps: number[]; default: number }
-  | { kind: 'toggle'; id: string; label: L10n; icon: IconSvg; default: boolean; fixed?: boolean; visible?: (option: (id: string) => string | number | boolean) => boolean };
+  | { kind: 'toggle'; id: string; label: L10n; icon: IconSvg; default: boolean; fixed?: boolean }
+);
 
 /* ------------------------------------------------------------------ */
 /* Vector objects that stay editable above the bitmap (labels)         */

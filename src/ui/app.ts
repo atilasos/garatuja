@@ -184,6 +184,7 @@ export class App {
 
   option(tool: Tool, spec: OptionSpec) {
     const { options, settings } = this.store.get();
+    if ((spec.level ?? 1) > settings.level) return spec.default;
     const scope = spec.kind === 'choice' && spec.shared ? '@' + spec.shared : tool.id;
     const current = options[scope]?.[spec.id] ?? spec.default;
     if (spec.kind === 'size') return typeof current === 'number' && spec.steps.includes(current) ? current : spec.default;
@@ -197,11 +198,13 @@ export class App {
     return current;
   }
 
-  setOption(id: string, value: string | number | boolean) {
+  setOption(id: string, value: string | number | boolean, tool = this.tool) {
     const { options, toolId } = this.store.get();
-    const spec = this.tool.options?.find(candidate => candidate.id === id);
-    const scope = spec?.kind === 'choice' && spec.shared ? '@' + spec.shared : toolId;
-    this.input.changeAppearance(() => this.store.set({ options: { ...options, [scope]: { ...options[scope], [id]: value } } }));
+    const spec = tool.options?.find(candidate => candidate.id === id);
+    const scope = spec?.kind === 'choice' && spec.shared ? '@' + spec.shared : tool.id;
+    const update = () => this.store.set({ options: { ...options, [scope]: { ...options[scope], [id]: value } } });
+    if (tool.id !== toolId) { update(); return; }
+    this.input.changeAppearance(update);
     if (this.tool.optionHint) this.say(this.toolHint());
     this.sounds.play('tap');
   }
@@ -268,6 +271,7 @@ export class App {
     this.store.set({ settings });
     if (previous.locale !== settings.locale) this.toasts.refreshLocale();
     if (!toolAllowed(settings, this.tool)) this.chooseTool('paint');
+    else if (settings.level !== previous.level && this.tool.optionHint) this.store.set({ hint: this.toolHint() });
   }
 
   say(message: L10n) {

@@ -8,6 +8,10 @@ import { CANVAS_H, CANVAS_W, type LabelObject, type Point, type Rect } from './t
 
 export type Measure = (text: string) => number;
 
+export function longestWordWidth(text: string, measure: Measure) {
+  return (text.match(/\S+/gu) ?? []).reduce((widest, word) => Math.max(widest, measure(word)), 0);
+}
+
 /**
  * Greedy word wrap. Explicit newlines are kept, runs of spaces are kept, and a
  * word wider than the line is broken by code point (so emoji never split).
@@ -103,7 +107,13 @@ function luminance({ r, g, b }: { r: number; g: number; b: number }) {
 }
 
 export function contrastWithWhite(color: string): number {
-  return 1.05 / (luminance(hexToRgb(color)) + .05);
+  return contrastRatio(color, '#ffffff');
+}
+
+export function contrastRatio(a: string, b: string): number {
+  const first = luminance(hexToRgb(a)) + .05;
+  const second = luminance(hexToRgb(b)) + .05;
+  return Math.max(first, second) / Math.min(first, second);
 }
 
 /** Darken a colour until it reaches `minimum` contrast on white (yellow text on a white bubble would vanish). */
@@ -332,7 +342,8 @@ export function layoutLabel(label: LabelObject, ctx: MeasureContext): LabelLayou
   const measure: Measure = text => ctx.measureText(text).width;
   const badgeRadius = label.badge ? s * .72 : 0;
   const badgeSpace = badgeRadius ? badgeRadius * 2 + s * .35 : 0;
-  const wrapWidth = Math.max(s * 2, wrapLimit(variant, s) - badgeSpace);
+  const wrapWidth = Math.min(CANVAS_W, Math.max(s * 2, wrapLimit(variant, s) - badgeSpace,
+    Math.ceil(longestWordWidth(label.text, measure))));
   const lines = wrapText(label.text, wrapWidth, measure);
   const widest = Math.max(0, ...lines.map(measure));
   const textW = Math.max(widest, s * (variant === 'text' ? .5 : 1.4));

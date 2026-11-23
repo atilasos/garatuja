@@ -2,6 +2,7 @@ import { stamps } from '../../core/registry';
 import type { StoredStamp } from '../../core/storage';
 import { forgetStampImage } from '../../core/tooling/stamp-art';
 import { registerMovePanel } from '../../stamps/ui/move-panel';
+import stampTool from '../../tools/stamp';
 import type { Feature } from '../../ui/app';
 import { personal, stampPanel } from './panel';
 
@@ -47,8 +48,9 @@ export default {
       app.run(async () => {
         if (entry.removing) return;
         entry.removing = true;
+        let deleted: StoredStamp | undefined;
         try {
-          await app.storage.removeStamp(id);
+          deleted = await app.storage.removeStamp(id);
         } finally {
           entry.removing = false;
         }
@@ -57,12 +59,13 @@ export default {
           app.setOption('stamp', registered.values().next().value?.stamp.id ?? 'none');
         }
         app.refresh();
+        if (!deleted) return;
+        const stamp = deleted;
         app.notify({ pt: 'Carimbo apagado.', en: 'Stamp deleted.' }, {
           label: { pt: 'Anular', en: 'Undo' },
           run: () => app.run(async () => {
-            await app.storage.saveStamp(entry.stamp);
-            register(entry.stamp);
-            app.refresh();
+            await app.storage.restoreStamp(stamp);
+            await sync();
           }),
         });
       });
@@ -72,6 +75,7 @@ export default {
       app.run(async () => {
         const stamp = await app.storage.createStamp(id, picture);
         register(stamp);
+        app.setOption('stamp', stamp.id, stampTool);
         app.refresh();
         app.confirm({ pt: 'Guardado em Os meus carimbos.', en: 'Saved in My stamps.' });
       });

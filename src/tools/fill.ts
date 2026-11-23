@@ -1,5 +1,5 @@
 import { floodRegion, paintRegion, type Region } from '../core/flood';
-import { showCrossCursor } from '../core/tooling/brush-stroke';
+import { showCrossCursor, showSizeCursor } from '../core/tooling/brush-stroke';
 import {
   defaultGradient, drawFillSample, fillModes, fillPainter, gradientModes, type FillMode, type Gradient,
 } from '../core/tooling/fill-styles';
@@ -24,9 +24,12 @@ const TOLERANCE = 32;
 interface Pending { region: Region; source: ImageData; guide?: Uint8ClampedArray; start: Point; mode: 'linear' | 'radial' }
 let pending: Pending | undefined;
 let brushRegion: Region | undefined;
-const brushRadius = 52;
+const fillHint = { pt: 'Toca numa zona para a encher.', en: 'Tap an area to fill it.' };
+const brushHint = { pt: 'Arrasta para pintar sem sair da zona onde tocaste.', en: 'Drag to paint inside the area you touched.' };
+const eraseHint = { pt: 'Toca numa zona para voltar a ver o papel.', en: 'Tap an area to bring back the paper.' };
 
 function paintWithin(c: ToolContext, region: Region, from: Point, to: Point) {
+  const brushRadius = c.opt<number>('size') / 2;
   const { x, y, w, h } = clampRect(strokeBounds(from, to, brushRadius + 1), c.width, c.height);
   if (!w || !h) return;
   const area = c.ctx.getImageData(x, y, w, h);
@@ -151,16 +154,21 @@ function start(p: PaintPointer, c: ToolContext) {
 
 export default {
   id: 'fill', label: { pt: 'Encher', en: 'Fill' }, icon: icons.fill, order: 50, level: 1, usesColor: true,
-  hint: {
-    pt: 'Toca numa zona para a encher. Nos degradés, arrasta para dizer para onde vai.',
-    en: 'Tap an area to fill it. For fades, drag to say which way they go.',
+  hint: fillHint,
+  optionHint(option) {
+    const mode = option('mode') as RegionMode;
+    if (mode === 'brush') return brushHint;
+    if (mode === 'erase') return eraseHint;
+    if (mode === 'linear' || mode === 'radial') return {
+      pt: 'Toca numa zona e arrasta para orientar o degradé.', en: 'Tap an area and drag to aim the fade.',
+    };
+    return fillHint;
   },
-  options: [{
+  options: [{ kind: 'size', id: 'size', label: { pt: 'Tamanho', en: 'Size' },
+    steps: [16, 36, 68, 104, 160], default: 104, visible: option => option('mode') === 'brush' }, {
     kind: 'choice', id: 'mode', label: { pt: 'Enchimento', en: 'Fill style' }, default: 'solid',
     items: modes.map(mode => mode === 'brush' || mode === 'erase' ? {
       value: mode, label: names[mode], icon: mode === 'brush' ? icons.paint : icons.eraser, level: 1,
-      hint: mode === 'brush' ? { pt: 'Arrasta para pintar sem sair da zona onde tocaste.', en: 'Drag to paint inside the area you touched.' }
-        : { pt: 'Toca numa zona para voltar a ver o papel.', en: 'Tap an area to bring back the paper.' },
     } : ({
       value: mode, label: names[mode], level: mode === 'solid' || mode === 'stripes' || mode === 'dots' ? 1 : 2,
       preview: (ctx, w, h, color) => drawFillSample(ctx, w, h, mode, color),
@@ -180,6 +188,9 @@ export default {
     c.clearOverlay();
     apply(c, current.source, current.region, current.mode, gradientFor(current, p), current.guide);
   },
-  hover(p, c) { showCrossCursor(c, p, 14); },
+  hover(p, c) {
+    if (c.opt('mode') === 'brush') showSizeCursor(c, p, c.opt('size'));
+    else showCrossCursor(c, p, 14);
+  },
   cancel() { pending = undefined; brushRegion = undefined; },
 } satisfies Tool;

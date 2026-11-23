@@ -1,4 +1,4 @@
-import { BrushStroke, brushChoice, brushSizes, currentBrush, pressureSize, showSizeCursor } from '../core/tooling/brush-stroke';
+import { BrushStroke, brushChoice, brushSizes, brushSpacing, currentBrush, currentSpacing, pressureSize, showSizeCursor } from '../core/tooling/brush-stroke';
 import type { Tool } from '../core/types';
 import { icons } from '../ui/icons';
 
@@ -8,10 +8,10 @@ export default {
   id: 'paint', label: { pt: 'Pintar', en: 'Paint' }, icon: icons.paint, order: 10, level: 1, usesColor: true,
   hint: { pt: 'Escolhe um pincel e desenha na folha.', en: 'Pick a brush and draw on the paper.' },
   // Sizes come first so they stay in view while the long brush list scrolls.
-  options: [brushSizes, brushChoice],
+  options: [brushSizes, brushSpacing, brushChoice],
   down(p, c) {
     c.clearOverlay();
-    stroke = new BrushStroke(currentBrush(c), c.opt('size'), c.color, c.random);
+    stroke = new BrushStroke(currentBrush(c), c.opt('size'), c.color, c.random, currentSpacing(c));
     c.markDirty(stroke.start(c.ctx, p, c.snapshot));
     c.sound('brush');
   },

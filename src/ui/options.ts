@@ -1,4 +1,5 @@
 import { t } from '../core/i18n';
+import { contrastRatio } from '../core/labels';
 import type { State } from '../core/store';
 import type { ChoiceItem, L10n, OptionSpec, Tool } from '../core/types';
 import { button, h, pressed, replaceControls, roving, unavailable } from './dom';
@@ -24,7 +25,12 @@ export type CustomOptions = HTMLElement | { fixed: HTMLElement[]; scroll: HTMLEl
 
 export type OptionSetter = (id: string, value: string | boolean | number) => void;
 
-function choiceButton(item: ChoiceItem, spec: OptionSpec, color: string, selected: boolean, set: OptionSetter) {
+export function shadePreview(preview: HTMLCanvasElement, color: string, selected: boolean, highContrast: boolean) {
+  const background = selected ? highContrast ? '#bdf0d6' : '#ddf1e6' : highContrast ? '#ffffff' : '#fffdf8';
+  preview.classList.toggle('preview-dark', contrastRatio(color, background) < 1.6);
+}
+
+function choiceButton(item: ChoiceItem, spec: OptionSpec, state: State, selected: boolean, set: OptionSetter, tool: Tool) {
   const element = button(item.label, item.icon, () => set(spec.id, item.value), 'choice');
   if (item.preview) {
     const preview = h('canvas', 'choice-preview');
@@ -32,10 +38,14 @@ function choiceButton(item: ChoiceItem, spec: OptionSpec, color: string, selecte
     preview.height = 64;
     preview.setAttribute('aria-hidden', 'true');
     const context = preview.getContext('2d');
-    if (context) item.preview(context, preview.width, preview.height, color);
+    if (context) item.preview(context, preview.width, preview.height, state.color);
+    if (['paint', 'lines', 'shapes', 'text', 'label'].includes(tool.id)) {
+      shadePreview(preview, state.color, selected, state.settings.highContrast);
+    }
     element.prepend(preview);
   }
   element.dataset.focus = spec.id + ':' + item.value;
+  if (spec.id === 'spacing') element.setAttribute('aria-label', `${t(spec.label)}: ${t(item.label)}`);
   pressed(element, selected);
   return element;
 }
@@ -91,6 +101,10 @@ export class OptionsPanel {
       sections.push(custom.scroll);
     }
     for (const spec of custom ? [] : tool.options ?? []) {
+      if ((spec.level ?? 1) > state.settings.level || spec.visible && !spec.visible(id => {
+        const dependency = tool.options?.find(option => option.id === id);
+        return dependency ? value(dependency) : '';
+      })) continue;
       const current = value(spec);
       const label = h('h3', 'option-title', t(spec.label));
       if (spec.kind === 'size') {
@@ -108,23 +122,19 @@ export class OptionsPanel {
         fixed.push(h('section', 'option-section', label, row));
         roving(row, spec.label);
       } else if (spec.kind === 'toggle') {
-        if (spec.visible && !spec.visible(id => {
-          const dependency = tool.options?.find(option => option.id === id);
-          return dependency ? value(dependency) : '';
-        })) continue;
         const option = button(spec.label, spec.icon, () => set(spec.id, !current), 'option-toggle');
         option.dataset.focus = spec.id;
         pressed(option, Boolean(current));
         (spec.fixed ? fixed : sections).push(h('section', 'option-section toggle-section', option));
       } else {
-        const section = h('section', 'option-section', label);
+        const section = h('section', spec.id === 'spacing' ? 'option-section spacing-section' : 'option-section', label);
         const categories = h('div', 'option-categories');
         const categoryLabel = { pt: 'Categorias', en: 'Categories' };
         for (const group of groups(choices(spec, state.settings.level))) {
-          const row = h('div', 'choice-grid', ...group.items.map(item => choiceButton(item, spec, state.color, item.value === current, (id, value) => {
+          const row = h('div', 'choice-grid', ...group.items.map(item => choiceButton(item, spec, state, item.value === current, (id, value) => {
             set(id, value);
             if (item.hint) say(item.hint);
-          })));
+          }, tool)));
           const block = h('div', 'choice-block', group.label ? h('h4', 'option-title choice-group', t(group.label)) : null, row);
           if (group.label) {
             const tab = button(group.label, categoryIcons[group.label.pt] ?? icons.level, () => {

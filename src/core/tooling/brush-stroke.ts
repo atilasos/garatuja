@@ -2,10 +2,29 @@ import { flushLayers } from './brush-kit';
 import { clampRect, interpolateDabs, seededRandom, strokeBounds, unionRect } from '../draw';
 import { brushes } from '../registry';
 import type { BrushDef, ChoiceItem, L10n, OptionSpec, PaintPointer, Point, Rect, ToolContext } from '../types';
+import { icon } from '../../ui/icons';
 
 export const brushSizes: OptionSpec = {
   kind: 'size', id: 'size', label: { pt: 'Tamanho', en: 'Size' }, steps: [8, 16, 32, 56, 96], default: 32,
 };
+
+const spacingSteps = [
+  { value: 'close', label: { pt: 'Junto', en: 'Close' }, gap: 6, multiplier: .55 },
+  { value: 'normal', label: { pt: 'Normal', en: 'Normal' }, gap: 11, multiplier: 1 },
+  { value: 'wide', label: { pt: 'Afastado', en: 'Wide' }, gap: 17, multiplier: 2.25 },
+];
+
+export const brushSpacing: OptionSpec = {
+  kind: 'choice', id: 'spacing', label: { pt: 'Espaçamento', en: 'Spacing' },
+  default: 'normal', level: 2, shared: 'spacing',
+  items: spacingSteps.map(({ value, label, gap }) => ({
+    value, label, icon: icon([24 - gap, 24, 24 + gap].map(x => `<circle cx="${x}" cy="24" r="3" fill="#514236"/>`).join('')),
+  })),
+};
+
+export function currentSpacing(c: ToolContext) {
+  return spacingSteps.find(step => step.value === c.opt('spacing'))?.multiplier ?? 1;
+}
 
 const groupNames: { below: number; label: L10n }[] = [
   { below: 100, label: { pt: 'Básicos', en: 'Basic' } },
@@ -75,12 +94,13 @@ export class BrushStroke {
   private drawn = false;
   private snapshot?: CanvasImageSource;
 
-  constructor(private brush: BrushDef, private size: number, private color: string, private random: () => number) {
+  constructor(private brush: BrushDef, private size: number, private color: string, private random: () => number,
+    private spacingMultiplier = 1) {
     this.remaining = this.spacing;
     brush.begin?.(color, size);
   }
 
-  private get spacing() { return Math.max(1, this.size * this.brush.spacing); }
+  private get spacing() { return Math.max(1, this.size * this.brush.spacing * this.spacingMultiplier); }
   get padding() { return this.size * (this.brush.extent ?? 1.5) + 2; }
 
   dab(ctx: CanvasRenderingContext2D, p: PaintPointer, angle = this.angle) {
@@ -102,7 +122,7 @@ export class BrushStroke {
 
   private lay(ctx: CanvasRenderingContext2D, from: PaintPointer, to: PaintPointer, angle?: number) {
     const length = Math.hypot(to.x - from.x, to.y - from.y);
-    if (this.brush.segment) {
+    if (this.brush.segment && this.spacingMultiplier === 1) {
       this.brush.segment(ctx, from, to, this.size, this.color);
       return strokeBounds(from, to, this.padding);
     }

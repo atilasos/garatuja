@@ -8,6 +8,7 @@ import stampTool, { stampSizes } from '../../tools/stamp';
 import type { App } from '../../ui/app';
 import { button, h, pressed, roving } from '../../ui/dom';
 import { icon, icons } from '../../ui/icons';
+import { shadePreview } from '../../ui/options';
 import './panel.css';
 
 export const personal = { pt: 'Os meus carimbos', en: 'My stamps' };
@@ -20,11 +21,12 @@ const sizeNames: L10n[] = [
   { pt: 'Grande', en: 'Large' }, { pt: 'Máximo', en: 'Largest' },
 ];
 
-function stampButton(stamp: StampDef, color: string, select: () => void, selected: boolean) {
+function stampButton(stamp: StampDef, color: string, select: () => void, selected: boolean, highContrast: boolean) {
   const tile = button(stamp.label, undefined, select, 'choice stamp-tile');
   tile.dataset.focus = 'stamp:' + stamp.id;
   pressed(tile, selected);
   const preview = h('canvas', 'stamp-thumbnail');
+  if (stamp.tintable) shadePreview(preview, color, selected, highContrast);
   preview.width = 100;
   preview.height = 80;
   preview.setAttribute('aria-hidden', 'true');
@@ -115,6 +117,7 @@ export function stampPanel(remove: (id: string) => void) {
     const selected = String(app.option(stampTool, stampTool.options[0]));
     if (selected !== lastSelected) {
       const stored = app.store.get().options.stamp?.stamp;
+      if (selected.startsWith('personal-')) categoriesOpen = false;
       const restoringPersonal = lastSelected === undefined && typeof stored === 'string' && stored.startsWith('personal-');
       categoryKey = restoringPersonal ? personal.pt : stamps.get(selected)?.category.pt ?? categoryKey;
       lastSelected = selected;
@@ -155,7 +158,8 @@ export function stampPanel(remove: (id: string) => void) {
     const list = h('div', 'choice-grid stamp-gallery');
     const pick = (stamp: StampDef) => app.setOption('stamp', stamp.id);
     for (const stamp of category.items) {
-      list.append(stampButton(stamp, app.store.get().color, () => pick(stamp), selected === stamp.id));
+      const { color, settings } = app.store.get();
+      list.append(stampButton(stamp, color, () => pick(stamp), selected === stamp.id, settings.highContrast));
     }
     if (needsFocus) {
       needsFocus = false;

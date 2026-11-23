@@ -558,3 +558,15 @@ input:not([type="checkbox"]), select, textarea {
 .dialog.dialog-with-footer[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
 .dialog-scroll { min-height: 0; overflow: auto; padding: 5px 5px 12px; }
 .dialog-footer { padding: 10px 0 14px; border-top: 1px solid var(--edge); }
+
+.dialog-notices:empty, .dialog-action-notice:empty { display: none; }
+.class-presentation > .dialog-notices { position: absolute; inset: auto 16px 76px; z-index: 3; }
+.help-hello:has(.dialog-action-notice:not(:empty)) { flex-wrap: wrap; }
+.help-hello .dialog-action-notice { flex-basis: 100%; }
+.preview-dark { background: #514236; border-radius: 6px; }
+.spacing-section .choice-grid { grid-template-columns: repeat(3, minmax(48px, 1fr)); }
+.spacing-section .choice { min-height: 48px; font-size: .72rem; }
+.spacing-section .icon { width: 22px; height: 22px; }
+@media (orientation: portrait) {
+  .options-scroll .spacing-section .choice-grid { grid-template: repeat(2, minmax(56px, auto)) / none; }
+}
