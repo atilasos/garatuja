@@ -258,3 +258,19 @@ test('inherits a template and prints a cover and each page on separate A4 sheets
   await page.evaluate(() => window.__garatuja?.app.configure({ allowPrint: false }));
   await expect(control(page, 'Imprimir')).toHaveCount(0);
 });
+
+test('«Ver seguinte» becomes available again when onion skin is switched on while the paper is busy', async ({ page }) => {
+  await ready(page);
+  await control(page, 'Adicionar página').click();
+  await expect(control(page, 'Página 2')).toHaveAttribute('aria-pressed', 'true');
+  await control(page, 'Página 1').click();
+  await expect(control(page, 'Página 1')).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => page.evaluate(() => window.__garatuja?.app.store.get().busy)).toBe(false);
+  await page.evaluate(() => window.__garatuja?.app.store.set({ busy: true }));
+  // A tap that lands while the next page is still loading.
+  await control(page, 'Papel vegetal').dispatchEvent('click');
+  await expect(control(page, 'Papel vegetal')).toHaveAttribute('aria-pressed', 'true');
+  await page.evaluate(() => window.__garatuja?.app.store.set({ busy: false }));
+  await control(page, 'Organizar').click();
+  await expect(control(page, 'Ver seguinte')).toBeEnabled();
+});

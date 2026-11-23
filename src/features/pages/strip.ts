@@ -298,6 +298,8 @@ export function pageStrip(app: App) {
     }
     if (order || language || selection ||
       (onion && (pages[index - 1] !== prior[index - 1] || (showNext && pages[index + 1] !== prior[index + 1])))) updateGhost(state);
+    // Busy can end without any other change: re-enable «Ver seguinte» then too.
+    else if (state.busy !== previous?.busy) nextToggle.disabled = state.busy;
   }
 
   render(app.store.get());
