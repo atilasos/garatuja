@@ -34,6 +34,8 @@ for (const count of [1, 2]) {
         }
         await documents.save();
       }, count);
+      const coordinates = async () => Promise.all(['Anterior', 'Seguinte'].map(async name => (await control(page, name).boundingBox())?.y));
+      let navigation: (number | undefined)[] | undefined;
       if (view === 'Diapositivos') {
         await control(page, 'Abrir').click();
         await control(page, view).click();
@@ -41,7 +43,11 @@ for (const count of [1, 2]) {
         await control(page, 'Reproduzir seleção').click();
       } else {
         await control(page, view).click();
-        if (count > 1) await control(page, 'Seguinte').click();
+        if (count > 1) {
+          await expect(page.locator('.book-position')).toHaveText('Capa');
+          navigation = await coordinates();
+          await control(page, 'Seguinte').click();
+        }
       }
       const copy = page.locator('.book-copy');
       const next = control(page, 'Seguinte');
@@ -50,6 +56,8 @@ for (const count of [1, 2]) {
       const scroll = () => copy.evaluate(area => area.scrollTop);
       const end = () => copy.evaluate(area => area.scrollHeight - area.clientHeight);
       await expect(position).toHaveText(`Página 1 de ${count}`);
+      if (navigation) expect(await coordinates()).toEqual(navigation);
+      navigation = await coordinates();
       await expect(next).toBeEnabled();
       await next.click();
       expect(await scroll()).toBeGreaterThan(0);
@@ -63,12 +71,14 @@ for (const count of [1, 2]) {
       if (count === 2) {
         await next.click();
         await expect(position).toHaveText('Página 2 de 2');
+        expect(await coordinates()).toEqual(navigation);
         expect(await scroll()).toBe(0);
       }
       if (view === 'Apresentar à turma') {
         await copy.evaluate(area => { area.scrollTop = area.scrollHeight; });
         await next.click();
         await expect(position).toHaveText('Comentários');
+        expect(await coordinates()).toEqual(navigation);
         await previous.click();
         expect(await scroll()).toBe(await end());
       } else {
@@ -290,4 +300,269 @@ test('changing language updates desk text and accessibility in place, in both di
   expect(english).not.toMatch(/(?:Organizar páginas|Percorrer opções|Folha de desenho|Desfazer|Só texto)/);
   await page.evaluate(() => window.__garatuja!.app.configure({ locale: 'pt' }));
   expect(await snapshot()).toBe(portuguese);
+});
+
+test('work details undo and redo in book order alongside page marks', async ({ page }) => {
+  await ready(page);
+  const details = async (title: string, author?: string, audience?: string) => {
+    await page.locator('.work-card').click();
+    await page.getByRole('textbox', { name: 'Título' }).fill(title);
+    if (author) await page.getByRole('textbox', { name: 'Autor' }).fill(author);
+    if (audience) await page.getByRole('textbox', { name: 'Para quem é?' }).fill(audience);
+    await control(page, 'Pronto').click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  };
+  await details('A ponte');
+  await control(page, 'Adicionar página').click();
+  await expect(control(page, 'Página 2')).toHaveAttribute('aria-pressed', 'true');
+  await details('A ribeira', 'Lia', 'A turma');
+  await control(page, 'Página 1').click();
+  await expect(control(page, 'Página 1')).toHaveAttribute('aria-pressed', 'true');
+  await tap(page, 800, 600);
+  const pixel = () => page.evaluate(() => window.__garatuja!.app.surface.ctx.getImageData(800, 600, 1, 1).data[0]);
+  const work = () => page.evaluate(() => {
+    const { title, author, audience } = window.__garatuja!.app.store.get().project;
+    return [title, author, audience];
+  });
+  await control(page, 'Desfazer').click();
+  expect(await pixel()).toBe(255);
+  expect(await work()).toEqual(['A ribeira', 'Lia', 'A turma']);
+  await control(page, 'Desfazer').click();
+  expect(await work()).toEqual(['A ponte', '', '']);
+  await control(page, 'Desfazer').click();
+  expect(await work()).toEqual(['', '', '']);
+  await control(page, 'Refazer').click();
+  expect(await work()).toEqual(['A ponte', '', '']);
+  await control(page, 'Refazer').click();
+  expect(await work()).toEqual(['A ribeira', 'Lia', 'A turma']);
+  await control(page, 'Refazer').click();
+  expect(await pixel()).toBeLessThan(100);
+});
+
+test('capital letters affect only new input in page text, labels and work details', async ({ page }) => {
+  await ready(page);
+  await page.evaluate(async () => {
+    const app = window.__garatuja!.app;
+    app.documents.editText('A ponte');
+    app.documents.editProject({ title: 'A ribeira', author: 'Rui' });
+    await app.documents.save();
+    app.chooseTool('label');
+    app.setOption('type', 'text');
+  });
+  const field = page.locator('.label-field');
+  await tap(page, 400, 400);
+  await field.fill('Lago azul');
+  await control(page, 'Pronto').click();
+  await page.evaluate(() => window.__garatuja!.app.configure({ uppercase: true }));
+  const editLabel = async () => {
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.locator('.label-item').focus();
+    await page.keyboard.press('Enter');
+  };
+  const editDetails = () => page.locator('.work-card').click();
+  const editPage = () => control(page, 'O meu texto').click();
+  const text = page.getByRole('textbox', { name: 'O meu texto' });
+  const title = page.getByRole('textbox', { name: 'Título' });
+  const author = page.getByRole('textbox', { name: 'Autor' });
+  await editPage();
+  await expect(text).toHaveValue('A ponte');
+  await control(page, 'Fechar').click();
+  await editDetails();
+  await expect(title).toHaveValue('A ribeira');
+  await expect(author).toHaveValue('Rui');
+  await control(page, 'Pronto').click();
+  await editLabel();
+  await expect(field).toHaveValue('Lago azul');
+  await control(page, 'Pronto').click();
+  await control(page, 'Desfazer').click();
+  await expect(page.locator('.label-item')).toHaveCount(0);
+  await control(page, 'Refazer').click();
+
+  await editPage();
+  await text.press('End');
+  await text.press('Space');
+  await text.pressSequentially('nova');
+  await expect(text).toHaveValue('A ponte NOVA');
+  await control(page, 'Fechar').click();
+  await editDetails();
+  await title.press('End');
+  await title.pressSequentially(' azul');
+  await author.press('Home');
+  await author.pressSequentially('ó ');
+  await expect(title).toHaveValue('A ribeira AZUL');
+  await expect(author).toHaveValue('Ó Rui');
+  await control(page, 'Pronto').click();
+  await editLabel();
+  await expect(field).toHaveValue('Lago azul');
+  await field.evaluate(element => {
+    if (!(element instanceof HTMLTextAreaElement)) throw new Error('Missing label field');
+    element.setSelectionRange(0, 0);
+  });
+  await page.keyboard.insertText('o ');
+  await expect(field).toHaveValue('O Lago azul');
+  await control(page, 'Pronto').click();
+  await page.evaluate(() => window.__garatuja!.app.configure({ uppercase: false }));
+  await expect(page.locator('.writing-preview')).toContainText('A ponte NOVA');
+  await expect(page.locator('.work-title')).toHaveText('A ribeira AZUL');
+  await expect(page.locator('.work-author')).toHaveText('Ó Rui');
+  await expect(page.locator('.label-item')).toHaveAttribute('aria-label', 'Só texto: O Lago azul');
+});
+
+test('an oversized balloon stays open until it fits and its outline stays inside when moved', async ({ page }) => {
+  await ready(page);
+  await page.evaluate(() => {
+    const app = window.__garatuja!.app;
+    app.chooseTool('label');
+    app.setOption('type', 'speech');
+    app.setOption('size', 108);
+  });
+  await tap(page, 960, 400);
+  const field = page.locator('.label-field');
+  const warning = page.locator('.label-fit-warning');
+  await field.fill('Uma\nDuas\nTrês\nQuatro\nCinco\nSeis\nSete');
+  await expect(warning).toBeVisible();
+  await control(page, 'Pronto').click();
+  await expect(field).toBeVisible();
+  await page.keyboard.press('Control+Enter');
+  await expect(field).toBeVisible();
+  await field.fill('Cabe aqui');
+  await expect(warning).toBeHidden();
+  await control(page, 'Pronto').click();
+  await expect(field).toBeHidden();
+  const item = page.locator('.label-item');
+  const original = await item.boundingBox();
+  const sheet = await page.locator('.sheet').boundingBox();
+  if (!original || !sheet) throw new Error('Missing label or sheet');
+  await page.mouse.move(original.x + original.width / 2, original.y + original.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sheet.x + sheet.width + 60, sheet.y + sheet.height + 60, { steps: 8 });
+  await page.mouse.up();
+  const moved = await item.boundingBox();
+  if (!moved) throw new Error('Missing moved label');
+  expect(moved.x).toBeGreaterThan(original.x);
+  expect(moved.y).toBeGreaterThan(original.y);
+  expect(moved.x + moved.width).toBeLessThan(sheet.x + sheet.width - 2);
+  expect(moved.y + moved.height).toBeLessThan(sheet.y + sheet.height - 2);
+});
+
+for (const kind of ['text', 'box']) {
+  test(`fixed click creates ${kind} at once and keeps move and handle gestures open`, async ({ page }) => {
+    await ready(page);
+    const setup = (kind: string, fixedClick: boolean) => page.evaluate(({ kind, fixedClick }) => {
+      const app = window.__garatuja!.app;
+      app.chooseTool('label');
+      app.setOption('type', kind);
+      app.configure({ fixedClick });
+    }, { kind, fixedClick });
+    await setup('callout', false);
+    await tap(page, 400, 400);
+    const field = page.locator('.label-field');
+    await field.fill('Uma seta');
+    await control(page, 'Pronto').click();
+    await setup(kind, true);
+    await tap(page, 1100, 620);
+    await expect(field).toBeVisible();
+    await field.fill('Novo');
+    await control(page, 'Pronto').click();
+    const item = page.getByRole('button', { name: /Uma seta/ });
+    const original = await item.boundingBox();
+    if (!original) throw new Error('Missing arrow label');
+    await page.mouse.click(original.x + original.width / 2, original.y + original.height / 2);
+    await page.mouse.move(original.x + original.width / 2 + 75, original.y + original.height / 2, { steps: 4 });
+    await expect.poll(async () => (await item.boundingBox())?.x).toBeGreaterThan(original.x + 50);
+    await page.mouse.click(original.x + original.width / 2 + 75, original.y + original.height / 2);
+
+    const handle = page.locator('.label-handle');
+    const start = await handle.boundingBox();
+    if (!start) throw new Error('Missing handle');
+    await page.mouse.click(start.x + start.width / 2, start.y + start.height / 2);
+    await page.mouse.move(start.x + start.width / 2 + 65, start.y + start.height / 2, { steps: 4 });
+    await expect.poll(async () => (await handle.boundingBox())?.x).toBeGreaterThan(start.x + 50);
+    await page.mouse.click(start.x + start.width / 2 + 65, start.y + start.height / 2);
+    await expect(field).toBeHidden();
+  });
+}
+
+test('Pingo returns to the active tool when closing dialogs and canceling rotation', async ({ page }) => {
+  await ready(page);
+  const hint = page.locator('.hint');
+  const toolHint = () => page.evaluate(() => window.__garatuja!.app.toolHint().pt);
+  await control(page, 'Definições').click();
+  await control(page, 'Fechar').click();
+  await expect(hint).toHaveText(await toolHint());
+  await control(page, 'Misturar cor').click();
+  await page.getByRole('dialog').getByRole('button', { name: /Vermelho/ }).first().click();
+  await expect(hint).not.toHaveText(await toolHint());
+  await page.keyboard.press('Escape');
+  await expect(hint).toHaveText(await toolHint());
+  await control(page, 'Formas').click();
+  await control(page, 'Rodar').click();
+  const from = await point(page, 400, 400);
+  const to = await point(page, 700, 750);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y);
+  await page.mouse.up();
+  await expect(hint).toContainText('Agora aponta');
+  await page.keyboard.press('Escape');
+  await expect(hint).toHaveText(await toolHint());
+});
+
+test('using a work as a template restores its first illustration with the eraser', async ({ page }) => {
+  await ready(page);
+  await page.evaluate(async () => {
+    const app = window.__garatuja!.app;
+    app.documents.editProject({ title: 'A ponte' });
+    app.documents.editText('A primeira página.');
+    app.setColor('#ff0000');
+  });
+  await tap(page, 800, 600);
+  await control(page, 'Adicionar página').click();
+  await expect(control(page, 'Página 2')).toHaveAttribute('aria-pressed', 'true');
+  const source = await page.evaluate(() => window.__garatuja!.app.store.get().project.id);
+  await control(page, 'Abrir').click();
+  await page.locator(`[data-project="${source}"]`).getByRole('button', { name: 'Usar como modelo' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const state = await page.evaluate(() => {
+    const { project } = window.__garatuja!.app.store.get();
+    return { id: project.id, pages: project.pages.length, text: project.pages[0].text };
+  });
+  expect(state).toEqual({ id: expect.not.stringMatching(source), pages: 1, text: '' });
+  const pixel = () => page.evaluate(() => [...window.__garatuja!.app.surface.ctx.getImageData(800, 600, 1, 1).data]);
+  expect(await pixel()).toEqual([255, 0, 0, 255]);
+  await control(page, 'Preto').click();
+  await tap(page, 800, 600);
+  expect(await pixel()).toEqual([41, 42, 51, 255]);
+  await control(page, 'Borracha').click();
+  await tap(page, 800, 600);
+  expect(await pixel()).toEqual([255, 0, 0, 255]);
+  const original = await page.evaluate(async id => (await window.__garatuja!.app.storage.get(id))?.pages.map(page => page.text), source);
+  expect(original).toEqual(['A primeira página.', '']);
+});
+
+test('A4 book print keeps the footer with the final lines', async ({ page }, info) => {
+  await ready(page);
+  await page.evaluate(() => { window.print = () => {}; });
+  for (const [lines, tall, wide] of [[1, 2, 2], [10, 2, 3], [30, 3, 3], [60, 4, 5]]) {
+    await page.evaluate(lines => {
+      const { documents } = window.__garatuja!.app;
+      documents.editProject({ title: 'A ponte', author: 'Rui' });
+      documents.editText(Array.from({ length: lines }, (_, i) => `Linha ${i + 1} junto da ponte.`).join('\n'));
+    }, lines);
+    await control(page, 'Imprimir').click();
+    const dialog = page.getByRole('dialog', { name: 'Imprimir' });
+    await control(page, 'Livro inteiro').click();
+    const print = dialog.getByRole('button', { name: 'Imprimir', exact: true });
+    for (const [orientation, views] of [['Ao alto', tall], ['Ao baixo', wide]] as const) {
+      await control(page, orientation).click();
+      await print.click();
+      const pdf = await page.pdf({ preferCSSPageSize: true, path: info.outputPath(`a4-${lines}-${orientation}.pdf`) });
+      const bytes = pdf.toString('latin1');
+      expect.soft(bytes.match(/\/Type\s*\/Page\b/g)?.length, `${orientation}, ${lines} lines`).toBe(views);
+      const a4 = orientation === 'Ao alto' ? [595, 842] : [842, 595];
+      const mediaBox = bytes.match(/\/MediaBox\s*\[0 0 ([\d.]+) ([\d.]+)\]/);
+      expect.soft(mediaBox?.slice(1).map(value => Math.round(Number(value)))).toEqual(a4);
+    }
+    await control(page, 'Fechar').click();
+  }
 });

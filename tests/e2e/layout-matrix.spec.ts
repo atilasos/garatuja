@@ -122,6 +122,57 @@ for (const [width, height, minOpen, minClosed] of formats) {
 }
 
 for (const [width, height] of formats) {
+  test(`messages keep the sheet fixed and the work card and palette fit at ${width}×${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/');
+    await page.waitForFunction(() => Boolean(window.__garatuja));
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      const app = window.__garatuja!.app;
+      app.documents.editProject({ title: 'A ponte', author: 'Rui' });
+      await app.documents.save();
+    });
+    const sheet = page.locator('.sheet');
+    const bounds = await sheet.boundingBox();
+    expect(bounds).toBeTruthy();
+    for (const title of ['A ponte', 'A ponte da Lia']) {
+      await page.evaluate(title => window.__garatuja!.app.documents.editProject({ title }), title);
+      for (const field of ['.work-title', '.work-author']) {
+        expect(await page.locator(field).evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      }
+    }
+    for (const name of ['Conta-gotas', 'Misturar cor']) {
+      const button = page.getByRole('button', { name, exact: true });
+      await expect(button).toBeInViewport({ ratio: 1 });
+      const clear = await button.evaluate(el => {
+        const { x, y, width, height } = el.getBoundingClientRect();
+        return !el.closest('.palette') && document.elementFromPoint(x + width / 2, y + height / 2)?.closest('button') === el;
+      });
+      expect(clear).toBe(true);
+    }
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.evaluate(() => window.__garatuja!.app.confirm({ pt: 'Guardado em Os meus carimbos.', en: 'Saved to My stamps.' }));
+    await expect(page.locator('.help .success-message')).toBeVisible();
+    expect(await sheet.boundingBox()).toEqual(bounds);
+    await page.evaluate(() => window.__garatuja!.app.notify({ pt: 'A ação precisa de mais espaço.', en: 'The action needs more space.' }));
+    await expect(page.getByText('A ação precisa de mais espaço.')).toBeVisible();
+    expect(await sheet.boundingBox()).toEqual(bounds);
+    await page.evaluate(async () => {
+      const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function (...args) {
+        if (this.name === 'projects') throw new DOMException('Quota', 'QuotaExceededError');
+        return put.apply(this, args);
+      };
+      const { documents } = window.__garatuja!.app;
+      documents.editText('Em memória.');
+      await documents.save();
+    });
+    await expect(page.locator('#app .save-recovery')).toBeVisible();
+    expect(await sheet.boundingBox()).toEqual(bounds);
+  });
+}
+
+for (const [width, height] of formats) {
   test(`lower-half keyboard and fixed dialog actions at ${width}×${height}`, async ({ page }, info) => {
     await page.setViewportSize({ width, height });
     await page.goto('/');
@@ -158,13 +209,14 @@ for (const [width, height] of formats) {
         expect(box?.width).toBeGreaterThanOrEqual(48);
         expect(box?.height).toBeGreaterThanOrEqual(48);
       }
-      if (width === 390) await board.getByRole('button', { name: 'Números e sinais' }).click();
+      if (width === 390) await board.getByRole('button', { name: 'á ç 123' }).click();
+      for (const key of ['á', 'ç']) await board.getByRole('button', { name: key, exact: true }).click();
       for (const key of '0123456789ºª-') {
         const target = board.getByRole('button', { name: key, exact: true });
         await expect(target).toBeInViewport({ ratio: 1 });
         await target.click();
       }
-      await expect(field).toHaveValue('0123456789ºª-');
+      await expect(field).toHaveValue('áç0123456789ºª-');
       if (tool === 'text' && width === 1366 && process.env.GARATUJA_CAPTURE_SCREENS === '1') {
         await page.screenshot({ path: 'docs/screens/final-teclado-em-baixo-1366x768.png' });
       } else if (tool === 'text' && width === 1366) {
@@ -235,7 +287,7 @@ test('the keyboard leaves room for a multiline field and its actions around mid-
     return boxes.every(box => box && box.y >= 0 && box.y + box.height <= 768 &&
       (box.y + box.height <= keyboard.y || box.y >= keyboard.y + keyboard.height));
   }).toBe(true);
-  const symbols = board.getByRole('button', { name: 'Números e sinais' });
+  const symbols = board.getByRole('button', { name: 'á ç 123' });
   await symbols.click();
   await board.getByRole('button', { name: '7', exact: true }).click();
   await expect(field).toHaveValue(/7$/);

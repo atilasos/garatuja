@@ -294,3 +294,65 @@ test('first-stroke checkpoint is written while normal project publication is blo
   }));
   expect(persisted).toBe(1);
 });
+
+test('page selection stays busy until the last-page preference is stored', async ({ page }) => {
+  await ready(page);
+  await saveNamed(page, 'A ponte');
+  const sheet = page.locator('.sheet');
+  const ink = () => page.evaluate(() => window.__garatuja!.app.surface.ctx.getImageData(800, 600, 1, 1).data[0]);
+  await sheet.click();
+  expect(await ink()).toBeLessThan(100);
+  await control(page, 'Adicionar página').click();
+  await expect(control(page, 'Página 2')).toHaveAttribute('aria-pressed', 'true');
+  await expect(control(page, 'Desfazer')).toHaveAttribute('aria-busy', 'false');
+  await page.evaluate(() => {
+    const { storage } = window.__garatuja!.app;
+    const remember = storage.remember.bind(storage);
+    storage.remember = async (...args) => {
+      await new Promise<void>(resolve => {
+        window.addEventListener('continue-remember', () => resolve(), { once: true });
+        document.body.dataset.rememberPending = 'true';
+      });
+      await remember(...args);
+    };
+  });
+  await control(page, 'Página 1').click();
+  await expect(page.locator('body')).toHaveAttribute('data-remember-pending', 'true');
+  await expect(control(page, 'Página 1')).toHaveAttribute('aria-pressed', 'false');
+  expect(await ink()).toBe(255);
+  await expect(control(page, 'Desfazer')).toHaveAttribute('aria-busy', 'true');
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('.hint')).toHaveText('Espera que a folha esteja pronta.');
+  await page.evaluate(() => window.dispatchEvent(new Event('continue-remember')));
+  await expect(control(page, 'Página 1')).toHaveAttribute('aria-pressed', 'true');
+  await expect(control(page, 'Desfazer')).toHaveAttribute('aria-busy', 'false');
+  expect(await ink()).toBeLessThan(100);
+  await control(page, 'Desfazer').click();
+  expect(await ink()).toBe(255);
+  await expect(control(page, 'Refazer')).toBeEnabled();
+  await page.reload();
+  await expect(control(page, 'Página 1')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('persistent save recovery updates both its message and actions in each language', async ({ page }) => {
+  await ready(page);
+  await page.evaluate(async () => {
+    const { documents } = window.__garatuja!.app;
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'projects') throw new DOMException('Quota', 'QuotaExceededError');
+      return put.apply(this, args);
+    };
+    documents.editText('Em memória.');
+    await documents.save();
+  });
+  const notice = page.locator('#app .save-recovery');
+  await expect(notice).toContainText('Não consegui guardar.');
+  await page.evaluate(() => window.__garatuja!.app.configure({ locale: 'en' }));
+  await expect(notice).toContainText('I couldn’t save.');
+  await expect(notice.getByRole('button', { name: 'Try again' })).toBeVisible();
+  await expect(notice.getByRole('button', { name: 'Save to a file' })).toBeVisible();
+  await page.evaluate(() => window.__garatuja!.app.configure({ locale: 'pt' }));
+  await expect(notice).toContainText('Não consegui guardar.');
+  await expect(notice.getByRole('button', { name: 'Guardar num ficheiro' })).toBeVisible();
+});
