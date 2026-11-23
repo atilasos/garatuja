@@ -110,7 +110,6 @@ export function stampPanel(remove: (id: string) => void) {
   let categoriesOpen = false;
   let lastSelected: string | undefined;
   let needsFocus = false;
-  const offsets = new Map<string, number>();
   return (app: App) => {
     const selected = String(app.option(stampTool, stampTool.options[0]));
     if (selected !== lastSelected) {
@@ -157,11 +156,6 @@ export function stampPanel(remove: (id: string) => void) {
     for (const stamp of category.items) {
       list.append(stampButton(stamp, app.store.get().color, () => pick(stamp), selected === stamp.id));
     }
-    list.addEventListener('scroll', () => { offsets.set(key, list.scrollTop); });
-    const offset = offsets.get(key) ?? 0;
-    requestAnimationFrame(() => {
-      if (list.isConnected) list.scrollTop = offset;
-    });
     if (needsFocus) {
       needsFocus = false;
       queueMicrotask(() => {
@@ -173,7 +167,10 @@ export function stampPanel(remove: (id: string) => void) {
 
     const panel = h('div', 'stamp-panel', header, h('h3', 'stamp-category-name', t(category.label)));
     if (category.items.length) panel.append(list);
-    else panel.append(h('p', 'stamp-empty', t({
+    else panel.append(h('p', 'stamp-empty', t(app.store.get().settings.level === 1 ? {
+      pt: 'Ainda não tens carimbos teus. Nas Categorias podes escolher outros carimbos.',
+      en: 'You don’t have any stamps of your own yet. Pick other stamps in Categories.',
+    } : {
       pt: 'Usa Mover para recortar um desenho e fazer um carimbo.',
       en: 'Use Move to cut out part of your drawing and make a stamp.',
     })));

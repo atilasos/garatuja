@@ -14,6 +14,7 @@ export interface FieldStyle {
   align: 'left' | 'center';
   /** Hide the glyphs (the canvas already draws them) and keep only the caret. */
   invisible: boolean;
+  bottomEdge?: number;
 }
 
 const fieldLabel: L10n = { pt: 'Escreve aqui', en: 'Write here' };
@@ -92,7 +93,10 @@ export class TextField {
     el.style.left = rect.x * 100 / CANVAS_W + '%';
     el.style.top = rect.y * 100 / CANVAS_H + '%';
     el.style.width = rect.w * 100 / CANVAS_W + '%';
-    el.style.height = rect.h * 100 / CANVAS_H + '%';
+    const limit = style.bottomEdge;
+    const height = limit === undefined ? rect.h : Math.min(rect.h, limit - 16);
+    el.style.height = height * 100 / CANVAS_H + '%';
+    el.style.overflowY = limit === undefined ? '' : 'auto';
     el.style.fontFamily = font.stack;
     el.style.fontWeight = String(font.weight);
     el.style.fontSize = `calc(var(--k, .5) * ${style.size}px)`;
@@ -103,8 +107,10 @@ export class TextField {
     el.style.setProperty('--field-ink', style.color);
     // A longer text than the layout predicted would scroll the field: grow instead of hiding lines.
     if (el.scrollHeight > el.clientHeight + 1 && el.clientHeight > 0) {
-      const extra = (el.scrollHeight - el.clientHeight) / Math.max(.05, el.clientHeight / rect.h);
-      el.style.height = (rect.h + extra) * 100 / CANVAS_H + '%';
+      const extra = (el.scrollHeight - el.clientHeight) / Math.max(.05, el.clientHeight / height);
+      const grown = limit === undefined ? height + extra : Math.min(height + extra, limit - 16);
+      el.style.height = grown * 100 / CANVAS_H + '%';
+      if (limit !== undefined) el.style.top = Math.min(rect.y, limit - grown) * 100 / CANVAS_H + '%';
     }
   }
 }

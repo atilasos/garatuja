@@ -10,6 +10,7 @@ import { labelIcons } from './icons';
 import type { LabelLayer } from './layer';
 
 const words = {
+  tooLarge: { pt: 'Não cabe. Escolhe uma letra mais pequena.', en: 'It doesn’t fit. Choose a smaller letter size.' },
   place: { pt: 'Pousar', en: 'Place' },
   cancel: { pt: 'Cancelar', en: 'Cancel' },
   actions: { pt: 'Ações do texto', en: 'Text actions' },
@@ -94,7 +95,7 @@ export class BitmapText {
     const app = this.app;
     const layer = this.layer;
     if (!app || !layer) return;
-    this.land();
+    if (!this.finish()) return;
     this.wire();
     const { font, size } = values(app.store.get());
     const { lineHeight } = fontMetrics(font, size, measureContext());
@@ -124,8 +125,9 @@ export class BitmapText {
     const session = this.session;
     if (!app || !session) return undefined;
     const v = values(app.store.get());
-    const maxWidth = Math.max(v.size * 2, CANVAS_W - edge - session.x);
-    return { v, maxWidth, session };
+    const x = Math.min(session.x, CANVAS_W - edge - Math.max(v.size * 2, 360));
+    const maxWidth = CANVAS_W - edge - x;
+    return { v, maxWidth, session: { ...session, x } };
   }
 
   /** Lay the text out again and move the field and its bar to match. */
@@ -134,12 +136,23 @@ export class BitmapText {
     const g = this.geometry();
     if (!layer || !g) return;
     const plain = layoutPlain(layer.field.value, g.v.font, g.v.size, g.maxWidth, measureContext());
-    const rect: Rect = { x: g.session.x, y: g.session.y, w: g.maxWidth, h: plain.lines.length * plain.lineHeight };
+    const rect = this.bounds(g.session, g.maxWidth, plain);
     layer.field.place({
       rect, font: g.v.font, size: g.v.size, lineHeight: plain.lineHeight, color: g.v.color,
-      caret: '#23578d', align: 'left', invisible: false,
+      caret: '#23578d', align: 'left', invisible: false, bottomEdge: CANVAS_H - edge,
     });
     this.syncBar({ x: rect.x, y: rect.y, w: Math.min(rect.w, plain.width + g.v.size), h: rect.h });
+  }
+
+  private bounds(point: Point, width: number, plain: ReturnType<typeof layoutPlain>): Rect {
+    const height = plain.lines.length * plain.lineHeight;
+    return { x: point.x, y: Math.max(edge, Math.min(point.y, CANVAS_H - edge - height)),
+      w: width, h: height };
+  }
+
+  finish() {
+    if (this.session) this.land();
+    return !this.session;
   }
 
   private syncBar(anchor: Rect) {
@@ -187,11 +200,17 @@ export class BitmapText {
     const ctx = this.ctx;
     if (!layer || !app || !g || !ctx) return false;
     const text = layer.field.value.replace(/\s+$/, '');
+    const plain = layoutPlain(text, g.v.font, g.v.size, g.maxWidth, measureContext());
+    const rect = this.bounds(g.session, g.maxWidth, plain);
+    if (text.trim() && (rect.h > CANVAS_H - edge * 2 || plain.width > rect.w)) {
+      app.say(words.tooLarge);
+      app.notify(words.tooLarge);
+      return false;
+    }
     this.session = undefined;
     layer.field.close();
     layer.setBar([]);
     if (!text.trim()) return false;
-    const plain = layoutPlain(text, g.v.font, g.v.size, g.maxWidth, measureContext());
     const surface = app.surface;
     surface.begin();
     const paint = surface.ctx;
@@ -200,9 +219,9 @@ export class BitmapText {
     paint.fillStyle = g.v.color;
     paint.textAlign = 'left';
     paint.textBaseline = 'alphabetic';
-    plain.lines.forEach((line, i) => paint.fillText(line, g.session.x, g.session.y + i * plain.lineHeight + plain.baseline));
+    plain.lines.forEach((line, i) => paint.fillText(line, rect.x, rect.y + i * plain.lineHeight + plain.baseline));
     paint.restore();
-    ctx.markDirty({ x: g.session.x - 12, y: g.session.y - 12, w: g.maxWidth + 24, h: plain.lines.length * plain.lineHeight + 24 });
+    ctx.markDirty({ x: rect.x - 12, y: rect.y - 12, w: rect.w + 24, h: rect.h + 24 });
     ctx.sound('stamp');
     ctx.commit();
     return true;

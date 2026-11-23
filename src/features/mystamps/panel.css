@@ -3,7 +3,7 @@
 .stamp-library-header, .stamp-categories-button { width: 100%; }
 .stamp-categories-button { justify-content: flex-start; }
 .stamp-category-name { margin: 0; font-size: .87rem; color: var(--muted); }
-.stamp-gallery { max-height: 180px; padding: 3px; overflow-y: auto; scrollbar-width: thin; }
+.stamp-gallery { padding: 3px; }
 .stamp-gallery .stamp-tile { min-height: 78px; line-height: 1.15; }
 .stamp-thumbnail { width: auto; height: 40px; max-width: 100%; object-fit: contain; pointer-events: none; }
 .stamp-categories { padding: 3px; }
@@ -15,7 +15,7 @@
 .stamp-sizes { display: grid; grid-template-columns: repeat(5, minmax(48px, 1fr)); gap: 1px; }
 .stamp-sizes .stamp-size { min-height: max(52px, var(--target)); padding: 0; flex-direction: column; gap: 0; }
 .stamp-size .icon { width: 28px; height: 28px; }
-.stamp-size .button-label { font-size: .68rem; }
+.stamp-size .button-label { font-size: .61rem; letter-spacing: -.02em; }
 .stamp-toggle-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .stamp-toggle-row .stamp-transform { padding: 3px; gap: 3px; line-height: 1.1; font-size: .75rem; }
 .stamp-transform .icon { width: 23px; height: 23px; }

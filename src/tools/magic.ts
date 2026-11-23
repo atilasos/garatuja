@@ -1,9 +1,8 @@
 import { magic } from '../core/registry';
 import { brushSizes } from '../core/tooling/brush-stroke';
 import { previewMagic } from '../core/tooling/magic-preview';
-import type { L10n, MagicCategory, MagicEffect, Tool, ToolContext } from '../core/types';
+import type { L10n, MagicCategory, MagicEffect, Tool } from '../core/types';
 import { icons } from '../ui/icons';
-import './magic.css';
 
 const groups: Record<MagicCategory, L10n> = {
   pintar: { pt: 'Pintar', en: 'Paint' },
@@ -16,34 +15,12 @@ const groups: Record<MagicCategory, L10n> = {
 const categoryOrder: MagicCategory[] = ['pintar', 'cor', 'distorcer', 'padroes', 'pagina'];
 
 let gesture: { effect: MagicEffect; size: number; whole: boolean } | undefined;
-let host: ToolContext | undefined;
-let announced = '';
-
-function selectedEffect() {
-  // Reading the option goes back through the panel and would render this list again.
-  const pressed = document.querySelector<HTMLElement>('[data-focus^="effect:"][aria-pressed="true"]');
-  const id = pressed?.dataset.focus?.slice('effect:'.length);
-  return id ? magic.get(id) : undefined;
-}
-
-function syncChrome() {
-  if (typeof document === 'undefined' || !host) return;
-  const effect = selectedEffect();
-  const toggle = document.querySelector<HTMLElement>('[data-focus="whole"]');
-  toggle?.closest('.option-section')?.classList.toggle('magic-whole-on', Boolean(effect?.stroke && effect.whole));
-  if (effect && !announced) {
-    announced = effect.id;
-    host.say(effect.hint);
-  }
-}
-
 export default {
   id: 'magic', label: { pt: 'Magia', en: 'Magic' }, icon: icons.magic, order: 60, level: 1, usesColor: true,
   hint: { pt: 'Escolhe um efeito e experimenta-o na folha.', en: 'Pick an effect and try it on the paper.' },
   options: [{
     kind: 'choice', id: 'effect', label: { pt: 'Efeito', en: 'Effect' }, default: 'rainbow',
     items: () => {
-      queueMicrotask(syncChrome);
       return magic.all()
         .slice()
         .sort((a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category)
@@ -54,17 +31,13 @@ export default {
         }));
     },
   }, brushSizes, {
-    kind: 'toggle', id: 'whole', label: { pt: 'Página inteira', en: 'Whole page' }, icon: icons.new, default: false,
+    kind: 'toggle', id: 'whole', label: { pt: 'Em toda a folha', en: 'Apply to whole sheet' }, icon: icons.new, default: false,
+    fixed: true,
+    visible(option) {
+      const effect = magic.get(String(option('effect')));
+      return Boolean(effect?.stroke && effect.whole);
+    },
   }],
-  onSelect(c) {
-    host = c;
-    announced = '';
-    syncChrome();
-  },
-  onDeselect() {
-    host = undefined;
-    announced = '';
-  },
   down(p, c) {
     const effect = magic.get(c.opt('effect'));
     if (!effect) return;

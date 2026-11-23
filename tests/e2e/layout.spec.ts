@@ -16,6 +16,12 @@ for (const { width, height, sheetWidth, sheetHeight } of viewports) {
     const options = page.getByRole('complementary', { name: 'Opções' });
     await expect(paper).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
+    const visible = await paper.boundingBox();
+    if (!visible) throw new Error('Missing sheet with text');
+    expect(visible.width / visible.height).toBeCloseTo(4 / 3);
+    expect(visible.width).toBeGreaterThanOrEqual(width === 1366 ? 700 : width === 1024 ? 580 : sheetWidth);
+    expect(visible.height).toBeGreaterThanOrEqual(width === 1366 ? 525 : width === 1024 ? 435 : sheetHeight);
+    await page.getByRole('button', { name: 'Recolher texto', exact: true }).click();
     const sheet = await paper.boundingBox();
     const toolbox = await tools.boundingBox();
     const panel = await options.boundingBox();
@@ -46,6 +52,7 @@ for (const { width, height, sheetWidth, sheetHeight } of viewports) {
     }
 
     await checkTargets();
+    await page.getByRole('button', { name: 'Mostrar texto', exact: true }).click();
     const filename = `final-${width}x${height}.png`;
     await page.screenshot({ path: process.env.GARATUJA_CAPTURE_SCREENS === '1' ? 'docs/screens/' + filename : testInfo.outputPath(filename) });
 
@@ -60,5 +67,44 @@ for (const { width, height, sheetWidth, sheetHeight } of viewports) {
     await page.getByRole('button', { name: 'Abrir', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await checkTargets();
+  });
+}
+
+for (const width of [1024, 1366, 1920]) {
+  test(`labels fit at ${width} in normal, high contrast and uppercase settings`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 1920 ? 1080 : 768 });
+    await page.goto('/');
+    await page.waitForFunction(() => Boolean(window.__garatuja));
+    await page.evaluate(() => document.fonts.ready);
+    for (const mode of [{}, { highContrast: true }, { uppercase: true, highContrast: false }, { uppercase: true, highContrast: true }]) {
+      await page.evaluate(mode => window.__garatuja?.app.configure(mode), mode);
+      for (const tool of ['Pintar', 'Magia', 'Carimbo']) {
+        await page.getByRole('button', { name: tool, exact: true }).click();
+        const overflowing = await page.locator('button:visible').evaluateAll(buttons => buttons.flatMap(button =>
+          button.scrollWidth > button.clientWidth ? [[button.getAttribute('aria-label'), button.scrollWidth, button.clientWidth]] : []));
+        expect(overflowing, JSON.stringify({ mode, tool })).toEqual([]);
+      }
+    }
+  });
+}
+
+for (const [width, height] of [[768, 1024], [390, 844]]) {
+  test(`portrait file actions stay visible and tools scroll at ${width}×${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/');
+    await page.waitForFunction(() => Boolean(window.__garatuja));
+    for (const name of ['Novo', 'Abrir', 'Guardar', 'Desfazer', 'Refazer']) {
+      await expect(page.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
+    }
+    const deck = page.locator('.tool-deck');
+    expect(await deck.evaluate(el => el.scrollWidth > el.clientWidth && getComputedStyle(el).backgroundImage.includes('linear-gradient'))).toBe(true);
+    await page.getByRole('button', { name: 'Mover', exact: true }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole('button', { name: 'Mover', exact: true })).toBeInViewport({ ratio: 1 });
+    for (const name of ['Novo', 'Abrir', 'Guardar']) {
+      await expect(page.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
+    }
+    await page.getByRole('button', { name: 'Imprimir', exact: true }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole('button', { name: 'Imprimir', exact: true })).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   });
 }

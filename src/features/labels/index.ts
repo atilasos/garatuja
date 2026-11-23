@@ -12,6 +12,7 @@ export default {
   id: 'labels',
   mount(app) {
     labelEditor.attach(app);
+    app.finishDrawingText = app.documents.beforeSwitch = () => bitmapText.finish();
     if (labelEditor.layer) bitmapText.attach(app, labelEditor.layer);
     app.store.subscribe((state, previous) => {
       labelEditor.onState(state, previous);

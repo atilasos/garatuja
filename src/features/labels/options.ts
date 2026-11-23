@@ -9,10 +9,18 @@ export const fontOption: OptionSpec = {
     value: font.id, label: font.label,
     preview(ctx, w, h, color) {
       ctx.fillStyle = color;
-      ctx.font = canvasFont(font.id, h * .5);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Olá, Aa', w / 2, h / 2 + h * .04);
+      const sample = 'Olá, Aa';
+      const size = h * .5;
+      ctx.font = canvasFont(font.id, size);
+      const measure = ctx.measureText(sample);
+      const width = measure.actualBoundingBoxLeft + measure.actualBoundingBoxRight;
+      const height = measure.actualBoundingBoxAscent + measure.actualBoundingBoxDescent;
+      ctx.font = canvasFont(font.id, size * Math.min(1, (w - 12) / width, (h - 10) / height));
+      const fitted = ctx.measureText(sample);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(sample, (w + fitted.actualBoundingBoxLeft - fitted.actualBoundingBoxRight) / 2,
+        (h + fitted.actualBoundingBoxAscent - fitted.actualBoundingBoxDescent) / 2);
     },
   })),
 };

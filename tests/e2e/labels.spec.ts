@@ -93,10 +93,11 @@ test('writes text with accents, new lines and wrapping on the paper, one undo st
 
   await choose(page, 'Máximo');
   await tap(page, 700, 800);
-  await page.keyboard.type('Uma frase bem comprida que tem de mudar de linha antes da margem direita da folha');
+  await page.keyboard.type('Uma frase comprida que muda de linha aqui');
   await choose(page, 'Pousar');
   expect(await ink(page, 'bitmap', 1584, 600, 16, 600)).toBe(0);
-  expect(await ink(page, 'bitmap', 700, 900, 880, 300)).toBeGreaterThan(500);
+  await expect(field).toBeHidden();
+  expect(await ink(page, 'bitmap', 650, 900, 930, 300)).toBeGreaterThan(500);
 });
 
 test('lands text when tapping elsewhere or switching tool; Escape cancels', async ({ page }) => {

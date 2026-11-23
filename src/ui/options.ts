@@ -1,7 +1,7 @@
 import { t } from '../core/i18n';
 import type { State } from '../core/store';
 import type { ChoiceItem, L10n, OptionSpec, Tool } from '../core/types';
-import { button, h, pressed, replaceControls, roving } from './dom';
+import { button, h, pressed, replaceControls, roving, unavailable } from './dom';
 import { icon, icons } from './icons';
 
 export function choices(spec: Extract<OptionSpec, { kind: 'choice' }>, level: 1 | 2) {
@@ -52,6 +52,8 @@ export class OptionsPanel {
   private readonly refreshScroll = roving(this.controls, { pt: 'Percorrer opções', en: 'Scroll through options' });
   private readonly observer = new ResizeObserver(() => this.updateScroll());
   private tool?: Tool;
+  private say?: (hint: L10n) => void;
+  private readonly explain = (hint: L10n) => this.say?.(hint);
 
   constructor() {
     this.controls.append(this.up, this.down);
@@ -64,6 +66,7 @@ export class OptionsPanel {
     const top = tool === this.tool ? this.list.scrollTop : 0;
     const left = tool === this.tool ? this.list.scrollLeft : 0;
     this.tool = tool;
+    this.say = say;
     this.up.setAttribute('aria-label', t({ pt: 'Subir', en: 'Scroll up' }));
     this.down.setAttribute('aria-label', t({ pt: 'Descer', en: 'Scroll down' }));
     this.up.querySelector('.button-label')!.textContent = t({ pt: 'Subir', en: 'Scroll up' });
@@ -91,10 +94,14 @@ export class OptionsPanel {
         fixed.push(h('section', 'option-section', label, row));
         roving(row, spec.label);
       } else if (spec.kind === 'toggle') {
+        if (spec.visible && !spec.visible(id => {
+          const dependency = tool.options?.find(option => option.id === id);
+          return dependency ? value(dependency) : '';
+        })) continue;
         const option = button(spec.label, spec.icon, () => set(spec.id, !current), 'option-toggle');
         option.dataset.focus = spec.id;
         pressed(option, Boolean(current));
-        sections.push(h('section', 'option-section toggle-section', option));
+        (spec.fixed ? fixed : sections).push(h('section', 'option-section toggle-section', option));
       } else {
         const section = h('section', 'option-section', label);
         const categories = h('div', 'option-categories');
@@ -146,8 +153,10 @@ export class OptionsPanel {
   private updateScroll() {
     const available = this.list.clientHeight + this.controls.offsetHeight;
     this.controls.hidden = this.list.scrollHeight <= available + 1;
-    this.up.disabled = this.list.scrollTop < 1;
-    this.down.disabled = this.list.scrollTop + this.list.clientHeight >= this.list.scrollHeight - 1;
+    unavailable(this.up, this.list.scrollTop < 1
+      ? { pt: 'Já estás no início das opções.', en: 'You are at the start of the options.' } : undefined, this.explain);
+    unavailable(this.down, this.list.scrollTop + this.list.clientHeight >= this.list.scrollHeight - 1
+      ? { pt: 'Já estás no fim das opções.', en: 'You are at the end of the options.' } : undefined, this.explain);
     this.refreshScroll();
   }
 }

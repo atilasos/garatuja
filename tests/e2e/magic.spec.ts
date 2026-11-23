@@ -57,24 +57,30 @@ test('magic selector groups effects, previews them, and undoes a whole page', as
   for (const name of ['Mínimo', 'Pequeno', 'Médio', 'Grande', 'Máximo']) {
     await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
   }
-  await expect(page.getByRole('button', { name: 'Página inteira', exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Em toda a folha', exact: true })).toBeHidden();
   await waitForThumbs(page);
 
   await choose(page, 'Clarear');
   await expect(page.locator('#pingo-hint')).toHaveText('Arrasta para tornar as cores mais claras.');
-  await expect(page.getByRole('button', { name: 'Página inteira', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Em toda a folha', exact: true })).toBeVisible();
   await choose(page, 'Desfocar');
-  await expect(page.getByRole('button', { name: 'Página inteira', exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Em toda a folha', exact: true })).toBeHidden();
 
   await choose(page, 'Espelho');
   await tap(page, 80, 80);
+  expect(await read(page, 1400, 420)).toEqual(black);
+  expect(await read(page, 200, 420)).toEqual(white);
+  await tap(page, 80, 80);
+  expect(await read(page, 1400, 420)).toEqual(white);
+  expect(await read(page, 200, 420)).toEqual(black);
+  await choose(page, 'Desfazer');
   expect(await read(page, 1400, 420)).toEqual(black);
   await choose(page, 'Desfazer');
   expect(await read(page, 1400, 420)).toEqual(white);
   expect(await read(page, 200, 420)).toEqual(black);
 
   await choose(page, 'Clarear');
-  await choose(page, 'Página inteira');
+  await choose(page, 'Em toda a folha');
   const before = await read(page, 200, 420);
   await tap(page, 80, 80);
   const lightened = await read(page, 200, 420);

@@ -28,10 +28,10 @@ const workCards: { icon: IconSvg; label: L10n; text: L10n }[] = [
   { icon: icons.text, label: { pt: 'O meu texto', en: 'My text' }, text: { pt: 'Escreve o texto que o desenho ilustra.', en: 'Write the text your picture shows.' } },
 ];
 
-const shortcuts: { keys: string[]; text: L10n }[] = [
+const shortcuts: { keys: (string | L10n)[]; text: L10n }[] = [
   { keys: ['Tab'], text: { pt: 'Ir para o botão seguinte', en: 'Go to the next button' } },
   { keys: ['←', '→', '↑', '↓'], text: { pt: 'Andar dentro de uma barra ou na folha', en: 'Move inside a bar or on the paper' } },
-  { keys: ['Espaço'], text: { pt: 'Na folha: começar e acabar um traço', en: 'On the paper: start and end a stroke' } },
+  { keys: [{ pt: 'Espaço', en: 'Space' }], text: { pt: 'Na folha: começar e acabar um traço', en: 'On the paper: start and end a stroke' } },
   { keys: ['Ctrl', 'Z'], text: { pt: 'Desfazer', en: 'Undo' } },
   { keys: ['Ctrl', 'Y'], text: { pt: 'Refazer', en: 'Redo' } },
   { keys: ['Ctrl', 'S'], text: { pt: 'Guardar', en: 'Save' } },
@@ -56,7 +56,7 @@ function showHelp(app: App) {
   });
   listen.autofocus = true;
   const keys = h('dl', 'help-keys', ...shortcuts.flatMap(item => [
-    h('dt', '', ...item.keys.flatMap((key, i) => [i ? ' + ' : '', h('kbd', '', key)])),
+    h('dt', '', ...item.keys.flatMap((key, i) => [i ? ' + ' : '', h('kbd', '', typeof key === 'string' ? key : t(key))])),
     h('dd', '', t(item.text)),
   ]));
   const content = h('div', 'help-sheet',

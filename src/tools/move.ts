@@ -28,7 +28,8 @@ type State =
   | { kind: 'trace'; points: Point[]; shape: SelectionShape }
   | { kind: 'floating'; selection: Selection; context: ToolContext; drag?: Drag };
 
-const hint: L10n = { pt: 'Contorna uma parte do desenho para a levantares.', en: 'Draw around part of your picture to lift it.' };
+const rectangleHint: L10n = { pt: 'Arrasta na diagonal para recortar um retângulo.', en: 'Drag diagonally to cut out a rectangle.' };
+const lassoHint: L10n = { pt: 'Contorna uma parte do desenho para a levantares.', en: 'Draw around part of your picture to lift it.' };
 const floatingHint: L10n = { pt: 'Arrasta o recorte. Toca fora para o pousar.', en: 'Drag the cutout. Tap outside it to put it down.' };
 
 let state: State = { kind: 'idle' };
@@ -269,7 +270,8 @@ export const shapeOption = {
 
 export default {
   id: 'move', label: { pt: 'Mover', en: 'Move' }, icon: stampIcons.move, order: 95, level: 2, usesColor: false,
-  hint, manualCommit: true, options: [shapeOption],
+  hint: rectangleHint, manualCommit: true, options: [shapeOption],
+  optionHint: option => option('selection') === 'lasso' ? lassoHint : rectangleHint,
   down(p, c) {
     if (state.kind !== 'floating') state = { kind: 'trace', points: [p, p], shape: c.opt<SelectionShape>('selection') };
     else state.drag = { mode: hitMode(p, state.selection, c), start: p, initial: { ...state.selection.transform } };
