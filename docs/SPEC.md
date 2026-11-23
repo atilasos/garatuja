@@ -27,7 +27,7 @@ Regras de produto — não são negociáveis por conveniência técnica.
 6. **Autonomia.** Interface estável e previsível, utilizável sem o professor e sem saber ler:
    ícone + palavra em todos os botões, linha de ajuda do Pingo, leitura em voz alta opcional.
 7. **Inclusão no contexto comum.** Os apoios (interface simples/completa, clique fixo, cursor
-   grande, alto contraste, mão esquerda, maiúsculas) são opções da mesma ferramenta, escolhidas
+   grande, alto contraste, mão esquerda, maiúsculas e teclado no ecrã) são opções da mesma ferramenta, escolhidas
    livremente; nunca um «modo para quem tem dificuldades», nunca cores de semáforo.
 8. **Ambiente fechado e privado.** Tudo fica no dispositivo (IndexedDB). Zero pedidos de rede em
    execução, zero contas, zero telemetria, zero ligações externas. Funciona offline (PWA).
@@ -61,7 +61,15 @@ Pingo · Ouvir · Som · Definições
   mede pelo menos 1100 × 825 nos dois estados. O ecrã principal cabe na janela nestes três formatos.
 - A faixa mostra até duas linhas do texto da página com reticências quando falta espaço. Tocar abre o editor.
   A escolha de recolher a faixa fica no dispositivo. Uma miniatura com texto tem um ícone.
-- Em retrato, a folha ocupa a largura disponível. Ferramentas e opções passam para faixas com deslocamento horizontal. Desfazer, Refazer, Novo, Abrir e Guardar ficam sempre à vista. As faixas indicam que há conteúdo para percorrer. Em telemóveis mais baixos, a página pode deslocar-se na vertical.
+- Em retrato, a folha usa até 55% da altura da janela nos tablets. Aos 390 × 844, mede pelo menos
+  330 × 247,5 px. Os mínimos a 768 × 1024, 810 × 1080 e 834 × 1194 são, respetivamente,
+  740 × 555 px, 780 × 585 px e 800 × 600 px. A 1280 × 800, são 700 × 525 com a faixa
+  aberta e 740 × 555 com a faixa recolhida.
+- As opções em retrato têm duas filas de escolhas de pelo menos 56 px quando há escolhas suficientes.
+  As faixas de ferramentas e opções podem deslocar-se na horizontal. A página pode deslocar-se
+  na vertical, com Desfazer, Refazer, Novo, Abrir e Guardar na faixa de ferramentas fixa ao percorrer.
+  Os controlos dos carimbos ficam acima da grelha. Os rótulos dos botões quebram entre palavras ou
+  junto de um hífen.
 - Os botões têm pelo menos 48 × 48 px. Onde há espaço, os controlos principais têm 56 px ou mais.
 - A interface simples esconde Linhas e Mover, filtra as escolhas por nível e aumenta os botões de ferramentas. A opção Mão esquerda espelha as colunas em paisagem.
 - O cartão do trabalho abre Título, Autor e Para quem é?. A galeria em Abrir abre trabalhos guardados, exporta a folha atual para PNG e importa ou exporta `.garatuja`.
@@ -80,7 +88,7 @@ Pingo · Ouvir · Som · Definições
 | Linhas | `lines` | reta com qualquer pincel; Shift = ângulos de 15° |
 | Formas | `shapes` | quadrado, retângulo, círculo, elipse, triângulo, pentágono, hexágono, octógono, losango, estrelas 5/6 pontas, coração, seta; cheio/contorno; do centro/do canto; rodar |
 | Texto | `text` | escreve no bitmap; fontes: Andika, manuscrita escolar (Playwrite PT), título, máquina de escrever; tamanhos; o bloco sobe para caber na folha e fica em edição se for demasiado alto; opção Só maiúsculas em toda a interface |
-| Legenda | `label` | texto que continua editável (mover, reescrever, apagar); **seta de legenda** e **número** para esquemas de texto informativo; **balões** de fala/pensamento/grito para narrativa |
+| Legenda | `label` | texto que continua editável (mover, reescrever, apagar). Pronto termina a edição e liberta a seleção; **seta de legenda** e **número** para esquemas de texto informativo; **balões** de fala/pensamento/grito para narrativa |
 | Encher | `fill` | sólido, gradiente linear, radial, padrões; tolerância que respeita linhas do modelo |
 | Magia | `magic` | ≥ 60 efeitos (`MagicEffect`) em 5 categorias: pintar, cor, distorcer, padrões, página inteira |
 | Borracha | `eraser` | redonda/quadrada, 5 tamanhos; repõe o papel |
@@ -109,7 +117,7 @@ inteira, o interruptor Em toda a folha fica junto dos tamanhos.
 - **Animar**: reproduz as páginas em ciclo; velocidade em 3 passos (devagar/normal/depressa) com
   nome e ícone (caracol, gato, lebre); exporta **GIF** e **vídeo WebM**.
 - **Apresentar à turma**: ecrã inteiro, página + texto grande, setas grandes, teclado/clicker;
-  no fim, painel de comentários «Gostei / Pergunto / Sugiro» (texto livre, com nome de quem diz).
+  o avanço percorre primeiro o texto da página por ecrãs. No fim, painel de comentários «Gostei / Pergunto / Sugiro» (texto livre, com nome de quem diz).
 - **Ler/Imprimir como livro** tem capa tipográfica com título, autor, destinatário e turma, quando definida.
   Cada ilustração aparece junto do seu texto. Um trabalho de uma página sem título nem autor começa na própria página.
 - **Abrir → Diapositivos** permite selecionar trabalhos pela ordem em que a turma os vai ver.
@@ -123,14 +131,26 @@ A porta do adulto exige premir durante 3 s e escrever por extenso a resposta a u
 de 23 a 47. O professor pode configurar um PIN local opcional de quatro algarismos. A aplicação guarda
 um hash com salt. Para repor um PIN perdido, é preciso limpar os dados do site no navegador.
 
+O professor pode remover o PIN na área do professor. Pode ocultar Carimbo, Magia, Texto, Legenda,
+Mover, Formas, Linhas e Encher. As restrições aplicam-se às interfaces Simples e Completa e são
+partilhadas pelos separadores.
+
 O professor pode exportar os trabalhos com as alterações atuais, mesmo quando a gravação falha.
+A exportação exclui a reciclagem e mostra o progresso. Quando o arquivo excede 160 MiB, apresenta
+volumes `.garatuja` importáveis individualmente. Um trabalho maior do que um volume divide-se nas
+fronteiras entre páginas.
 A eliminação exige escrever APAGAR (DELETE na interface em inglês). Limpa os trabalhos, carimbos,
 reciclagem, rascunhos de recuperação e definições.
 
 Opções: interface
 simples/completa por defeito, som, leitura em voz alta, só maiúsculas, permitir imprimir,
-permitir importar ficheiros, clique fixo, cursor grande, alto contraste, mão esquerda, língua
+permitir importar ficheiros, clique fixo, cursor grande, alto contraste, mão esquerda, teclado no ecrã, língua
 (pt-PT / en), nome da turma, exportar todos os trabalhos, apagar dados do dispositivo.
+
+O teclado no ecrã é opcional e também está nas definições da criança. A disposição pode ser
+alfabética ou QWERTY. Texto, Legenda, O meu texto, os dados do trabalho e os comentários aceitam
+rato, toque e teclado físico. O teclado no ecrã tem teclas de pelo menos 48 px, maiúsculas, vogais acentuadas,
+cedilha, pontuação, espaço, apagar e nova linha nos campos com várias linhas.
 
 ## 7. Arquitetura
 
@@ -145,15 +165,25 @@ permitir importar ficheiros, clique fixo, cursor grande, alto contraste, mão es
 - Texto visível: sempre `L10n` (`pt` obrigatório em pt-PT AO90, `en` de recurso). Nunca strings soltas.
 - Os separadores com o mesmo trabalho detetam alterações por BroadcastChannel. Um separador limpo recarrega
   a versão nova. A gravação compara a versão dentro da transação do IndexedDB e cria um trabalho com o sufixo
-  «(cópia)» se outro separador já tiver guardado. Na saída, um rascunho pendente pode ser recuperado no arranque.
+  «(cópia)» se outro separador já tiver guardado. Ao expirar o prazo de Anular, uma eliminação
+  confirma a revisão dentro da transação. Se o trabalho mudou, mantém-no na galeria e avisa.
+  As definições são gravadas por campo. As alterações chegam aos restantes separadores.
+- Antes de guardar, tirar uma cópia da folha, mudar de ferramenta ou página, abrir um ecrã ou sair
+  do separador, o motor assenta os gestos pendentes. Um texto que excede a folha é guardado como
+  rascunho da página e volta ao campo de edição quando a página é reaberta. Escape cancela a edição.
+  Desfazer recupera a sessão de Texto ou Legenda cancelada. Carimbo, Encher sem degradé e Magia de
+  folha inteira terminam com um toque, também em clique fixo.
+- Se faltar espaço para guardar, a criança pode mudar de página ou começar outro trabalho. A
+  versão em memória continua disponível na galeria e no ficheiro de recuperação. O aviso de
+  gravação mantém-se até a gravação das alterações. A folha inicial intacta fica fora da galeria.
 - O histórico guarda diferenças RGB reversíveis por XOR no retângulo alterado. Trinta substituições de bitmap
   de 1600 × 1200 ocupam 164,8 MiB, mesmo com píxeis aleatórios. O orçamento inclui Desfazer e Refazer e liberta
   primeiro o histórico das páginas inativas menos recentes. Apagar uma página ou trocar de trabalho liberta o
-  histórico correspondente.
+  histórico correspondente. Uma troca entre duas cores lisas guarda as duas cores num passo reversível.
 - Testes: Vitest (lógica pura: enchimento, histórico, geometria, armazenamento) e Playwright
   (fluxos reais em Chromium). `npm run check` = typecheck + lint + unit + build; `npm run e2e`.
 - Desempenho: traço sem atraso percetível num Chromebook; enchimento de página inteira < 150 ms;
-  efeitos de página inteira < 500 ms.
+  usa-se o p95 do benchmark de Chromium a 4×. Efeitos de página inteira < 500 ms.
 
 ## 8. Feito quando
 
@@ -171,5 +201,7 @@ permitir importar ficheiros, clique fixo, cursor grande, alto contraste, mão es
 - `BrushDef.extent` é opcional. Dá ao histórico a margem necessária para pincéis que pintem além da área habitual.
 - `BrushDab.speed` é opcional. Dá a velocidade suavizada do ponteiro aos pincéis sensíveis ao movimento (fita, caneta).
 - `BrushDef.segment` permite preencher um segmento contínuo. O pincel Quadrado usa-o para suavizar as bordas em curvas.
+- `Tool.tapOnly` identifica as ações que terminam com um único toque mesmo quando clique fixo está ativo.
+- `Tool.flushPending` assenta o estado que sobrevive ao fim de um gesto antes de sair da ferramenta ou copiar a folha.
 - `Tool.updatePending` redesenha uma pré-visualização que aguarda outro gesto depois de uma alteração de cor ou opção.
 - `ChoiceItem.hint`, `BrushDef.hint` e `WorkAction.hint` alimentam a linha de ajuda do Pingo.

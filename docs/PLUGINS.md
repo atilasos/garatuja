@@ -108,7 +108,7 @@ export default {
 } satisfies Tool;
 ```
 
-O motor prepara `snapshot` ao iniciar o gesto e guarda um passo em `up`. Usa `overlay` para pré-visualizações e chama `markDirty` após cada alteração no bitmap. Usa `manualCommit: true` para manter um gesto aberto até chamares `c.commit()`. O motor repõe os píxeis marcados e os objetos de `c.labels` quando cancela o gesto. Usa `cancel` para limpar o estado da ferramenta. Usa `updatePending` para atualizar uma pré-visualização que espera outro gesto quando a criança muda a cor ou uma opção.
+O motor prepara `snapshot` ao iniciar o gesto e guarda um passo em `up`. Usa `overlay` para pré-visualizações e chama `markDirty` após cada alteração no bitmap. Usa `manualCommit: true` para manter um gesto aberto até chamares `c.commit()`. O motor repõe os píxeis marcados e os objetos de `c.labels` quando cancela o gesto. Usa `cancel` para limpar o estado da ferramenta. Declara `tapOnly` para concluir um gesto de toque único quando o clique fixo está ativo. Implementa `flushPending` para assentar uma pré-visualização que sobrevive ao gesto. O motor usa-o antes de gravar, mudar de ferramenta ou copiar a folha. Usa `updatePending` para atualizar uma pré-visualização que espera outro gesto quando a criança muda a cor ou uma opção.
 
 ## Feature
 
