@@ -10,7 +10,7 @@ import { art, button, h, pressed, replaceControls, roving } from './dom';
 import { icons } from './icons';
 import { OptionsPanel } from './options';
 import { palette } from './palette';
-import { authorLabel, mixColor, showSettings, titleLabel, untitled, WorkField } from './work-fields';
+import { authorLabel, mixColor, titleLabel, untitled, WorkField } from './work-fields';
 
 const words = {
   tools: { pt: 'Ferramentas', en: 'Tools' },
@@ -37,7 +37,8 @@ function actionButton(app: App, action: WorkAction) {
 export function mountShell(app: App, root: HTMLElement) {
   const title = new WorkField(titleLabel, untitled, value => app.documents.editProject({ title: value }));
   const author = new WorkField(authorLabel, { pt: 'O teu nome', en: 'Your name' }, value => app.documents.editProject({ author: value }));
-  const brand = h('div', 'brand', art(icons.pingo), h('span', '', t({ pt: 'Garatuja', en: 'Garatuja' })));
+  const className = h('small', 'class-name');
+  const brand = h('div', 'brand', art(icons.pingo), h('span', '', t({ pt: 'Garatuja', en: 'Garatuja' })), className);
   const pages = pageStrip(app);
   const preferences = h('div', 'preferences');
   const header = h('header', 'workbar', brand, h('div', 'work-fields', title.element, author.element), pages, preferences);
@@ -89,6 +90,7 @@ export function mountShell(app: App, root: HTMLElement) {
     app.surface.element.classList.toggle('large-cursor', state.settings.largeCursor);
     app.surface.element.classList.toggle('picking', state.pickingColor);
     app.surface.element.inert = state.busy;
+    className.textContent = state.settings.className;
     title.update(state.project.title);
     author.update(state.project.author);
     title.input.disabled = author.input.disabled = state.busy;
@@ -106,7 +108,7 @@ export function mountShell(app: App, root: HTMLElement) {
       levelToggle.setAttribute('aria-label', t(level === 1
         ? { pt: 'Interface simples', en: 'Simple interface' } : { pt: 'Interface completa', en: 'Full interface' }));
       pressed(levelToggle, level === 1);
-      const settingsButton = button(words.settings, icons.settings, () => showSettings(app));
+      const settingsButton = button(words.settings, icons.settings, () => app.openScreen('settings.child'));
       settingsButton.dataset.focus = 'settings';
       replaceControls(preferences, [soundToggle, levelToggle, settingsButton]);
       refreshPreferences();

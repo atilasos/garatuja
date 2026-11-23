@@ -126,12 +126,12 @@ test('switches pages and work, keeping original paper and author text', async ({
   await expect(page.getByRole('button', { name: 'Desfazer' })).toBeDisabled();
   expect(await read(page, 480, 400)).toEqual(black);
   await choose(page, 'Novo');
-  await page.getByRole('combobox', { name: 'Modelo' }).selectOption('notebook');
-  await choose(page, 'Criar trabalho');
+  await choose(page, 'Linhas de caderno');
+  await choose(page, 'Começar');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(await read(page, 500, 100)).not.toEqual(white);
   await choose(page, 'Abrir');
-  await choose(page, 'Um passeio Lia');
+  await choose(page, 'Um passeio, Lia, 2 páginas');
   await expect(page.getByRole('textbox', { name: 'Autor' })).toHaveValue('Lia');
   await choose(page, 'O meu texto');
   await expect(page.getByRole('textbox', { name: 'O meu texto' })).toHaveValue('Fomos ao jardim.');
@@ -150,9 +150,8 @@ test('rolls back when a second finger touches the surface and supports fixed cli
   expect(await read(page, 400, 430)).toEqual(white);
   await expect(page.getByRole('button', { name: 'Desfazer' })).toBeDisabled();
 
-  await choose(page, 'Definições');
-  await page.getByRole('checkbox', { name: 'Clique fixo' }).check();
-  await page.keyboard.press('Escape');
+  // Fixed click is a teacher option (covered through the adult gate in batch-g.spec.ts).
+  await page.evaluate(() => window.__garatuja?.app.configure({ fixedClick: true }));
   await tap(page, 400, 430);
   await page.mouse.move(second.x, second.y, { steps: 7 });
   await expect(page.getByRole('button', { name: 'Desfazer' })).toBeDisabled();
@@ -208,7 +207,7 @@ test('supports keyboard drawing and keeps focus inside a dialog', async ({ page 
   const close = page.getByRole('button', { name: 'Fechar', exact: true });
   await expect(close).toBeFocused();
   await page.keyboard.press('Shift+Tab');
-  await expect(page.getByRole('combobox', { name: 'Língua' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Adulto' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(close).toBeFocused();
   await page.keyboard.press('Escape');

@@ -1,10 +1,19 @@
 {
   "name": "Garatuja",
   "short_name": "Garatuja",
+  "description": "Ateliê de desenho para crianças. Tudo fica neste dispositivo.",
   "lang": "pt-PT",
+  "id": "./",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#fff9ed",
+  "orientation": "any",
+  "background_color": "#f6eddf",
   "theme_color": "#fff9ed",
-  "icons": [{ "src": "./pingo.svg", "sizes": "any", "type": "image/svg+xml" }]
+  "icons": [
+    { "src": "./icons/pingo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/pingo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/pingo-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "./icons/pingo-app.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
 }

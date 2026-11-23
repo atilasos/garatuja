@@ -1,7 +1,8 @@
 import type { StarterDef } from '../core/types';
+import { paperCategory } from './lib/art';
 
 export default {
-  id: 'notebook', label: { pt: 'Linhas de caderno', en: 'Notebook lines' }, category: { pt: 'Papel', en: 'Paper' },
+  id: 'notebook', label: { pt: 'Linhas de caderno', en: 'Notebook lines' }, category: paperCategory,
   paper(ctx, w, h) {
     ctx.save();
     ctx.lineWidth = 3;

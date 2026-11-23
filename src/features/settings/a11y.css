@@ -1,0 +1,65 @@
+/*
+ * Accessibility options (batch G). Each is an option of the same tool, applied
+ * through classes mirrored on <html> so dialogs and messages follow them too.
+ */
+
+/* Class name in the work bar: discreet. */
+.class-name {
+  font-size: .72rem; font-weight: 700; letter-spacing: 0; color: var(--muted);
+  margin-inline-start: 6px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--edge);
+  max-width: 14ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.class-name:empty { display: none; }
+
+/* Child settings: big icon + word buttons. */
+.child-settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.big-toggle { flex-direction: column; min-height: 96px; gap: 6px; font-size: .95rem; }
+.big-toggle .icon { width: 44px; height: 44px; }
+.dialog-actions.spread { justify-content: space-between; }
+
+/* High contrast: darker ink, solid edges, thicker selection and focus.
+   Doubled class: feature CSS is bundled before style.css, so it needs more weight. */
+.high-contrast.high-contrast {
+  --ink: #120d09;
+  --muted: #2b211a;
+  --edge: #3d3129;
+  --panel: #ffffff;
+  --button: #ffffff;
+  --selected: #bdf0d6;
+  --selected-edge: #0b3b2b;
+  --focus: #0a2f80;
+  --lift: #3d3129;
+  --note: #f3f0ea;
+  color: var(--ink);
+}
+html.high-contrast body { background: #efe8dc; }
+.high-contrast button { border-width: 2px; border-color: var(--edge); }
+.high-contrast button[aria-pressed="true"] { box-shadow: inset 0 0 0 3px var(--selected-edge); }
+.high-contrast :focus-visible { outline: 4px solid var(--focus); outline-offset: 3px; box-shadow: 0 0 0 7px #fff; }
+/* Thicker edges leave less room: keep tool names on one line. */
+.high-contrast .tool { padding-inline: 0; }
+.high-contrast .tool .button-label { overflow-wrap: normal; font-size: .8rem; letter-spacing: -.01em; }
+.high-contrast .help { background: #fff; border: 2px solid var(--edge); }
+.high-contrast .panel, .high-contrast .workbar, .high-contrast .ribbon, .high-contrast .footer,
+.high-contrast .dialog, .high-contrast .gallery-card { border: 2px solid var(--edge); }
+.high-contrast .paint-chip, .high-contrast .paper-chip { border: 2px solid var(--ink); }
+.high-contrast .toast, .high-contrast .gallery-notice { background: #fff3d6; color: #2e1e05; border: 2px solid #7a5310; }
+.high-contrast .sheet { box-shadow: 0 0 0 2px var(--ink), 0 4px 0 #bcae9f; }
+.high-contrast .gallery-meta, .high-contrast .work-field > span, .high-contrast .option-title,
+.high-contrast .choice-group, .high-contrast .panel-title { color: var(--ink); }
+.high-contrast .model-thumb, .high-contrast .gallery-thumb { box-shadow: 0 0 0 2px var(--ink); }
+
+/* Large cursor everywhere (the sheet already has its own). */
+html.large-cursor, html.large-cursor button, html.large-cursor input, html.large-cursor select, html.large-cursor label {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'%3E%3Cpath d='M6 4v32l9-8 6 13 7-3-6-13h12Z' fill='%23fff' stroke='%23120d09' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E") 6 4, auto;
+}
+
+/* Capital letters only. */
+html.uppercase body, html.uppercase input, html.uppercase textarea { text-transform: uppercase; }
+
+/* Left hand: also move messages to the left. */
+html.left-handed .toasts { right: auto; left: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hold-button::after { transition: none; }
+}

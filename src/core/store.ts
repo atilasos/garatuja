@@ -13,11 +13,14 @@ export interface Settings {
   leftHanded: boolean;
   allowPrint: boolean;
   allowImport: boolean;
+  /** Class name shown discreetly in the work bar (teacher area). */
+  className: string;
 }
 
 const defaults: Settings = {
   locale: 'pt', level: 2, sound: false, fixedClick: false, readAloud: false, uppercase: false,
   largeCursor: false, highContrast: false, leftHanded: false, allowPrint: true, allowImport: true,
+  className: '',
 };
 
 export function readSettings(): Settings {
@@ -30,6 +33,7 @@ export function readSettings(): Settings {
     for (const [key, value] of Object.entries(saved)) {
       if (key === 'locale' && (value === 'pt' || value === 'en')) settings.locale = value;
       if (key === 'level' && (value === 1 || value === 2)) settings.level = value;
+      if (key === 'className' && typeof value === 'string') settings.className = value.slice(0, 60);
       if (Object.hasOwn(defaults, key) && key !== 'locale' && key !== 'level' && typeof value === 'boolean') {
         Object.assign(settings, { [key]: value });
       }

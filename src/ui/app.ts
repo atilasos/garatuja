@@ -6,7 +6,7 @@ import { Sounds } from '../core/sound';
 import type { Storage } from '../core/storage';
 import { readEditor, Store, type Settings } from '../core/store';
 import type { Surface } from '../core/surface';
-import type { IconSvg, L10n, OptionSpec, ProjectRecord, Tool } from '../core/types';
+import type { IconSvg, L10n, OptionSpec, ProjectRecord, SoundId, Tool } from '../core/types';
 import { openModal, type ModalOptions } from './modal';
 import { choices } from './options';
 import { palette } from './palette';
@@ -136,7 +136,7 @@ export class App {
     this.store.set({ toolId: tool.id, hint: tool.hint });
     this.input.select(this.bind(tool));
     this.sounds.play('tap');
-    if (this.store.get().settings.readAloud) speak(this.store.get().hint);
+    if (this.store.get().settings.readAloud) speak({ pt: `${tool.label.pt}. ${tool.hint.pt}`, en: `${tool.label.en}. ${tool.hint.en}` });
   }
 
   setColor(color: string) {
@@ -229,5 +229,8 @@ export class App {
     return openModal(options);
   }
 
-  notify(message: L10n, action?: ToastAction) { this.toasts.show(message, action); }
+  /** Play one of the interface sounds (silent when sound is off). */
+  sound(id: SoundId) { this.sounds.play(id); }
+
+  notify(message: L10n, action?: ToastAction) { return this.toasts.show(message, action); }
 }

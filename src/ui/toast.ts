@@ -8,6 +8,7 @@ export interface ToastAction { label: L10n; run(): void }
 export class Toasts {
   readonly element = h('div', 'toasts');
 
+  /** Returns a function that removes the message early. */
   show(message: L10n, action?: ToastAction) {
     const status = h('span', 'toast-message');
     status.setAttribute('role', 'status');
@@ -18,5 +19,6 @@ export class Toasts {
     this.element.append(item);
     status.textContent = t(message);
     if (!action) window.setTimeout(remove, 5200);
+    return remove;
   }
 }
