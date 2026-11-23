@@ -198,6 +198,8 @@ export interface BrushDab {
   color: string;
   /** Distance travelled since the stroke began, in page pixels. */
   travelled: number;
+  /** Smoothed pointer speed in page pixels per millisecond. Absent for static previews. */
+  speed?: number;
   random(): number;
 }
 

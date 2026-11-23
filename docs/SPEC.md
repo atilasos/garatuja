@@ -143,3 +143,4 @@ permitir importar imagens, clique fixo, cursor grande, alto contraste, mão esqu
 - `ChoiceItem.level` é opcional. Permite que o painel aplique o modo simples também aos pincéis e efeitos alojados numa ferramenta.
 - `OptionSpec.shared` é opcional nas escolhas. Pintar e Linhas partilham a seleção de pincel.
 - `BrushDef.extent` é opcional. Dá ao histórico a margem necessária para pincéis que pintem além da área habitual.
+- `BrushDab.speed` é opcional. Dá a velocidade suavizada do ponteiro aos pincéis sensíveis ao movimento (fita, caneta).

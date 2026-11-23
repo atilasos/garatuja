@@ -1,12 +1,15 @@
 import { interpolateDabs, strokeBounds } from '../core/draw';
-import { brushSizes } from '../core/tooling/brush-stroke';
+import { brushSizes, showSizeCursor } from '../core/tooling/brush-stroke';
 import type { Point, Tool, ToolContext } from '../core/types';
 import { icons } from '../ui/icons';
 
+const sizeOf = (c: ToolContext) => c.opt<number>('size') * 1.5;
+const shapeOf = (c: ToolContext) => c.opt('shape') === 'square' ? 'square' : 'round';
+
 function erase(from: Point, to: Point, c: ToolContext) {
-  const size = c.opt<number>('size') * 1.5;
+  const size = sizeOf(c);
   const d = size / 2;
-  const square = c.opt('shape') === 'square';
+  const square = shapeOf(c) === 'square';
   const ctx = c.ctx;
   const dab = (p: Point) => {
     if (square) ctx.rect(p.x - d, p.y - d, size, size);
@@ -29,14 +32,15 @@ function erase(from: Point, to: Point, c: ToolContext) {
 export default {
   id: 'eraser', label: { pt: 'Borracha', en: 'Eraser' }, icon: icons.eraser, order: 70, level: 1, usesColor: false,
   hint: { pt: 'Passa a borracha para voltar a ver o papel.', en: 'Rub over the drawing to see the paper again.' },
-  options: [{
+  options: [brushSizes, {
     kind: 'choice', id: 'shape', label: { pt: 'Forma', en: 'Shape' }, default: 'round',
     items: [
       { value: 'round', label: { pt: 'Redonda', en: 'Round' }, icon: icons.outline },
       { value: 'square', label: { pt: 'Quadrada', en: 'Square' }, icon: icons.shapes },
     ],
-  }, brushSizes],
-  down(p, c) { erase(p, p, c); c.sound('erase'); },
-  move(p, previous, c) { erase(previous, p, c); },
+  }],
+  down(p, c) { erase(p, p, c); showSizeCursor(c, p, sizeOf(c), shapeOf(c)); c.sound('erase'); },
+  move(p, previous, c) { erase(previous, p, c); showSizeCursor(c, p, sizeOf(c), shapeOf(c)); },
   up() {},
+  hover(p, c) { showSizeCursor(c, p, sizeOf(c), shapeOf(c)); },
 } satisfies Tool;

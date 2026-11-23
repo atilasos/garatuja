@@ -2,7 +2,7 @@ import { pressureSize } from '../core/tooling/brush-stroke';
 import type { BrushDef } from '../core/types';
 
 export default {
-  id: 'chalk', label: { pt: 'Giz', en: 'Chalk' }, order: 30, level: 1, spacing: .13,
+  id: 'chalk', label: { pt: 'Giz', en: 'Chalk' }, order: 110, level: 1, spacing: .13,
   dab(ctx, d) {
     const radius = pressureSize(d.size, d.pressure) / 2;
     ctx.save();

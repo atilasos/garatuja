@@ -22,6 +22,8 @@ export default {
 
 Usa `begin(color, size)` para preparar cada traço. Mantém o desenho dentro de 1,5 vezes `d.size` a partir do centro. Se o pincel ultrapassar essa margem, declara o multiplicador em `extent` para o histórico capturar todos os píxeis.
 
+Os pincéis ficam em grupos pela ordem: 10–99 básicos, 100–199 texturas, 200–299 efeitos, 300 ou mais trilhos. O anfitrião suaviza o traço livre com curvas e dá a `d.angle` já suavizado, por isso setas e pegadas podem apontar para onde a mão vai. `d.speed` (px/ms, ausente nas pré-visualizações estáticas) serve pincéis sensíveis ao movimento. Em `src/core/tooling/brush-kit.ts` há ajudas para pincéis mais ricos: `Layer` pinta um traço translúcido plano sem acumular opacidade (marcador, néon), `grain` e `grainDab` pintam através de uma textura de papel, e `mix`, `shade` e `hsl` tratam cores. Quem usa `Layer` chama `reset()` em `begin`.
+
 ## Efeito de magia
 
 Cria `src/magic/dots.ts`. Usa `stroke` para pincelar e `whole` para atuar sobre a folha inteira. Se o efeito tiver ambos, a opção **Página inteira** escolhe qual se aplica. O anfitrião corre o efeito numa imagem de amostra para gerar a miniatura. Usa as dimensões de `c.width` e `c.height`. Reinicia o estado do traço em `begin` e recebe o tamanho pelo argumento `size`.
