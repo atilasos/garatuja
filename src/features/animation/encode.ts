@@ -2,7 +2,7 @@ import { viewport } from '../../core/canvas';
 import type { Surface } from '../../core/surface';
 import type { PageRecord } from '../../core/types';
 import { frameDuration, gifDelay } from './frames';
-import Worker from './gif.worker?worker&inline';
+import Worker from './gif.worker?worker';
 import type { GifRequest } from './gif.worker';
 
 interface AnimationExport {

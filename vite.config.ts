@@ -84,5 +84,6 @@ export function offline(): Plugin {
 
 export default defineConfig({
   base: './',
+  build: { assetsInlineLimit: 0 },
   plugins: [offline()],
 });
