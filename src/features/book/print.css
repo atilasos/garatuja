@@ -1,0 +1,54 @@
+.dialog.print-work-dialog { width: min(96vw, 880px); max-height: 95dvh; }
+.print-work-screen { display: grid; gap: 10px; }
+.print-work-options, .print-work-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.print-work-options { justify-content: space-between; }
+.print-orientation-landscape .icon { rotate: 90deg; }
+.print-work-loading { margin: 0; }
+.print-work-preview {
+  height: min(63dvh, 520px);
+  overflow: auto;
+  padding: 10px;
+  background: #eaddca;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+}
+.print-work-sheet {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  padding: 4%;
+  color: #222;
+  margin: 0 auto;
+  overflow-wrap: anywhere;
+}
+.print-work-preview .print-work-sheet {
+  width: min(100%, 42dvh);
+  min-height: min(58dvh, 72vw);
+  box-shadow: 0 2px 6px #352b2330;
+  font-size: .82rem;
+}
+.print-work-preview[data-orientation="landscape"] .print-work-sheet {
+  width: min(100%, 76dvh);
+  min-height: min(54dvh, 60vw);
+}
+.print-work-preview .print-work-sheet + .print-work-sheet { margin-block-start: 12px; }
+.print-work-sheet img { display: block; width: 100%; object-fit: contain; max-height: 42dvh; }
+.print-work-preview[data-orientation="landscape"] .print-work-sheet img { max-height: min(34dvh, 45vw); }
+.print-work-sheet footer { font-size: .82em; margin-block-start: auto; padding-block-start: 8px; }
+.print-work-copy { white-space: pre-wrap; margin: 8px 0; }
+.print-work-cover .book-cover-details { padding: 0 0 9px; overflow: visible; text-align: center; }
+.print-work-cover .book-cover-details h1 { font-size: clamp(1.25rem, 2.6vw, 2.25rem); }
+.print-work-cover img { margin: auto 0; }
+@page garatuja-portrait { size: A4 portrait; margin: 13mm; }
+@page garatuja-landscape { size: A4 landscape; margin: 13mm; }
+@media print {
+  .print-work-portrait { page: garatuja-portrait; }
+  .print-work-landscape { page: garatuja-landscape; }
+  .print-work .print-work-sheet { min-height: 270mm; padding: 0; }
+  .print-work-landscape .print-work-sheet { min-height: 183mm; }
+  .print-work .print-work-sheet + .print-work-sheet { break-before: page; }
+  .print-work .print-work-sheet img { max-height: 142mm; break-inside: avoid; }
+  .print-work-landscape .print-work-sheet img { max-height: 104mm; }
+  .print-work .print-work-sheet footer { padding-top: 12mm; }
+  .print-work .print-work-copy { font-size: 13pt; margin: 5mm 0; }
+}

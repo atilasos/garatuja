@@ -1,0 +1,20 @@
+.class-comments { height: 100%; overflow: auto; padding: 5px; }
+.class-comments h2 { font-size: clamp(1.5rem, 3.5vw, 3rem); margin: 0 0 12px; }
+.class-comments-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.class-comment-form, .class-comments-list { display: grid; align-content: start; gap: 8px; }
+.class-comment-form label { font-size: 1rem; color: var(--ink); }
+.class-comment-form label span { color: #fffdf6; }
+.class-comment-form textarea { min-height: 110px; resize: vertical; }
+.class-comment-types { display: flex; flex-wrap: wrap; gap: 8px; }
+.class-comment, .class-comment-notice {
+  color: var(--ink);
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+}
+.class-comment header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.class-comment header button { margin-inline-start: auto; }
+.class-comment p { white-space: pre-wrap; margin: 8px 0; font-size: 1.15rem; }
+.class-comment-notice { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; background: #fff0ce; border: 1px solid #bd8a36; }
+@media (max-width: 660px) { .class-comments-grid { grid-template-columns: 1fr; } }

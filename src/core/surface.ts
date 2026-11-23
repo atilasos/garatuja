@@ -63,13 +63,47 @@ export class Surface {
     void this.showOnion();
   }
 
-  async showOnion(page?: PageRecord) {
+  async showOnion(page?: PageRecord, following?: PageRecord) {
     const request = ++this.onionRequest;
     this.onion.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    if (!page) return;
-    const picture = await createImageBitmap(page.bitmap);
-    if (request === this.onionRequest) this.onion.drawImage(picture, 0, 0);
-    picture.close();
+    if (!page && !following) return;
+    const ghost = viewport(800, 600);
+    if (page) await this.compositePage(page, ghost);
+    if (request !== this.onionRequest) return;
+    if (page) this.onion.drawImage(ghost.canvas, 0, 0, CANVAS_W, CANVAS_H);
+    if (following) {
+      await this.compositePage(following, ghost);
+      if (request !== this.onionRequest) return;
+      ghost.fillStyle = '#684aad44';
+      ghost.fillRect(0, 0, 800, 600);
+      this.onion.save();
+      this.onion.globalAlpha = page ? .5 : 1;
+      this.onion.drawImage(ghost.canvas, 0, 0, CANVAS_W, CANVAS_H);
+      this.onion.restore();
+    }
+  }
+
+  /** Render a stored page without changing the active page or its history. */
+  async compositePage(page: PageRecord, target: CanvasRenderingContext2D) {
+    const { width, height } = target.canvas;
+    const draw = async (blob: Blob) => {
+      const image = await createImageBitmap(blob);
+      try {
+        target.drawImage(image, 0, 0, width, height);
+      } finally {
+        image.close();
+      }
+    };
+    target.clearRect(0, 0, width, height);
+    await draw(page.bitmap);
+    if (page.foreground) await draw(page.foreground);
+    target.save();
+    try {
+      target.scale(width / CANVAS_W, height / CANVAS_H);
+      this.labelRenderer.draw(target, page.labels);
+    } finally {
+      target.restore();
+    }
   }
 
   private committed() {
