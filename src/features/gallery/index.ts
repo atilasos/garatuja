@@ -1,81 +1,53 @@
-import { createPage, createProject } from '../../core/document';
-import { t } from '../../core/i18n';
 import { starters } from '../../core/registry';
-import type { App, Feature } from '../../ui/app';
-import { button, h, roving } from '../../ui/dom';
+import type { Feature } from '../../ui/app';
 import { icons } from '../../ui/icons';
-import { untitled } from '../../ui/work-fields';
+import './gallery.css';
+import { newWork } from './new-work';
+import { openWork } from './open';
+import { paintStarter } from './papers';
+import { saveWork } from './save';
+import { Trash } from './trash';
 
-const newTitle = { pt: 'Novo trabalho', en: 'New work' };
-const openTitle = { pt: 'Abrir trabalho', en: 'Open work' };
-
-function newWork(app: App) {
-  const color = h('input', 'color-input');
-  color.type = 'color';
-  color.value = '#ffffff';
-  const model = h('select');
-  for (const starter of starters.all()) {
-    const option = h('option', '', t(starter.label));
-    option.value = starter.id;
-    model.append(option);
+declare global {
+  interface Window {
+    /** Test-only hooks for batch G (starters contact sheet). */
+    __garatujaStarters?: { ids(): string[]; render(id: string, color: string, width: number, height: number): string };
   }
-  model.value = 'plain';
-  const create = button({ pt: 'Criar trabalho', en: 'Create work' }, icons.plus, () => app.run(async () => {
-    create.disabled = true;
-    try {
-      const page = createPage(color.value, starters.get(model.value));
-      await app.documents.open(createProject(page));
-      close();
-    } finally {
-      create.disabled = false;
-    }
-  }), 'primary');
-  const close = app.modal({
-    title: newTitle, content: h('div', 'dialog-stack',
-      h('label', 'work-field', h('span', '', t({ pt: 'Cor do papel', en: 'Paper color' })), color),
-      h('label', 'work-field', h('span', '', t({ pt: 'Modelo', en: 'Template' })), model), create),
-  });
-}
-
-async function openWork(app: App) {
-  await app.documents.save();
-  const projects = (await app.storage.list()).sort((a, b) => b.updatedAt - a.updatedAt);
-  const gallery = h('div', 'gallery');
-  const urls: string[] = [];
-  const close = app.modal({ title: openTitle, content: gallery, onClose: () => urls.forEach(url => URL.revokeObjectURL(url)) });
-  for (const project of projects) {
-    const page = project.pages[0];
-    if (!page) continue;
-    const thumb = h('img');
-    thumb.alt = '';
-    thumb.src = URL.createObjectURL(page.thumb);
-    urls.push(thumb.src);
-    const item = h('button', 'gallery-item', thumb, h('strong', '', project.title || t(untitled)), h('span', '', project.author));
-    item.type = 'button';
-    item.addEventListener('click', () => app.run(async () => {
-      await app.documents.open(project);
-      close();
-    }));
-    gallery.append(item);
-  }
-  roving(gallery, openTitle);
 }
 
 export default {
   id: 'gallery',
   mount(app) {
+    const trash = new Trash(app.storage);
     app.registerScreen('gallery.new', newWork);
-    app.registerScreen('gallery.open', openWork);
+    app.registerScreen('gallery.open', app => openWork(app, trash));
     app.registerAction({ id: 'new', label: { pt: 'Novo', en: 'New' }, icon: icons.new,
       placement: 'files', order: 10, run: app => app.openScreen('gallery.new') });
     app.registerAction({ id: 'open', label: { pt: 'Abrir', en: 'Open' }, icon: icons.open,
       placement: 'files', order: 20, run: app => app.openScreen('gallery.open') });
-    app.registerAction({
-      id: 'save', label: { pt: 'Guardar', en: 'Save' }, icon: icons.save, placement: 'files', order: 30,
-      async run(app) {
-        await app.documents.save();
-        app.say({ pt: 'O trabalho ficou guardado.', en: 'Your work is saved.' });
-      },
+    app.registerAction({ id: 'save', label: { pt: 'Guardar', en: 'Save' }, icon: icons.save,
+      placement: 'files', order: 30, run: saveWork });
+    window.addEventListener('keydown', event => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      if (app.store.get().busy || document.querySelector('dialog[open]')) return;
+      const key = event.key.toLowerCase();
+      if (key === 's') { event.preventDefault(); app.run(() => saveWork(app)); }
+      if (key === 'o') { event.preventDefault(); app.openScreen('gallery.open'); }
     });
+    if (import.meta.env.MODE === 'test') {
+      window.__garatujaStarters = {
+        ids: () => starters.all().map(starter => starter.id),
+        render(id, color, width, height) {
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          const starter = starters.get(id);
+          if (!ctx || !starter) throw new Error('Unknown starter ' + id);
+          paintStarter(ctx, starter, color);
+          return canvas.toDataURL('image/png');
+        },
+      };
+    }
   },
 } satisfies Feature;
