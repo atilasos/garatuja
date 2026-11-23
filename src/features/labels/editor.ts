@@ -37,7 +37,7 @@ const words = {
   stuck: { pt: 'A legenda ficou colada na folha. Podes desfazer.', en: 'The label is stuck on the paper. You can undo it.' },
 } satisfies Record<string, L10n>;
 
-const defaults = { font: fontDefs[0].id, size: 64, type: 'callout' as LabelType };
+const defaults = { font: fontDefs[0].id, size: 60, type: 'callout' as LabelType };
 
 /** Option values straight from saved state (so two states can be compared). */
 export function readLabelOptions(state: Pick<State, 'options'>) {
@@ -496,7 +496,7 @@ export class LabelEditor {
           : [];
       for (const control of this.barButtons) control.dataset.bar = state;
     }
-    layer.setBar(this.barButtons, selected && LabelLayer.footprint(selected));
+    layer.setBar(this.barButtons, selected && LabelLayer.footprint(selected), t(words.actions));
   }
 }
 

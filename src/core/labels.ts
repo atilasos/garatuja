@@ -296,7 +296,7 @@ export interface LabelLayout {
 
 
 function wrapLimit(variant: LabelVariant, size: number) {
-  const factor = { text: 20, callout: 10, box: 13, speech: 8, thought: 8, shout: 7 }[variant];
+  const factor = { text: 20, callout: 10, box: 13, speech: 6.5, thought: 6.5, shout: 6 }[variant];
   return Math.min(size * factor, CANVAS_W * .8);
 }
 

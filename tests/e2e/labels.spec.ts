@@ -336,9 +336,9 @@ test('changing the kind, colour and size of a selected label edits it as one und
   await choose(page, 'Grande');
   const edited = (await labelsOf(page))[0];
   expect(edited.color).toBe('#e05748');
-  expect(edited.size).toBe(84);
+  expect(edited.size).toBe(80);
   await choose(page, 'Desfazer');
-  expect((await labelsOf(page))[0].size).toBe(64);
+  expect((await labelsOf(page))[0].size).toBe(60);
   await choose(page, 'Desfazer');
   expect((await labelsOf(page))[0].color).toBe('#292a33');
   await choose(page, 'Desfazer');
@@ -474,4 +474,39 @@ test('labels stay sharp in the composite used for print and export', async ({ pa
   });
   expect(result?.baseDark).toBeGreaterThan(200);
   expect(result?.dark).toBeGreaterThan((result?.baseDark ?? 0) * 3);
+});
+
+test('typed text is landed when the page changes or the tab is hidden', async ({ page }) => {
+  await ready(page);
+  await choose(page, 'Texto');
+  await tap(page, 200, 300);
+  await page.keyboard.type('Fica guardado');
+  await choose(page, 'Adicionar página');
+  await expect(page.getByRole('button', { name: 'Página 2' })).toHaveAttribute('aria-pressed', 'true');
+  await choose(page, 'Página 1');
+  await expect(page.getByRole('button', { name: 'Página 1' })).toHaveAttribute('aria-pressed', 'true');
+  expect(await ink(page, 'bitmap', 150, 220, 800, 200)).toBeGreaterThan(200);
+
+  await choose(page, 'Legenda');
+  await choose(page, 'Balão de fala');
+  await tap(page, 800, 800);
+  await page.keyboard.type('Ainda a escrever');
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  expect((await labelsOf(page)).map(label => label.text)).toEqual(['Ainda a escrever']);
+});
+
+test('a label can be created from the keyboard alone', async ({ page }) => {
+  await ready(page);
+  await choose(page, 'Legenda');
+  await choose(page, 'Legenda com seta');
+  await page.getByRole('group', { name: 'Folha de desenho' }).focus();
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  const field = page.getByRole('textbox', { name: 'Escreve aqui' });
+  await expect(field).toBeFocused();
+  await page.keyboard.type('teclado');
+  await page.keyboard.press('Control+Enter');
+  const [label] = await labelsOf(page);
+  expect(label.text).toBe('teclado');
+  await expect(page.getByRole('button', { name: /Legenda com seta: teclado/ })).toBeFocused();
 });

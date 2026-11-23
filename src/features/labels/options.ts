@@ -19,7 +19,7 @@ export const fontOption: OptionSpec = {
 
 /** Sizes of text, in page pixels (the sheet is 1600 wide). */
 export const textSizes = [40, 60, 84, 116, 160];
-export const labelSizes = [36, 48, 64, 84, 112];
+export const labelSizes = [32, 44, 60, 80, 108];
 
 export function sizeOption(steps: number[], fallback: number): OptionSpec {
   return { kind: 'size', id: 'size', label: { pt: 'Tamanho', en: 'Size' }, steps, default: fallback };

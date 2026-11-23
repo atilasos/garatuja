@@ -45,7 +45,7 @@ export default {
     pt: 'Escolhe o tipo e toca na folha para escrever. Arrasta do alvo até ao texto para fazer uma seta.',
     en: 'Pick a kind and tap the paper to write. Drag from the target to the text to make an arrow.',
   },
-  options: [typeOption, fontOption, sizeOption(labelSizes, 64)],
+  options: [typeOption, fontOption, sizeOption(labelSizes, 60)],
   onSelect(c) { labelEditor.activate(c); },
   onDeselect() { drag = undefined; labelEditor.deactivate(); },
   down(p, c) {

@@ -20,7 +20,7 @@ export const fontDefs: readonly FontDef[] = [
   { id: 'Andika', label: { pt: 'Letra de imprensa', en: 'Print letters' }, weight: 400,
     stack: '"Andika", "Atkinson Hyperlegible", system-ui, sans-serif', lineHeight: 1.3 },
   { id: 'Playwrite PT', label: { pt: 'Letra manuscrita', en: 'Handwriting' }, weight: 400,
-    stack: '"Playwrite PT", "Andika", cursive', lineHeight: 1.75 },
+    stack: '"Playwrite PT", "Andika", cursive', lineHeight: 1.5 },
   { id: 'Fredoka', label: { pt: 'Título', en: 'Title' }, weight: 600,
     stack: '"Fredoka", "Andika", system-ui, sans-serif', lineHeight: 1.2 },
   { id: 'Courier Prime', label: { pt: 'Máquina de escrever', en: 'Typewriter' }, weight: 400,

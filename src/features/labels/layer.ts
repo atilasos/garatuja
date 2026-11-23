@@ -42,6 +42,8 @@ export class LabelLayer {
   constructor(private readonly sheet: HTMLElement, private readonly handlers: LayerHandlers) {
     this.outline.hidden = this.handle.hidden = this.bar.hidden = true;
     this.element.hidden = true;
+    this.outline.setAttribute('aria-hidden', 'true');
+    this.handle.setAttribute('aria-hidden', 'true');
     this.bar.setAttribute('role', 'toolbar');
     this.element.append(this.outline, this.handle, this.field.element, this.bar);
     sheet.append(this.element);
@@ -120,7 +122,8 @@ export class LabelLayer {
     this.items.get(id)?.focus({ preventScroll: true });
   }
 
-  setBar(buttons: HTMLElement[], anchor?: Rect) {
+  setBar(buttons: HTMLElement[], anchor?: Rect, label = '') {
+    if (label) this.bar.setAttribute('aria-label', label);
     const same = buttons.length === this.bar.children.length && buttons.every((button, i) => button === this.bar.children[i]);
     if (!same) this.bar.replaceChildren(...buttons);
     this.bar.hidden = buttons.length === 0;

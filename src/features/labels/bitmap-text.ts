@@ -1,6 +1,8 @@
+import { t } from '../../core/i18n';
 import { clamp, fontMetrics, layoutPlain, measureContext } from '../../core/labels';
 import type { State } from '../../core/store';
 import { CANVAS_H, CANVAS_W, type L10n, type Point, type Rect, type ToolContext } from '../../core/types';
+import { ensureGlyphs } from '../../fonts/load';
 import { fontDefs } from '../../fonts/stacks';
 import type { App } from '../../ui/app';
 import { button } from '../../ui/dom';
@@ -10,6 +12,7 @@ import type { LabelLayer } from './layer';
 const words = {
   place: { pt: 'Pousar', en: 'Place' },
   cancel: { pt: 'Cancelar', en: 'Cancel' },
+  actions: { pt: 'Ações do texto', en: 'Text actions' },
   typing: { pt: 'Escreve. Toca fora, ou em «Pousar», para o texto ficar no desenho.', en: 'Type. Tap outside, or “Place”, to put the text on the drawing.' },
 } satisfies Record<string, L10n>;
 
@@ -68,7 +71,12 @@ export class BitmapText {
     const app = this.app;
     if (!field || !app) return;
     field.onKey = event => this.fieldKey(event);
-    field.onInput = () => this.restyle();
+    field.onInput = value => {
+      this.restyle();
+      // Glyphs of the lazy latin-ext subset must be ready before the text is painted.
+      const font = this.geometry()?.v.font;
+      if (font) void ensureGlyphs(font, value).then(loaded => { if (loaded) this.restyle(); });
+    };
     field.uppercase = () => app.store.get().settings.uppercase;
   }
 
@@ -145,7 +153,7 @@ export class BitmapText {
         button(words.cancel, labelIcons.cancel, () => this.cancel(), 'bar-button'),
       ];
     }
-    layer.setBar(this.buttons, anchor);
+    layer.setBar(this.buttons, anchor, t(words.actions));
   }
 
   private localeKey() {
