@@ -382,10 +382,12 @@ input:not([type="checkbox"]), select, textarea {
   .choice-block + .choice-block { margin: 0; }
 }
 @media (min-width: 801px) and (max-width: 1120px) and (orientation: landscape) {
-  .workbar { grid-template-columns: auto minmax(168px, .32fr) minmax(360px, 2fr) minmax(0, max-content); }
+  .workbar { grid-template-columns: auto minmax(168px, .32fr) minmax(280px, 2fr) minmax(0, max-content); }
+  .brand { font-size: 1.1rem; }
+  .brand .icon { width: 28px; height: 28px; }
   .work-card .icon { width: 21px; height: 21px; }
-  .feature-actions { overflow-x: auto; scrollbar-width: none; }
-  .feature-actions > button { flex: none; }
+  .feature-actions { gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .feature-actions > button { flex: none; font-size: .7rem; padding-inline: 4px; }
   .page-strip-scroller > button { display: none; }
   .palette { gap: 1px; }
 }
