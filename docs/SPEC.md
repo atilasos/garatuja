@@ -45,22 +45,21 @@ Regras de produto — não são negociáveis por conveniência técnica.
 
 ## 3. Ecrã principal (disposição herdada do Tux Paint, por ser previsível)
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│ Barra do trabalho: título · autor · tira de páginas · ▶ Animar · Apresentar · Som │
-├────────┬──────────────────────────────────────────┬──────────┤
-│ Ferra- │                                          │ Opções   │
-│ mentas │              Folha (4:3)                 │ da ferra-│
-│ (2 col)│                                          │ menta    │
-├────────┴──────────────────────────────────────────┴──────────┤
-│ Cores (paleta com nomes · conta-gotas · misturar cor)                │
-│ Pingo: linha de ajuda (texto curto + botão ouvir)                    │
-└──────────────────────────────────────────────────────────────┘
+```text
+Marca · Dados do trabalho · Páginas · O meu texto · Animar · Ler · Apresentar
+Ferramentas em duas colunas  │                    │ Tamanhos e categorias
+Desfazer / Refazer           │    Folha (4:3)      │ Opções com deslocamento
+Novo / Abrir                 │                    │
+Guardar / Imprimir           │                    │
+Cores com nome · Conta-gotas · Misturar cor
+Pingo · Ouvir · Som · Definições
 ```
 
-- Alvos de toque ≥ 56 px (≥ 48 px no mínimo absoluto); espaço ≥ 8 px.
-- Funciona em 1024×768 (tablet), 1366×768 (Chromebook), quadro interativo e, degradando com
-  graça, em retrato/telemóvel (ferramentas passam para baixo).
+- A folha mede pelo menos 740 × 555 a 1366 × 768, 620 × 465 a 1024 × 768 e 1100 × 825 a 1920 × 1080. Nestes três formatos, o ecrã principal cabe na janela.
+- Em retrato, a folha ocupa a largura disponível. Ferramentas e opções passam para faixas com deslocamento horizontal. Desfazer e Refazer ficam sempre à vista. Em telemóveis mais baixos, a página pode deslocar-se na vertical.
+- Os botões têm pelo menos 48 × 48 px. Onde há espaço, os controlos principais têm 56 px ou mais.
+- A interface simples esconde Linhas e Mover, filtra as escolhas por nível e aumenta os botões de ferramentas. A opção Mão esquerda espelha as colunas em paisagem.
+- O cartão do trabalho abre Título, Autor e Para quem é?. A galeria em Abrir abre trabalhos guardados, exporta a folha atual para PNG e importa ou exporta `.garatuja`.
 - Tipografia da interface: **Andika** (SIL, feita para leitores iniciais), empacotada localmente.
 - Direção visual: «mesa de ateliê» — fundo creme, peças arredondadas e gordas, ícones a duas cores,
   sombra curta; a folha é a protagonista. Sem gradientes berrantes nem estética de jogo.
@@ -104,13 +103,13 @@ padrão repetido, redemoinho, vento.
 - **Apresentar à turma**: ecrã inteiro, página + texto grande, setas grandes, teclado/clicker;
   no fim, painel de comentários «Gostei / Pergunto / Sugiro» (texto livre, com nome de quem diz).
 - **Ler/Imprimir como livro**: capa (título, autor, para quem é) + página por página com texto.
-- Ficheiro `.garatuja` (um único ficheiro) para levar o trabalho para outro dispositivo.
+- O ficheiro `.garatuja` leva um ou mais trabalhos para outro dispositivo, com páginas, texto, legendas e comentários. Abrir importa os ficheiros atuais e os trabalhos individuais do formato v1.
 
 ## 6. Área do professor
 
 Porta de adulto (premir 3 s + responder a uma conta escrita por extenso). Opções: interface
 simples/completa por defeito, som, leitura em voz alta, só maiúsculas, permitir imprimir,
-permitir importar imagens, clique fixo, cursor grande, alto contraste, mão esquerda, língua
+permitir importar ficheiros, clique fixo, cursor grande, alto contraste, mão esquerda, língua
 (pt-PT / en), nome da turma, exportar todos os trabalhos, apagar dados do dispositivo.
 
 ## 7. Arquitetura
@@ -144,3 +143,6 @@ permitir importar imagens, clique fixo, cursor grande, alto contraste, mão esqu
 - `OptionSpec.shared` é opcional nas escolhas. Pintar e Linhas partilham a seleção de pincel.
 - `BrushDef.extent` é opcional. Dá ao histórico a margem necessária para pincéis que pintem além da área habitual.
 - `BrushDab.speed` é opcional. Dá a velocidade suavizada do ponteiro aos pincéis sensíveis ao movimento (fita, caneta).
+- `BrushDef.segment` permite preencher um segmento contínuo. O pincel Quadrado usa-o para suavizar as bordas em curvas.
+- `Tool.updatePending` redesenha uma pré-visualização que aguarda outro gesto depois de uma alteração de cor ou opção.
+- `ChoiceItem.hint`, `BrushDef.hint` e `WorkAction.hint` alimentam a linha de ajuda do Pingo.
