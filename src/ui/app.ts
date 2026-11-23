@@ -7,7 +7,7 @@ import { setLocale, speak, t } from '../core/i18n';
 import { PointerInput } from '../core/pointer';
 import { tools } from '../core/registry';
 import { Sounds } from '../core/sound';
-import type { Storage } from '../core/storage';
+import type { Recovery, Storage } from '../core/storage';
 import { readEditor, readSettings, settingsKey, Store, toolAllowed, writeSettings, type Settings } from '../core/store';
 import type { Surface } from '../core/surface';
 import type { IconSvg, L10n, OptionSpec, ProjectRecord, SoundId, Tool } from '../core/types';
@@ -58,7 +58,8 @@ export class App {
   private readonly optionPanels = new Map<string, (app: App) => CustomOptions>();
   private readonly screens = new Map<string, Screen>();
 
-  constructor(readonly surface: Surface, readonly storage: Storage, project: ProjectRecord, pageId: string, settings: Settings, persisted: boolean) {
+  constructor(readonly surface: Surface, readonly storage: Storage, project: ProjectRecord, pageId: string, settings: Settings,
+    persisted: boolean, recovery: Recovery) {
     const fallback = tools.get('paint');
     if (!fallback) throw new Error('The paint tool is required');
     const editor = readEditor({ toolId: fallback.id, color: palette[0].color, options: {} });
@@ -90,7 +91,7 @@ export class App {
     this.documents = new Documents(this.store, surface, storage, this.input, persisted, ok => {
       this.saveFailed = !ok;
       for (const notice of this.recovery) notice.hidden = ok;
-    }, message => this.notify(message));
+    }, message => this.notify(message), recovery);
     window.addEventListener('storage', event => {
       if (event.key === null || event.key === settingsKey || event.key.startsWith(settingsKey + '.')) this.applySettings(readSettings());
     });
@@ -105,9 +106,17 @@ export class App {
 
   saveRecovery() {
     const fileLabel = { pt: 'Guardar num ficheiro', en: 'Save to a file' };
+    const attempt = button(retry, icons.undo, () => this.run(async () => {
+      attempt.disabled = true;
+      try {
+        await this.documents.save();
+      } finally {
+        attempt.disabled = false;
+      }
+    }));
     const notice = h('div', 'toast save-recovery',
       this.toasts.localize(h('span', 'toast-message', t(saveFailed)), saveFailed),
-      this.toasts.localize(button(retry, icons.undo, () => this.run(() => this.documents.save())), retry),
+      this.toasts.localize(attempt, retry),
       this.toasts.localize(button(fileLabel, icons.save, () => this.run(async () => {
         const project = this.documents.snapshot();
         download(await serializeWorks([project, ...this.documents.recoveryProjects]), project.title, 'garatuja');

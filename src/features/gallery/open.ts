@@ -181,7 +181,7 @@ export async function openWork(app: App, trash: Trash) {
 
   function renderNotices() {
     notices.replaceChildren(...trash.list().map(project => {
-      const restore = button(words.undo, icons.undo, () => trash.restore(project.id));
+      const restore = button(words.undo, icons.undo, () => trash.restore(project.id, project));
       return h('div', 'gallery-notice', h('span', '', t(deletedMessage(project))), restore);
     }));
   }
@@ -197,8 +197,8 @@ export async function openWork(app: App, trash: Trash) {
     const name = project.title.trim() || t(untitled);
     const count = h('span', 'gallery-pages', art(extraIcons.pages), String(project.pages.length));
     count.setAttribute('aria-label', t(pagesLabel(project.pages.length)));
-    const open = h('button', 'gallery-open', thumb, h('strong', 'gallery-name', name),
-      h('span', 'gallery-meta', h('span', 'gallery-author', project.author.trim()), count));
+    const open = h('button', 'gallery-open', thumb, h('strong', 'gallery-name' + (project.title ? ' authored-text' : ''), name),
+      h('span', 'gallery-meta', h('span', 'gallery-author authored-text', project.author.trim()), count));
     open.type = 'button';
     open.dataset.focus = 'open';
     open.setAttribute('aria-label', [name, project.author.trim(), t(pagesLabel(project.pages.length))].filter(Boolean).join(', '));
@@ -290,8 +290,15 @@ export async function openWork(app: App, trash: Trash) {
   }
 
   async function removeWork(project: ProjectRecord) {
+    const saved = await app.storage.get(project.id);
+    if (saved && saved.updatedAt > project.updatedAt) {
+      context().notice(deleteFailure(true), true);
+      await refresh();
+      return;
+    }
+    const draft = saved ? undefined : app.documents.recoveryDraft(project.id);
     const replacement = await app.documents.discardForTrash(project.id);
-    trash.put(await app.storage.get(project.id) ?? project);
+    trash.put(saved ?? project, draft && (() => app.run(() => app.documents.restoreDraft(draft))));
     if (replacement) {
       await app.documents.keepReplacement(replacement);
       await refresh();
@@ -333,6 +340,6 @@ export async function openWork(app: App, trash: Trash) {
 
 /** After the gallery closes, keep offering "Anular" until the work is gone. */
 export function announce(app: App, trash: Trash, project: ProjectRecord) {
-  const dismiss = app.notify(deletedMessage(project), { label: words.undo, run: () => { trash.restore(project.id); } });
+  const dismiss = app.notify(deletedMessage(project), { label: words.undo, run: () => { trash.restore(project.id, project); } });
   trash.attach(project.id, dismiss);
 }

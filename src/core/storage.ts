@@ -18,6 +18,13 @@ export interface Draft {
   copyTitle: string;
   previous?: string;
   time: number;
+  background?: boolean;
+}
+
+export interface Recovery {
+  copied: boolean;
+  active?: Draft;
+  pending: Draft[];
 }
 
 interface StoredDraft extends Draft {
@@ -83,13 +90,20 @@ export class Storage {
     });
   }
 
-  removeStamp(id: string): Promise<void> {
+  restoreStamp(stamp: StoredStamp): Promise<void> {
+    return this.editStamps(async store => {
+      if (await result(store.getKey(stamp.id)) === undefined) store.add(stamp);
+    });
+  }
+
+  removeStamp(id: string): Promise<StoredStamp | undefined> {
     return this.editStamps(async (store, workspace) => {
       const stamp = await result<StoredStamp | undefined>(store.get(id));
       if (!stamp) return;
       const last = await result<number | undefined>(workspace.get('last-stamp-number'));
       if ((last ?? 0) < stamp.number) workspace.put(stamp.number, 'last-stamp-number');
       store.delete(id);
+      return stamp;
     });
   }
 
@@ -190,19 +204,39 @@ export class Storage {
     await complete(transaction);
   }
 
-  async recover() {
+  async recover(): Promise<Recovery> {
     const drafts = await result<StoredDraft[]>(this.db.transaction('drafts').objectStore('drafts').getAll());
     let copied = false;
+    let active: Draft | undefined;
+    const pending: Draft[] = [];
     for (const draft of drafts.sort((a, b) => a.time - b.time)) {
+      if (draft.epoch !== this.epoch) continue;
       try {
         const restored = await this.write(draft, true);
         copied ||= Boolean(restored && restored.id !== draft.project.id);
+        if (restored && !draft.background && draft.pageId) active = undefined;
       } catch (error) {
-        // Leave the draft available on disk if storage is still full.
         console.error(error);
+        // A write from another tab may have published this very checkpoint.
+        const current = await this.get(draft.project.id) as StoredProject | undefined;
+        const copy = await this.get(draft.id) as StoredProject | undefined;
+        if (current?.writeId === draft.id || copy?.writeId === draft.id) continue;
+        pending.push(draft);
+        if (!draft.background && draft.pageId) active = draft;
       }
     }
-    return copied;
+    // The gallery holds one pending revision per work. Keep independent
+    // drafts of the same work under their future conflict-copy IDs.
+    const claimed = new Set(active ? [active.project.id] : []);
+    const remaining = pending.filter(draft => draft !== active).reverse().map(draft => {
+      if (!claimed.has(draft.project.id)) {
+        claimed.add(draft.project.id);
+        return draft;
+      }
+      return { ...draft, expectedAt: undefined, previous: undefined, background: true,
+        project: { ...draft.project, id: draft.id, title: draft.copyTitle } };
+    });
+    return { copied, active, pending: remaining.reverse() };
   }
 
   async write(draft: Draft): Promise<ProjectRecord>;
@@ -246,7 +280,7 @@ export class Storage {
           title: published && targetId === project.id ? project.title : copyTitle,
           createdAt: published ? base?.createdAt ?? project.createdAt : updatedAt };
         projects.put(saved);
-        if (pageId !== undefined) transaction.objectStore('workspace').put({ projectId: saved.id, pageId }, 'recent');
+        if (!draft.background && pageId !== undefined) transaction.objectStore('workspace').put({ projectId: saved.id, pageId }, 'recent');
       }
       drafts?.delete(id);
       if (previous) drafts?.delete(previous);

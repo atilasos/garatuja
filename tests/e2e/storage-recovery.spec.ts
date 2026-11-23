@@ -191,7 +191,7 @@ test('PIN stays hashed across reload and typed confirmation clears stamps, pendi
   await expect(erase).toBeDisabled();
   await teacher.getByLabel('Escreve APAGAR').fill('apagar');
   await expect(erase).toBeEnabled();
-  await teacher.getByLabel('Escreve APAGAR').fill('APAGAR');
+  await teacher.getByLabel('Escreve APAGAR').fill('  APAGAR  ');
   await page.evaluate(() => sessionStorage.removeItem('revokedImageUrl'));
   const reload = page.waitForEvent('load');
   await erase.click();
@@ -212,4 +212,208 @@ test('PIN stays hashed across reload and typed confirmation clears stamps, pendi
   expect(await page.evaluate(async () => (await window.__garatuja?.app.storage.list())?.every(work => !work.title)))
     .toBe(true);
   await expect(page.locator('.toast').getByRole('button', { name: 'Anular', exact: true })).toHaveCount(0);
+});
+
+test('reload under full quota opens the latest text and drawing and retries publication', async ({ page }) => {
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'projects' && sessionStorage.getItem('quota-full')) {
+        throw new DOMException('Storage full', 'QuotaExceededError');
+      }
+      return put.apply(this, args);
+    };
+  });
+  await ready(page);
+  const id = await page.evaluate(() => {
+    sessionStorage.setItem('quota-full', '1');
+    return window.__garatuja!.app.store.get().project.id;
+  });
+  const sheet = page.locator('.sheet');
+  await sheet.click({ position: { x: 120, y: 115 } });
+  await expect(page.locator('#app .save-recovery')).toBeVisible();
+  await page.evaluate(async () => {
+    const docs = window.__garatuja!.app.documents;
+    docs.editText('A Lia chegou ao Funchal.');
+    await docs.save();
+  });
+  await page.reload();
+  await expect(page.locator('.writing-preview')).toHaveText('A Lia chegou ao Funchal.');
+  const notice = page.locator('#app .save-recovery');
+  await expect(notice).toBeVisible();
+  const bitmapSizes = await page.evaluate(async id => {
+    const { storage, documents } = window.__garatuja!.app;
+    return [documents.snapshot().pages[0].bitmap.size, (await storage.get(id))?.pages[0].bitmap.size];
+  }, id);
+  expect(bitmapSizes[0]).not.toBe(bitmapSizes[1]);
+  const download = page.waitForEvent('download');
+  await notice.getByRole('button', { name: 'Guardar num ficheiro' }).click();
+  expect((await decode(await download))[0].pages[0].bitmap.size).toBe(bitmapSizes[0]);
+  const retry = notice.getByRole('button', { name: 'Tentar de novo' });
+  await retry.click();
+  await expect(retry).toBeEnabled();
+  await expect(notice).toBeVisible();
+  await page.evaluate(() => sessionStorage.removeItem('quota-full'));
+  await retry.click();
+  await expect(notice).toBeHidden();
+  await page.reload();
+  await expect(page.locator('.writing-preview')).toHaveText('A Lia chegou ao Funchal.');
+  await expect(notice).toBeHidden();
+});
+
+test('page and comment Undo follow the conflict copy across tabs', async ({ page, context }) => {
+  await ready(page);
+  await page.evaluate(async () => {
+    const { app } = window.__garatuja!;
+    app.documents.editProject({ title: 'Livro a duas mãos',
+      comments: [{ id: 'rui', from: 'Rui', text: 'Gostei da ponte.', kind: 'gostei' }] });
+    await app.documents.add();
+    app.documents.editText('A página a repor.');
+    await app.documents.save();
+  });
+  const other = await context.newPage();
+  await ready(other);
+  const original = await page.evaluate(() => {
+    const { app } = window.__garatuja!;
+    app.documents.stopSaving();
+    return app.store.get().project.id;
+  });
+  async function remoteEdit(title: string) {
+    await other.evaluate(async title => {
+      const { documents } = window.__garatuja!.app;
+      documents.editProject({ title });
+      await documents.save();
+    }, title);
+  }
+  const remote = page.evaluate(() => new Promise(resolve => {
+    window.__garatuja!.app.storage.changes.addEventListener('message', () => resolve(true), { once: true });
+  }));
+  await remoteEdit('Livro alterado no outro separador');
+  await remote;
+  await page.evaluate(() => window.__garatuja!.app.documents.resumeSaving());
+  await page.bringToFront();
+  await control(page, 'Organizar').click();
+  await control(page, 'Apagar página').click();
+  await expect(page.locator('.work-title')).toHaveText('Livro a duas mãos (cópia)');
+  const undo = page.locator('.toast').getByRole('button', { name: 'Anular', exact: true });
+  await undo.click();
+  await expect(page.locator('.writing-preview')).toHaveText('A página a repor.');
+  const copyId = await page.evaluate(async () => {
+    const { app } = window.__garatuja!;
+    await app.documents.save();
+    return app.store.get().project.id;
+  });
+  expect(copyId).not.toBe(original);
+  expect(await other.evaluate(async id => (await window.__garatuja!.app.storage.get(id))?.title, original))
+    .toBe('Livro alterado no outro separador');
+
+  await other.evaluate(async id => {
+    const { app } = window.__garatuja!;
+    const project = await app.storage.get(id);
+    if (!project) throw new Error('Missing conflict copy');
+    await app.documents.open(project, undefined, true);
+  }, copyId);
+  await page.bringToFront();
+  await control(page, 'Apresentar à turma').click();
+  const present = page.getByRole('dialog', { name: 'Apresentar à turma' });
+  for (let i = 0; i < 3; i++) await page.keyboard.press('PageDown');
+  await expect(present.locator('.class-comment')).toHaveText(/Gostei da ponte/);
+  await remoteEdit('A cópia já tinha alterações');
+  await present.getByRole('button', { name: 'Apagar comentário' }).click();
+  await present.getByRole('button', { name: 'Anular' }).click();
+  await expect(present.locator('.class-comment')).toHaveText(/Gostei da ponte/);
+  const result = await page.evaluate(async id => {
+    const { app } = window.__garatuja!;
+    await app.documents.save();
+    const current = app.store.get().project;
+    return { id: current.id, local: current.comments.length, remote: (await app.storage.get(id))?.title };
+  }, copyId);
+  expect(result).toMatchObject({ local: 1, remote: 'A cópia já tinha alterações' });
+  expect(result.id).not.toBe(copyId);
+});
+
+test('a background quota draft stays in the gallery after reload and supplies the template paper', async ({ page }) => {
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'projects' && sessionStorage.getItem('quota-full')) throw new DOMException('Quota', 'QuotaExceededError');
+      return put.apply(this, args);
+    };
+  });
+  await ready(page);
+  const first = await page.evaluate(async () => {
+    const { app } = window.__garatuja!;
+    app.documents.editProject({ title: 'Papel da ponte' });
+    await app.documents.save();
+    return app.store.get().project.id;
+  });
+  await control(page, 'Novo').click();
+  await control(page, 'Começar').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.evaluate(async id => {
+    const { app } = window.__garatuja!;
+    app.documents.editProject({ title: 'Outro desenho' });
+    await app.documents.save();
+    await app.documents.open((await app.storage.get(id))!, undefined, true);
+    sessionStorage.setItem('quota-full', 'yes');
+  }, first);
+  await page.locator('.sheet').click();
+  await expect(page.locator('#app .save-recovery')).toBeVisible();
+  await control(page, 'Abrir').click();
+  await page.getByRole('button', { name: /^Outro desenho,/ }).click();
+  await expect(page.locator('.work-title')).toHaveText('Outro desenho');
+  await page.reload();
+  await expect(page.locator('.work-title')).toHaveText('Outro desenho');
+  await expect(page.locator('#app .save-recovery')).toBeVisible();
+  await control(page, 'Abrir').click();
+  const card = page.locator(`[data-project="${first}"]`);
+  await card.getByRole('button', { name: 'Usar como modelo' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__garatuja!.pixel(800, 600))).toEqual([41, 42, 51, 255]);
+  await expect(page.locator('.work-title')).toHaveText('Sem título');
+});
+
+test('independent quota drafts of the same work stay separately recoverable', async ({ page }) => {
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'projects' && sessionStorage.getItem('quota-full')) throw new DOMException('Quota', 'QuotaExceededError');
+      return put.apply(this, args);
+    };
+  });
+  await ready(page);
+  await page.evaluate(async () => {
+    const { storage, documents } = window.__garatuja!.app;
+    const project = documents.snapshot();
+    const time = Date.now();
+    for (const [i, text] of ['Primeiro rascunho', 'Segundo rascunho', 'Terceiro rascunho'].entries()) {
+      await storage.stage({
+        id: crypto.randomUUID(), expectedAt: project.updatedAt, time: time + i,
+        pageId: project.pages[0].id, copyTitle: text + ' (cópia)',
+        project: { ...project, pages: [{ ...project.pages[0], text }] },
+      });
+    }
+    sessionStorage.setItem('quota-full', 'yes');
+  });
+  await page.reload();
+  await expect(page.locator('.writing-preview')).toHaveText('Terceiro rascunho');
+  const recovery = page.locator('#app .save-recovery');
+  const download = page.waitForEvent('download');
+  await recovery.getByRole('button', { name: 'Guardar num ficheiro' }).click();
+  expect((await decode(await download)).map(work => work.pages[0].text).sort())
+    .toEqual(['Primeiro rascunho', 'Segundo rascunho', 'Terceiro rascunho']);
+  await control(page, 'Abrir').click();
+  const gallery = page.getByRole('dialog', { name: 'Abrir trabalho' });
+  const card = gallery.getByRole('listitem').filter({ hasText: 'Primeiro rascunho (cópia)' });
+  await card.getByRole('button', { name: 'Apagar', exact: true }).click();
+  await card.getByRole('button', { name: 'Sim, apagar' }).click();
+  await expect(card).toHaveCount(0);
+  await gallery.getByRole('button', { name: 'Anular', exact: true }).click();
+  await expect(card).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => sessionStorage.removeItem('quota-full'));
+  await recovery.getByRole('button', { name: 'Tentar de novo' }).click();
+  await expect(recovery).toBeHidden();
+  expect(await page.evaluate(async () => (await window.__garatuja!.app.storage.list()).map(work => work.pages[0].text).sort()))
+    .toEqual(['Primeiro rascunho', 'Segundo rascunho', 'Terceiro rascunho']);
 });

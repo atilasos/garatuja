@@ -18,6 +18,7 @@ interface Pending {
   marker: string;
   committing?: boolean;
   dismiss?: () => void;
+  restoreDraft?: () => void;
 }
 
 export class Trash {
@@ -50,13 +51,13 @@ export class Trash {
   }
 
   /** Hide a work now and delete it after the undo period. */
-  put(project: ProjectRecord) {
+  put(project: ProjectRecord, restoreDraft?: () => void) {
     if (this.pending.get(project.id)?.committing) return;
-    this.restore(project.id);
+    this.cancel(project.id);
     const timer = window.setTimeout(() => void this.commit(project.id), this.delay);
     const marker = `${Date.now() + this.delay}:${crypto.randomUUID()}`;
     try { localStorage.setItem(markerPrefix + project.id, marker); } catch { /* Undo stays available in this tab. */ }
-    this.pending.set(project.id, { project, timer, marker });
+    this.pending.set(project.id, { project, timer, marker, restoreDraft });
     this.changed();
   }
 
@@ -66,15 +67,21 @@ export class Trash {
     if (entry) entry.dismiss = dismiss;
   }
 
-  restore(id: string) {
+  restore(id: string, revision?: ProjectRecord) {
+    const entry = this.cancel(id, revision);
+    entry?.restoreDraft?.();
+    if (entry) this.changed();
+    return entry?.project;
+  }
+
+  private cancel(id: string, revision?: ProjectRecord) {
     const entry = this.pending.get(id);
-    if (!entry || entry.committing) return undefined;
+    if (!entry || entry.committing || revision && entry.project !== revision) return undefined;
     window.clearTimeout(entry.timer);
     entry.dismiss?.();
     this.pending.delete(id);
     this.clearMarker(id, entry);
-    this.changed();
-    return entry.project;
+    return entry;
   }
 
   async commit(id: string) {
@@ -101,7 +108,8 @@ export class Trash {
   }
 
   discard() {
-    for (const id of this.pending.keys()) this.restore(id);
+    for (const id of this.pending.keys()) this.cancel(id);
+    this.changed();
   }
 
   private clearMarker(id: string, entry: Pending) {

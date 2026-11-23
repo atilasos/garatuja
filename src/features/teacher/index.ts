@@ -276,10 +276,10 @@ async function panel(app: App) {
         const confirmation = h('input');
         confirmation.autocomplete = 'off';
         const erase = button(words.confirmFinal, extraIcons.trash, () => {
-          if (confirmation.value.toUpperCase() === t(words.eraseWord)) app.run(() => clearEverything(app));
+          if (confirmation.value.trim().toUpperCase() === t(words.eraseWord)) app.run(() => clearEverything(app));
         }, 'warning');
         erase.disabled = true;
-        confirmation.addEventListener('input', () => { erase.disabled = confirmation.value.toUpperCase() !== t(words.eraseWord); });
+        confirmation.addEventListener('input', () => { erase.disabled = confirmation.value.trim().toUpperCase() !== t(words.eraseWord); });
         danger.replaceChildren(h('p', '', h('strong', '', t(words.confirm2))),
           h('label', 'work-field', h('span', '', t(words.erase)), confirmation), h('div', 'dialog-actions', no, erase));
         confirmation.focus();

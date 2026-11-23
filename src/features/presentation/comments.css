@@ -18,3 +18,5 @@
 .class-comment p { white-space: pre-wrap; margin: 8px 0; font-size: 1.15rem; }
 .class-comment-notice { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; background: #fff0ce; border: 1px solid #bd8a36; }
 @media (max-width: 660px) { .class-comments-grid { grid-template-columns: 1fr; } }
+
+.class-comment-validation { color: #533810; background: #fff0ce; padding: 8px; border-radius: 8px; margin: 0; }

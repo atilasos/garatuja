@@ -43,6 +43,17 @@ describe('deferred deletion', () => {
     expect(removed).toEqual(['c']);
     expect(dismissed).toEqual(['c']);
   });
+
+  it('ignores an undo for a previous deletion of the same work', () => {
+    const trash = new Trash({ remove: async () => {} });
+    const old = project('a');
+    const latest = { ...old, updatedAt: old.updatedAt + 1 };
+    trash.put(old);
+    expect(trash.restore(old.id, old)).toBe(old);
+    trash.put(latest);
+    expect(trash.restore(old.id, old)).toBeUndefined();
+    expect(trash.restore(latest.id, latest)).toBe(latest);
+  });
 });
 
 describe('works', () => {

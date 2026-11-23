@@ -1,7 +1,7 @@
 import { t } from './i18n';
 import { png, viewport } from './canvas';
 import type { PointerInput } from './pointer';
-import type { Draft, Storage } from './storage';
+import type { Draft, Recovery, Storage } from './storage';
 import type { Store } from './store';
 import type { Surface } from './surface';
 import { CANVAS_H, CANVAS_W, type L10n, type PageRecord, type ProjectRecord, type StarterDef, type WritingDraft } from './types';
@@ -46,8 +46,16 @@ export class Documents {
 
   constructor(private store: Store, private surface: Surface, private storage: Storage,
     private input: PointerInput, persisted: boolean, private onSave: (ok: boolean) => void,
-    private onConflict: (message: L10n) => void) {
+    private onConflict: (message: L10n) => void, recovery: Recovery) {
     this.savedAt = persisted ? store.get().project.updatedAt : undefined;
+    for (const draft of recovery.pending) this.memory.set(draft.project.id, draft);
+    if (recovery.active) {
+      this.savedAt = recovery.active.expectedAt;
+      this.pending = this.checkpointedPixels = true;
+      this.staged = recovery.active;
+      this.prepared = { revision: this.revision, draft: recovery.active };
+    }
+    if (this.pending || this.memory.size) this.onSave(false);
     surface.onChange = () => this.schedule(true);
     storage.changes.addEventListener('message', event => {
       if (event.data === this.store.get().project.id) {
@@ -111,9 +119,43 @@ export class Documents {
   get hasWork() { return this.savedAt !== undefined || this.pending; }
   get recoveryProjects() { return [...this.memory.values()].map(draft => draft.project); }
 
+  recoveryDraft(id: string) { return this.memory.get(id); }
+
+  async restoreDraft(draft: Draft) {
+    this.memory.set(draft.project.id, draft);
+    this.onSave(false);
+    await this.storage.stage(draft);
+  }
+
   async resolveProject(entry: ProjectRecord) {
     if (entry.id === this.store.get().project.id && this.pending) return this.snapshot();
     return this.memory.get(entry.id)?.project ?? await this.storage.get(entry.id) ?? entry;
+  }
+
+  /** Apply an undo to its owning work after the child has switched to another one. */
+  async reviseInactive(id: string, revise: (project: ProjectRecord) => ProjectRecord) {
+    const local = this.memory.get(id);
+    const saved = await this.storage.get(id);
+    if (this.store.get().project.id === id) return false;
+    const base = local?.project ?? saved;
+    if (!base) return true;
+    const project = revise(base);
+    if (project === base) return true;
+    const name = project.title.trim() || t({ pt: 'Sem título', en: 'Untitled' });
+    const draft: Draft = { id: crypto.randomUUID(), project, background: true, pageId: local?.pageId,
+      previous: local?.id, expectedAt: local ? local.expectedAt : saved?.updatedAt, time: Date.now(),
+      copyTitle: t({ pt: `${name} (cópia)`, en: `${name} (copy)` }) };
+    try {
+      const restored = await this.storage.write(draft);
+      if (this.memory.get(id) === local) this.memory.delete(id);
+      if (restored.id !== id) this.reportConflict();
+      this.onSave(!this.pending && !this.memory.size);
+    } catch {
+      this.memory.set(id, draft);
+      this.onSave(false);
+      await this.storage.stage(draft, local?.id);
+    }
+    return true;
   }
 
   backupDrafts() {
@@ -206,7 +248,7 @@ export class Documents {
     if (!await this.saveCommitted()) return false;
     for (const [id, draft] of this.memory) {
       try {
-        const saved = await this.storage.write({ ...draft, pageId: undefined });
+        const saved = await this.storage.write({ ...draft, background: true });
         this.memory.delete(id);
         if (saved.id !== id) this.reportConflict();
       } catch {
@@ -258,7 +300,7 @@ export class Documents {
 
   /** Replace page order or membership after flushing the current page. */
   async editPages(update: (pages: readonly PageRecord[]) => PageRecord[], pageId = this.store.get().pageId) {
-    await this.switchPage(project => {
+    return this.switchPage(project => {
       const pages = update(project.pages);
       const page = pages.find(candidate => candidate.id === pageId) ?? pages[0];
       if (!page) throw new Error('A project needs at least one page');
@@ -269,23 +311,28 @@ export class Documents {
   private async switchPage(select: (project: ProjectRecord) =>
     { project: ProjectRecord; page: PageRecord } | undefined | Promise<{ project: ProjectRecord; page: PageRecord } | undefined>,
     opening?: boolean) {
-    if (this.store.get().busy) return false;
+    if (this.store.get().busy) return;
     this.input.flushPending();
     this.store.set({ busy: true });
     let published = false;
     try {
+      const previousWork = this.store.get().project;
       const saved = await this.saveCommitted();
       const current = saved ? this.store.get().project : this.capture();
       let target = await select(current);
-      if (!target) return false;
+      if (!target) return;
+      if (opening && target.project.id === previousWork.id && previousWork.id !== current.id &&
+        target.project.updatedAt === previousWork.updatedAt) {
+        return current;
+      }
       if (opening === true && target.project.id === current.id && target.project.updatedAt < current.updatedAt) {
         // Opening the gallery may have captured the card before the last autosave.
-        return true;
+        return current;
       }
       const previousPage = this.page;
       const changingWork = target.project.id !== current.id;
-      const departingDraft = !saved && changingWork ? this.draft() : undefined;
-      if (departingDraft) this.stageCurrent();
+      const departingDraft = !saved && changingWork ? { ...this.draft(), background: true } : undefined;
+      if (departingDraft) await this.stageCurrent(departingDraft);
       if (opening && target.project.id === current.id && target.project.updatedAt === current.updatedAt) {
         target = { project: current, page: current.pages.find(page => page.id === target?.page.id) ?? previousPage };
       }
@@ -293,7 +340,7 @@ export class Documents {
       const { project: nextProject, page: nextPage } = target;
       const recovered = changingWork ? this.memory.get(nextProject.id) : undefined;
       const savedAt = changingWork ? recovered ? recovered.expectedAt : opening ? nextProject.updatedAt : undefined : this.savedAt;
-      const remember = saved && !changed && savedAt !== undefined && (opening !== undefined || previousPage.id !== nextPage.id)
+      const remember = !changed && savedAt !== undefined && (opening !== undefined || previousPage.id !== nextPage.id)
         ? () => this.storage.remember(nextProject.id, nextPage.id).catch(() => {}) : undefined;
       if (target.page !== previousPage) await this.surface.load(target.page, remember);
       else await remember?.();
@@ -307,7 +354,11 @@ export class Documents {
         this.memory.delete(target.project.id);
         this.pending = Boolean(recovered);
         this.staged = recovered;
-        if (recovered?.pageId === target.page.id) this.prepared = { revision: this.revision, draft: recovered };
+        if (recovered) {
+          const active = { ...recovered, pageId: target.page.id, background: false };
+          this.prepared = { revision: this.revision, draft: active };
+          await this.stageCurrent(active);
+        }
         this.checkpointedPixels = Boolean(recovered);
         this.surface.discardHistory();
         this.savedAt = savedAt;
@@ -320,8 +371,10 @@ export class Documents {
       if (changed) {
         this.schedule();
         await this.saveCommitted();
+      } else if (!saved && !changingWork && previousPage.id !== nextPage.id) {
+        await this.stageCurrent();
       }
-      return true;
+      return this.store.get().project;
     } finally {
       if (!published) this.store.set({ busy: false });
     }
@@ -400,6 +453,7 @@ export class Documents {
       const draft = this.draft();
       const { project } = draft;
       this.inFlight = draft;
+      await this.stageCurrent(draft);
       const saved = await this.storage.write(draft);
       if (this.stopped || this.discarding) return false;
       this.savedAt = saved.updatedAt;
@@ -439,15 +493,17 @@ export class Documents {
     return this.saveCommitted();
   }
 
-  private stageCurrent() {
+  private async stageCurrent(draft?: Draft) {
     try {
-      const draft = this.draft();
+      draft ??= this.draft();
       const previous = this.staged;
       this.staged = draft;
-      void this.storage.stage(draft, previous?.id).catch(error => {
+      try {
+        await this.storage.stage(draft, previous?.id);
+      } catch (error) {
         if (this.staged === draft) this.staged = previous;
-        console.error(error);
-      });
+        throw error;
+      }
     } catch (error) {
       console.error(error);
     }
@@ -457,6 +513,6 @@ export class Documents {
     if (this.stopped || this.discarding) return;
     this.input.flushPending();
     for (const draft of this.memory.values()) void this.storage.stage(draft).catch(error => console.error(error));
-    if (this.pending) this.stageCurrent();
+    if (this.pending) void this.stageCurrent();
   };
 }

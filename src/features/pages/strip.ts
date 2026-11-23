@@ -111,12 +111,18 @@ export function pageStrip(app: App) {
     const after = project.pages[index + 1]?.id;
     app.run(async () => {
       let removed: PageRecord | undefined;
-      await app.documents.editPages(pages => {
+      const owner = await app.documents.editPages(pages => {
         removed = pages.find(page => page.id === pageId);
         return removePage(pages, pageId);
       }, after ?? before);
       const page = removed;
-      if (!page) return;
+      if (!page || !owner) return;
+      const restore = (pages: PageRecord[]) => {
+        if (pages.some(item => item.id === page.id)) return pages;
+        if (pages.length < maxPages) return restorePage(pages, page, before, after);
+        app.notify(full, undo);
+        return pages;
+      };
       const undo = {
         label: { pt: 'Anular', en: 'Undo' },
         run: () => app.run(async () => {
@@ -129,24 +135,13 @@ export function pageStrip(app: App) {
               });
             });
           }
-          const owner = app.store.get().project;
-          const saved = owner.id === project.id ? owner : await app.storage.get(project.id);
-          if (!saved) return;
-          if (saved.pages.length >= maxPages) { app.notify(full, undo); return; }
-          if (app.store.get().project.id === saved.id) {
-            if (app.store.get().busy) { undo.run(); return; }
-            await app.documents.editPages(pages => restorePage(pages, page, before, after), page.id);
-          } else {
-            const title = saved.title.trim() || t({ pt: 'Sem título', en: 'Untitled' });
-            const restored = await app.storage.write({
-              id: crypto.randomUUID(), project: { ...saved, pages: restorePage(saved.pages, page, before, after) },
-              expectedAt: saved.updatedAt, time: Date.now(), copyTitle: t({ pt: `${title} (cópia)`, en: `${title} (copy)` }),
-            });
-            if (restored.id !== saved.id) app.notify({
-              pt: 'Outro separador guardou alterações. Recuperei a página numa cópia do trabalho.',
-              en: 'Another tab saved changes. I restored the page in a copy of the work.',
-            });
-          }
+          const restoreInactive = () => app.documents.reviseInactive(owner.id, work => {
+            const pages = restore(work.pages);
+            return pages === work.pages ? work : { ...work, pages };
+          });
+          if (app.store.get().project.id !== owner.id && await restoreInactive()) return;
+          if (app.store.get().busy) { undo.run(); return; }
+          await app.documents.editPages(pages => restore([...pages]), page.id);
         }),
       };
       app.notify({ pt: 'Página apagada.', en: 'Page deleted.' }, undo);
