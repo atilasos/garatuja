@@ -9,7 +9,7 @@ export const fontOption: OptionSpec = {
     value: font.id, label: font.label,
     preview(ctx, w, h, color) {
       ctx.fillStyle = color;
-      const sample = 'Olá, Aa';
+      const sample = 'Aa Bb';
       const size = h * .5;
       ctx.font = canvasFont(font.id, size);
       const measure = ctx.measureText(sample);
@@ -34,7 +34,7 @@ export function sizeOption(steps: number[], fallback: number): OptionSpec {
 }
 
 const typeNames = {
-  text: { pt: 'Texto', en: 'Text' },
+  text: { pt: 'Só texto', en: 'Text only' },
   callout: { pt: 'Legenda com seta', en: 'Arrow label' },
   number: { pt: 'Número', en: 'Number' },
   speech: { pt: 'Balão de fala', en: 'Speech balloon' },

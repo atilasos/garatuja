@@ -86,7 +86,7 @@ export class App {
     });
     this.sounds.enabled = settings.sound;
     setLocale(settings.locale);
-    this.input = new PointerInput(surface, this.bind(tool), () => this.store.get().settings.fixedClick);
+    this.input = new PointerInput(surface, this.bind(tool), () => this.store.get().settings.fixedClick, () => this.store.set({}));
     this.documents = new Documents(this.store, surface, storage, this.input, persisted, ok => {
       this.saveFailed = !ok;
       for (const notice of this.recovery) notice.hidden = ok;
@@ -263,11 +263,18 @@ export class App {
     if (this.store.get().settings.readAloud) speak(message);
   }
 
+  get canUndo() { return this.input.inGesture || this.tool.hasPendingEdit?.() || this.surface.canUndo; }
+
   undo() {
-    this.input.cancel();
-    if (!this.surface.canUndo) return;
+    if (this.input.cancel()) return;
+    const tool = this.tool;
+    if (tool.hasPendingEdit?.()) {
+      const restore = tool.undoPendingEdit?.();
+      if (restore) this.surface.rememberUndoneWriting(restore);
+    } else if (this.surface.canUndo) {
+      this.surface.undo();
+    } else return;
     this.say({ pt: 'Voltaste atrás um passo.', en: 'You went back one step.' });
-    this.surface.undo();
     this.sounds.play('undo');
   }
 

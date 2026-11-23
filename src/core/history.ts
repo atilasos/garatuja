@@ -13,6 +13,7 @@ interface BitmapDelta {
 }
 
 interface Step {
+  transient?: boolean;
   solid?: { before: string; after: string };
   writing?: { before(): void; after(): void; bytes: number };
   bitmap?: BitmapDelta;
@@ -104,6 +105,12 @@ export class History {
     return true;
   }
 
+  addUndone(step: NonNullable<Step['writing']>) {
+    this.future.push({ writing: step, transient: true });
+    this.retainedBytes += step.bytes;
+    while (this.past.length + this.future.length > this.steps || this.retainedBytes > this.limit) this.trim();
+  }
+
   trim() {
     const oldest = this.past.shift() ?? this.future.shift();
     if (oldest) this.retainedBytes -= bytes(oldest);
@@ -117,7 +124,8 @@ export class History {
 
   redo() {
     const step = this.future.pop();
-    if (step) this.past.push(step);
+    if (step?.transient) this.retainedBytes -= bytes(step);
+    else if (step) this.past.push(step);
     return step;
   }
 }

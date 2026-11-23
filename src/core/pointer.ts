@@ -12,7 +12,7 @@ export class PointerInput {
   private keyboardPoint = { x: CANVAS_W / 2, y: CANVAS_H / 2 };
   pickColor?: (point: Point) => void;
 
-  constructor(private surface: Surface, initial: ActiveTool, private fixedClick: () => boolean) {
+  constructor(private surface: Surface, initial: ActiveTool, private fixedClick: () => boolean, private gestureChanged: () => void) {
     this.selected = initial;
     const element = surface.element;
     element.addEventListener('pointerdown', this.down);
@@ -56,7 +56,10 @@ export class PointerInput {
     }
   }
 
+  get inGesture() { return this.active !== undefined || this.surface.inGesture; }
+
   cancel() {
+    const wasActive = this.inGesture;
     const sequence = this.active;
     this.active = undefined;
     if (sequence && this.surface.element.hasPointerCapture(sequence.id)) {
@@ -64,6 +67,8 @@ export class PointerInput {
     }
     if (this.surface.inGesture) this.selected.tool.cancel?.(this.selected.context);
     this.surface.rollback();
+    if (wasActive) this.gestureChanged();
+    return wasActive;
   }
 
   changeAppearance(update: () => void) {
@@ -120,6 +125,7 @@ export class PointerInput {
         this.active = { id: -1, previous: point, activeTool: this.selected, fixed: false };
         this.selected.tool.down(point, this.selected.context);
         if (this.selected.tool.tapOnly?.(this.selected.context)) this.finish(point);
+        else this.gestureChanged();
       }
     }
     return point;
@@ -154,6 +160,7 @@ export class PointerInput {
     this.surface.begin();
     this.surface.element.setPointerCapture(event.pointerId);
     this.selected.tool.down(point, this.selected.context);
+    this.gestureChanged();
   };
 
   private move = (event: PointerEvent) => {
@@ -191,5 +198,6 @@ export class PointerInput {
     if (point.x !== active.previous.x || point.y !== active.previous.y) tool.move(point, active.previous, context);
     tool.up(point, context);
     if (!tool.manualCommit) context.commit();
+    this.gestureChanged();
   }
 }

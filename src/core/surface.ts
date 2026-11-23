@@ -198,6 +198,11 @@ export class Surface {
     if (this.history.add({ writing: { before, after, bytes } })) this.trimHistory();
   }
 
+  rememberUndoneWriting(edit: { resume(): void; bytes: number }) {
+    this.history.addUndone({ before: () => {}, after: edit.resume, bytes: edit.bytes });
+    this.trimHistory();
+  }
+
   undo() { this.restore('before'); }
   redo() { this.restore('after'); }
 

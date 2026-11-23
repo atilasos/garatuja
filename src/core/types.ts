@@ -175,6 +175,9 @@ export interface Tool {
   tapOnly?(c: ToolContext): boolean;
   /** Settle state that outlives a pointer gesture before leaving the tool or taking a snapshot. */
   flushPending?(c: ToolContext): void;
+  /** An editor can stay open outside a pointer gesture. Undo closes it before touching committed work. */
+  hasPendingEdit?(): boolean;
+  undoPendingEdit?(): { resume(): void; bytes: number } | undefined;
   optionHint?(option: (id: string) => string | number | boolean): L10n;
   onSelect?(c: ToolContext): void;
   onDeselect?(c: ToolContext): void;

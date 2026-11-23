@@ -361,13 +361,13 @@ test('delete, copy and stick-to-paper are single undo steps; painting tools leav
   await choose(page, 'Legenda');
   await makeLabel(page, 'Legenda com seta', [800, 500], 'caule');
   await page.getByRole('button', { name: /Legenda com seta: caule/ }).focus();
-  await choose(page, 'Duplicar');
+  await choose(page, 'Duplicar legenda');
   let labels = await labelsOf(page);
   expect(labels).toHaveLength(2);
   expect(labels[1].text).toBe('caule');
   expect(labels[1].id).not.toBe(labels[0].id);
   expect(labels[1].x).not.toBe(labels[0].x);
-  await choose(page, 'Apagar');
+  await choose(page, 'Apagar legenda');
   expect(await labelsOf(page)).toHaveLength(1);
   await choose(page, 'Desfazer');
   expect(await labelsOf(page)).toHaveLength(2);
@@ -427,7 +427,7 @@ test('labels are keyboard operable: Tab, arrows, Enter, Delete', async ({ page }
   await expect(second).toBeFocused();
   await page.keyboard.press('Delete');
   expect(await labelsOf(page)).toHaveLength(1);
-  for (const name of ['Escrever', 'Duplicar', 'Apagar', 'Colar na folha']) {
+  for (const name of ['Escrever', 'Duplicar legenda', 'Apagar legenda', 'Colar na folha']) {
     await page.getByRole('button', { name: /Legenda com seta: um/ }).focus();
     await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute('aria-label', name);
   }

@@ -93,7 +93,10 @@ export function showWorkDetails(app: App, saved = false) {
   const later = button(words.later, icons.close, () => close());
   const close = app.modal({
     title: saved ? words.heading : { pt: 'Dados do trabalho', en: 'Work details' },
-    onClose: () => { void app.documents.save(false); },
+    onClose: () => {
+      app.documents.rememberDetails({ title: project.title, author: project.author, audience: project.audience });
+      void app.documents.save(false);
+    },
     content: h('div', 'dialog-stack',
       saved ? h('p', 'pingo-note', art(icons.pingo), h('span', '', t(words.invite))) : null,
       title.element, author.element, audience.element,

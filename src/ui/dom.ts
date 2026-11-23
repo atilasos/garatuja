@@ -38,6 +38,7 @@ export function roving(bar: HTMLElement, label: L10n) {
     .filter(item => !item.closest('[hidden]') && item.closest('[role="toolbar"]') === bar);
   let preferred: HTMLElement | undefined;
   function focusable(item?: HTMLElement) {
+    if (!item) bar.setAttribute('aria-label', t(label));
     const all = items();
     preferred = item ?? (preferred && all.includes(preferred) ? preferred : all.find(entry => entry.getAttribute('aria-pressed') === 'true') ?? all[0]);
     for (const entry of bar.querySelectorAll<HTMLElement>(barSelector)) {

@@ -25,8 +25,8 @@ const balloons = new Set(['speech', 'thought', 'shout']);
 
 const words = {
   write: { pt: 'Escrever', en: 'Write' },
-  copy: { pt: 'Duplicar', en: 'Copy' },
-  remove: { pt: 'Apagar', en: 'Delete' },
+  copy: { pt: 'Duplicar legenda', en: 'Duplicate label' },
+  remove: { pt: 'Apagar legenda', en: 'Delete label' },
   paste: { pt: 'Colar na folha', en: 'Stick to the paper' },
   done: { pt: 'Pronto', en: 'Done' },
   cancel: { pt: 'Cancelar', en: 'Cancel' },
@@ -307,6 +307,24 @@ export class LabelEditor {
     return false;
   }
 
+  undoEdit() {
+    const session = this.session;
+    this.finish(false, false);
+    return session && { bytes: session.label.text.length * 2, resume: () => this.resume(session) };
+  }
+
+  private resume(session: Session) {
+    const app = this.app;
+    if (!app) return;
+    app.chooseTool('label');
+    if (app.tool.id !== 'label') return;
+    this.session = structuredClone(session);
+    this.selectedId = session.label.id;
+    this.layer?.field.open(session.label.text);
+    this.repaint();
+    app.say(words.typing);
+  }
+
   /** Close the typing session. Returns true when there was one. */
   finish(commit: boolean, remember = true): boolean {
     const session = this.session;
@@ -318,15 +336,7 @@ export class LabelEditor {
     if (!commit) {
       const app = this.app;
       if (app && remember && session.label.text) {
-        app.surface.rememberWriting(() => {
-          app.chooseTool('label');
-          if (app.tool.id !== 'label') return;
-          this.session = structuredClone(session);
-          this.selectedId = label.id;
-          this.layer?.field.open(session.label.text);
-          this.repaint();
-          app.say(words.typing);
-        }, () => this.finish(false, false), session.label.text.length * 2);
+        app.surface.rememberWriting(() => this.resume(session), () => this.finish(false, false), session.label.text.length * 2);
       }
     }
     else if (!label.text.trim()) {

@@ -154,7 +154,8 @@ test('rolls back when a second finger touches the surface and supports fixed cli
   await page.evaluate(() => window.__garatuja?.app.configure({ fixedClick: true }));
   await tap(page, 400, 430);
   await page.mouse.move(second.x, second.y, { steps: 7 });
-  await expect(page.getByRole('button', { name: 'Desfazer' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Desfazer' })).toBeEnabled();
+  expect(await page.evaluate(() => window.__garatuja!.app.surface.canUndo)).toBe(false);
   await tap(page, 700, 610);
   await expect(page.getByRole('button', { name: 'Desfazer' })).toBeEnabled();
   expect(await read(page, 550, 520)).toEqual(black);

@@ -195,10 +195,10 @@ export function pageStrip(app: App) {
       });
       organize.setAttribute('aria-controls', arrangement.id);
       organize.setAttribute('aria-expanded', 'false');
-      duplicate = button({ pt: 'Duplicar', en: 'Duplicate' }, pageIcons.duplicate, () => addPage(true));
+      duplicate = button({ pt: 'Duplicar página', en: 'Duplicate page' }, pageIcons.duplicate, () => addPage(true));
       earlier = button({ pt: 'Mover à esquerda', en: 'Move left' }, pageIcons.left, () => move(app.store.get().pageId, -1));
       later = button({ pt: 'Mover à direita', en: 'Move right' }, pageIcons.right, () => move(app.store.get().pageId, 1));
-      remove = button({ pt: 'Apagar', en: 'Delete' }, pageIcons.remove, deletePage);
+      remove = button({ pt: 'Apagar página', en: 'Delete page' }, pageIcons.remove, deletePage);
       onionToggle = button({ pt: 'Papel vegetal', en: 'Onion skin' }, pageIcons.onion, () => {
         onion = !onion;
         updateGhost(app.store.get());
@@ -210,9 +210,6 @@ export function pageStrip(app: App) {
       scroller.replaceChildren(left, strip, right);
       replaceControls(controls, [add, organize, onionToggle]);
       replaceControls(actions, [duplicate, earlier, later, remove, nextToggle]);
-      controls.setAttribute('aria-label', t(actionLabel));
-      actions.setAttribute('aria-label', t(controlsLabel));
-      strip.setAttribute('aria-label', t(pagesLabel));
       previousTag.textContent = t(previousGhost);
       nextTag.textContent = t(nextGhost);
     }

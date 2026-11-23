@@ -48,6 +48,9 @@ export default {
   options: [typeOption, fontOption, sizeOption(labelSizes, 60)],
   onSelect(c) { labelEditor.activate(c); },
   onDeselect() { drag = undefined; labelEditor.deactivate(); },
+  tapOnly(c) { return !typeHasTarget(c.opt<LabelType>('type')); },
+  hasPendingEdit() { return Boolean(labelEditor.session); },
+  undoPendingEdit() { return labelEditor.undoEdit(); },
   flushPending() { labelEditor.finish(true); },
   down(p, c) {
     const editor = labelEditor;

@@ -5,7 +5,7 @@ const button = (page: Page, name: string) => page.getByRole('button', { name, ex
 const tools = ['text', 'label', 'move', 'shapes', 'lines', 'linear', 'radial', 'lightning', 'flowers'] as const;
 type EditingTool = typeof tools[number];
 
-async function prepare(page: Page, tool: EditingTool) {
+async function prepare(page: Page, tool: EditingTool, previousMark = false) {
   await page.goto('/');
   await page.waitForFunction(() => Boolean(window.__garatuja));
   await page.evaluate(async () => {
@@ -25,8 +25,8 @@ async function prepare(page: Page, tool: EditingTool) {
     await page.mouse.move(end.x, end.y, { steps: 5 });
     await page.mouse.up();
   };
+  if (previousMark || tool === 'move') await page.mouse.click(from.x, from.y);
   if (tool === 'move') {
-    await page.mouse.click(from.x, from.y);
     await page.evaluate(() => window.__garatuja!.app.chooseTool('move'));
     await drag(point(.15, .20), point(.30, .36));
     await drag(from, to);
@@ -80,7 +80,7 @@ const actions: Record<string, (page: Page) => Promise<void>> = {
   page: async page => { await button(page, 'Página 2').click(); },
   duplicate: async page => {
     await button(page, 'Organizar').click();
-    await page.getByRole('toolbar', { name: 'Organizar páginas' }).getByRole('button', { name: 'Duplicar' }).click();
+    await page.getByRole('toolbar', { name: 'Organizar páginas' }).getByRole('button', { name: 'Duplicar página' }).click();
     await expect(button(page, 'Página 2')).toHaveAttribute('aria-pressed', 'true');
   },
   save: async page => { await button(page, 'Guardar').click(); },
@@ -176,3 +176,70 @@ for (const tool of ['stamp', 'fill', 'magic']) {
     expect(await page.evaluate(() => window.__garatuja!.app.surface.canUndo)).toBe(true);
   });
 }
+
+for (const tool of tools) {
+  for (const via of ['button', 'shortcut']) {
+    test(`first undo cancels ${tool} via ${via} and preserves previous ink`, async ({ page }) => {
+      await prepare(page, tool, true);
+      const pixel = () => page.evaluate(() => window.__garatuja!.pixel(352, 336).slice(0, 3));
+      const undo = async () => {
+        if (via === 'shortcut') await page.keyboard.press('Control+z');
+        else await button(page, 'Desfazer').click();
+      };
+      await undo();
+      await expect.poll(pixel).toEqual([41, 42, 51]);
+      await expect(page.locator('.label-field')).toBeHidden();
+      if (tool === 'text' || tool === 'label') {
+        await button(page, 'Refazer').click();
+        await expect(page.locator('.label-field')).toHaveValue('Frase por assentar');
+        await undo();
+      }
+      await undo();
+      await expect.poll(pixel).toEqual([255, 255, 255]);
+    });
+  }
+}
+
+for (const name of ['Só texto', 'Narrador']) {
+  test(`fixed click opens the ${name} label on the first tap`, async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => Boolean(window.__garatuja));
+    await page.evaluate(() => window.__garatuja!.app.configure({ fixedClick: true }));
+    await button(page, 'Legenda').click();
+    await button(page, name).click();
+    await page.locator('.sheet').click({ position: { x: 250, y: 180 } });
+    await expect(page.locator('.label-field')).toBeFocused();
+  });
+}
+
+test('page writing and work details are reversible as sessions on the page', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => Boolean(window.__garatuja));
+  await page.locator('.sheet').click({ position: { x: 180, y: 220 } });
+  const writing = button(page, 'O meu texto');
+  const text = page.getByRole('textbox', { name: 'O meu texto' });
+  await writing.click();
+  await text.fill('Texto da turma');
+  await button(page, 'Fechar').click();
+  await writing.click();
+  await text.fill('Uma frase intermédia');
+  await text.fill('');
+  await button(page, 'Fechar').click();
+  await button(page, 'Desfazer').click();
+  await expect(page.locator('.writing-preview')).toHaveText('Texto da turma');
+  await button(page, 'Refazer').click();
+  await expect(page.locator('.writing-preview')).toHaveText('Escreve aqui o teu texto');
+  await page.locator('.work-card').click();
+  await page.getByRole('textbox', { name: 'Título' }).fill('Na escola');
+  await page.getByRole('textbox', { name: 'Autor' }).fill('Ana');
+  await page.getByRole('textbox', { name: 'Para quem é?' }).fill('A turma');
+  await button(page, 'Pronto').click();
+  const details = () => page.evaluate(() => {
+    const { title, author, audience } = window.__garatuja!.app.store.get().project;
+    return [title, author, audience];
+  });
+  await button(page, 'Desfazer').click();
+  expect(await details()).toEqual(['', '', '']);
+  await button(page, 'Refazer').click();
+  expect(await details()).toEqual(['Na escola', 'Ana', 'A turma']);
+});

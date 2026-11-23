@@ -5,7 +5,7 @@ import { CANVAS_H, CANVAS_W, type L10n, type Point, type Rect, type ToolContext,
 import { ensureGlyphs } from '../../fonts/load';
 import { fontDefs } from '../../fonts/stacks';
 import type { App } from '../../ui/app';
-import { button } from '../../ui/dom';
+import { button, h } from '../../ui/dom';
 import { labelIcons } from './icons';
 import type { LabelLayer } from './layer';
 
@@ -41,6 +41,7 @@ export class BitmapText {
   private active = false;
   private barKey = '';
   private buttons: HTMLElement[] = [];
+  private warning?: HTMLElement;
 
   attach(app: App, layer: LabelLayer) {
     this.app = app;
@@ -139,7 +140,18 @@ export class BitmapText {
       rect, font: g.v.font, size: g.v.size, lineHeight: plain.lineHeight, color: g.v.color,
       caret: '#23578d', align: 'left', invisible: false, bottomEdge: CANVAS_H - edge,
     });
+    const content = layer.field.value.trimEnd();
+    const measured = content === layer.field.value ? plain : layoutPlain(content, g.v.font, g.v.size, g.maxWidth, measureContext());
+    const tooLarge = this.exceedsPage(measured, rect.w);
+    const warning = this.warning ??= h('p', 'label-fit-warning');
+    warning.hidden = !tooLarge;
+    warning.textContent = t(words.tooLarge);
+    warning.setAttribute('role', 'status');
     this.syncBar({ x: rect.x, y: rect.y, w: Math.min(rect.w, plain.width + g.v.size), h: rect.h });
+  }
+
+  private exceedsPage(plain: ReturnType<typeof layoutPlain>, width: number) {
+    return plain.lines.length * plain.lineHeight > CANVAS_H - edge * 2 || plain.width > width;
   }
 
   private bounds(point: Point, width: number, plain: ReturnType<typeof layoutPlain>): Rect {
@@ -164,7 +176,7 @@ export class BitmapText {
         button(words.cancel, labelIcons.cancel, () => this.cancel(), 'bar-button'),
       ];
     }
-    layer.setBar(this.buttons, anchor, t(words.actions));
+    layer.setBar(this.warning ? [...this.buttons, this.warning] : this.buttons, anchor, t(words.actions));
   }
 
   private localeKey() {
@@ -213,6 +225,18 @@ export class BitmapText {
     this.layer?.setBar([]);
   }
 
+  undoEdit() {
+    const draft = this.draft();
+    this.cancel(false);
+    return draft && { bytes: draft.text.length * 2, resume: () => this.restore(draft) };
+  }
+
+  private restore(draft: WritingDraft) {
+    this.app?.chooseTool('text');
+    if (this.app?.tool.id === 'text') this.resume(draft);
+    else this.app?.documents.setWritingDraft(draft);
+  }
+
   cancel(remember = true) {
     const app = this.app;
     const draft = this.draft();
@@ -220,11 +244,7 @@ export class BitmapText {
     if (!app) return;
     app.documents.setWritingDraft();
     if (remember && draft?.text) {
-      app.surface.rememberWriting(() => {
-        app.chooseTool('text');
-        if (app.tool.id === 'text') this.resume(draft);
-        else app.documents.setWritingDraft(draft);
-      }, () => this.cancel(false), draft.text.length * 2);
+      app.surface.rememberWriting(() => this.restore(draft), () => this.cancel(false), draft.text.length * 2);
     }
     app.surface.element.focus({ preventScroll: true });
     app.say(app.toolHint());
@@ -240,11 +260,8 @@ export class BitmapText {
     const text = layer.field.value.replace(/\s+$/, '');
     const plain = layoutPlain(text, g.v.font, g.v.size, g.maxWidth, measureContext());
     const rect = this.bounds(g.session, g.maxWidth, plain);
-    if (text.trim() && (rect.h > CANVAS_H - edge * 2 || plain.width > rect.w)) {
-      if (warn) {
-        app.say(words.tooLarge);
-        app.notify(words.tooLarge);
-      }
+    if (text.trim() && this.exceedsPage(plain, rect.w)) {
+      if (warn) app.say(words.tooLarge);
       return false;
     }
     this.close();

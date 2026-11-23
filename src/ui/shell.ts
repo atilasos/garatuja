@@ -209,12 +209,9 @@ export function mountShell(app: App, root: HTMLElement) {
       });
       help.replaceChildren(art(icons.pingo), hint, listen, preferences);
       refreshPreferences();
-      for (const [bar, label] of [[preferences, words.settings], [files, words.files],
-        [featureActions, words.actions], [history, words.history], [toolbox, words.tools], [colors, words.colors]] as const) {
-        bar.setAttribute('aria-label', t(label));
-      }
+
     }
-    unavailable(undo, wait ?? (!app.surface.canUndo ? { pt: 'Ainda não há nada para desfazer.', en: 'There’s nothing to undo yet.' } : undefined), say);
+    unavailable(undo, wait ?? (!app.canUndo ? { pt: 'Ainda não há nada para desfazer.', en: 'There’s nothing to undo yet.' } : undefined), say);
     unavailable(redo, wait ?? (!app.surface.canRedo ? { pt: 'Desfaz um passo para o poderes refazer.', en: 'Undo a step before redoing it.' } : undefined), say);
     removeTabstop();
 
@@ -273,12 +270,14 @@ export function mountShell(app: App, root: HTMLElement) {
 
   window.addEventListener('keydown', event => {
     if (event.defaultPrevented || app.store.get().busy || document.querySelector('dialog[open]')) return;
-    if (event.target instanceof HTMLElement && event.target.matches('input, textarea, select, [contenteditable="true"]')) return;
     const key = event.key.toLowerCase();
+    const shortcut = (event.ctrlKey || event.metaKey) && (key === 'z' || key === 'y');
+    if (event.target instanceof HTMLElement && event.target.matches('input, textarea, select, [contenteditable="true"]') &&
+      !(shortcut && event.target.matches('.label-field'))) return;
     if (key === 'escape') {
       app.input.cancel();
       app.cancelPicker();
-    } else if ((event.ctrlKey || event.metaKey) && (key === 'z' || key === 'y')) {
+    } else if (shortcut) {
       event.preventDefault();
       if (key === 'y' || event.shiftKey) app.redo();
       else app.undo();

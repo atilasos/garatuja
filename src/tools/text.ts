@@ -10,6 +10,8 @@ export default {
   options: [fontOption, sizeOption(textSizes, 84)],
   onSelect(c) { bitmapText.activate(c); },
   onDeselect() { bitmapText.deactivate(); },
+  hasPendingEdit() { return bitmapText.typing; },
+  undoPendingEdit() { return bitmapText.undoEdit(); },
   flushPending() { bitmapText.flush(); },
   down(p) { bitmapText.open(p); },
   move() {},
