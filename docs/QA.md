@@ -63,6 +63,25 @@
 - Português → English → português sem recarregar → os nomes de botões, barras e avisos mudaram de língua e o estado da mesa manteve-se — 2026-11-23
 - Novo nos oito formatos → a grelha deslocou-se numa área acima de Começar. O primeiro e o último modelos ficaram ao alcance do foco, com folga em relação ao botão — 2026-11-23
 
+## Regressões da quarta ronda
+
+- Fechar O meu texto e desenhar no mesmo instante → o primeiro Desfazer retirou o traço e o segundo repôs o texto anterior. O resultado foi igual com Fechar e Escape — 2026-11-23
+- Gravar a página selecionada com a transação em espera → a folha anterior e a miniatura ativa mantiveram-se. Desfazer anunciou a espera. Depois da gravação, Desfazer retirou o traço e recarregar manteve a página selecionada — 2026-11-23
+- Alterar título na página 1 e título, autora e destinatário na página 2 → Desfazer na página 1 retirou primeiro o traço mais recente. Os dois passos seguintes repuseram os dados do livro pela ordem inversa. Refazer percorreu a sequência ao contrário — 2026-11-23
+- Consultar texto, legenda, título e autor com Só maiúsculas ativo → os valores mistos conservaram-se e Desfazer retirou a última alteração real. Ao inserir caracteres, só esses caracteres passaram a maiúsculas — 2026-11-23
+- Confirmação, aviso âmbar e falha de gravação → as coordenadas e as dimensões da folha mantiveram-se nos oito formatos — 2026-11-23
+- Cartão com «A ponte», «A ponte da Lia» e «Rui» → título e autor couberam por inteiro nos oito formatos — 2026-11-23
+- Conta-gotas e Misturar cor → os dois comandos ficaram inteiros e acessíveis sem deslocar a paleta ou a página nos oito formatos — 2026-11-23
+- Ler, Apresentar à turma e Diapositivos → Anterior e Seguinte ficaram à mesma altura ao passar da capa à página, entre páginas e na passagem para os comentários — 2026-11-23
+- Balão de sete linhas no tamanho Máximo → o aviso apareceu durante a escrita e Pronto manteve o campo aberto. Depois de encurtar o texto, Pronto aceitou-o e o contorno manteve-se na folha ao arrastar para o canto — 2026-11-23
+- Livro A4 com 1, 10, 30 e 60 linhas → 2, 2, 3 e 4 páginas ao alto e 2, 3, 3 e 5 ao baixo, incluindo a capa. A extração do texto confirmou o rodapé junto da última linha nos oito PDFs — 2026-11-23
+- Só texto e Narrador em Clique fixo → um toque livre abriu uma legenda nova. Uma legenda existente e a pega da seta responderam ao movimento entre dois cliques — 2026-11-23
+- Teclado no ecrã → «á ç 123» deu acesso a acentos e números no telemóvel. Nos restantes formatos, a fila de acentos seguiu-se às letras — 2026-11-23
+- Fechar Definições, experimentar cores e sair sem aplicar, ou cancelar a rotação de uma forma → Pingo voltou à dica da ferramenta ativa — 2026-11-23
+- Falha de gravação durante a troca de língua → o aviso persistente e os botões de recuperação passaram para inglês e voltaram a português na mesma sessão — 2026-11-23
+- Usar como modelo → criou um trabalho de uma página com a primeira ilustração como papel. A borracha repôs a ilustração após desenhar por cima. O trabalho de origem conservou as duas páginas — 2026-11-23
+- Capturas finais → foram regeneradas e inspecionadas as 26 imagens da mesa, da galeria e das atividades. A captura do leitor de diapositivos resultou no mesmo ficheiro — 2026-11-23
+
 ## Layout
 
 | Janela CSS | Mínimo com faixa visível | Mínimo com faixa recolhida |
@@ -123,6 +142,11 @@ O codificador GIF fica num worker separado. As licenças carregam ao abrir Créd
 - `npm run check`, duas execuções consecutivas → tipos, lint e build passaram. Cada execução passou 273 testes em 17 ficheiros. O JavaScript inicial ficou em 128,73 kB gzip — 2026-11-23
 - `npm run e2e`, duas execuções consecutivas → 337 passaram e 9 ficaram fora da execução normal em cada execução. A primeira demorou 3,6 min e a segunda 3,5 min — 2026-11-23
 - Regeneração das capturas → 118 testes passaram em 1,4 min. Conferi as 26 imagens `final-*.png`, incluindo a posição do teclado, a poça do misturador e as cores do papel Noite — 2026-11-23
+
+## Execuções da quarta ronda
+
+- `npm run check` → TypeScript, ESLint, 273 testes unitários e compilação passaram — 2026-11-23
+- Cinco execuções seguidas de `npm run e2e` → cada uma teve 356 testes aprovados, 9 ignorados pela configuração e zero falhas. Duração por ordem em minutos: 3,6, 3,6, 3,6, 3,5 e 3,6 — 2026-11-23
 
 ## Limitações observadas
 

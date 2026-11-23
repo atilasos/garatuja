@@ -5,10 +5,10 @@ Ateliê de desenho para crianças dos 4 aos 11 anos. Ilustra textos, faz livros,
 A criança é autora do desenho e do texto. Pode desfazer, retomar o trabalho e partilhá-lo como livro, apresentação ou ficheiro. A Garatuja dispensa contas, telemetria e recompensas.
 
 - A faixa **O meu texto** mantém o texto da página à vista enquanto se desenha. **Ler** e **Imprimir** juntam cada ilustração ao texto. Desfazer recupera o texto de uma sessão de edição.
-- Em **Abrir → Diapositivos**, a turma escolhe a ordem dos trabalhos e apresenta todas as páginas em ecrã inteiro. As setas e o avanço automático percorrem o texto antes de mudar de página.
+- Em **Abrir → Diapositivos**, a turma escolhe a ordem dos trabalhos e apresenta todas as páginas em ecrã inteiro. As setas e o avanço automático percorrem o texto antes de mudar de página. Em **Abrir**, usa **Usar como modelo** para desenhar por cima da primeira ilustração de outro trabalho. A borracha repõe essa ilustração.
 - A gravação é automática. Se dois separadores alterarem o mesmo trabalho, a Garatuja preserva uma cópia. A exportação do professor inclui as duas versões quando ainda há um conflito por gravar. Se faltar espaço, podes mudar de página ou começar outro desenho. Usa **Guardar num ficheiro** para levar os trabalhos que ainda estão em memória.
 - Em **Definições → Adulto**, mantém premido para entrar na área do professor. Podes definir ou remover o PIN, escolher as ferramentas disponíveis e exportar os trabalhos em volumes.
-- Ativa **Teclado no ecrã** nas definições para escrever com rato ou toque. Podes escolher a disposição alfabética ou QWERTY. O teclado afasta-se do campo que estás a editar na folha e inclui números e sinais. O teclado físico continua disponível.
+- Ativa **Teclado no ecrã** nas definições para escrever com rato ou toque. Podes escolher a disposição alfabética ou QWERTY. O teclado afasta-se do campo que estás a editar na folha e inclui números e sinais. Num ecrã estreito, toca em **á ç 123** para os veres e escreveres letras acentuadas. O teclado físico continua disponível.
 - **Misturar cor** combina gotas de tinta e guarda as seis últimas cores escolhidas. **Encher** também permite pintar dentro de um contorno ou voltar a ver o papel de uma zona.
 - A ferramenta **Texto** avisa durante a escrita se o texto exceder a folha. Se saíres da edição, o texto fica em rascunho. Ao voltar à página, podes escolher um tamanho de letra mais pequeno e pousá-lo.
 

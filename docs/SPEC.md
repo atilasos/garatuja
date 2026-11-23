@@ -75,11 +75,13 @@ Pingo · Ouvir · Som · Definições
 - Os botões têm pelo menos 48 × 48 px. Onde há espaço, os controlos principais têm 56 px ou mais.
 - Os diálogos com ações fixas reservam uma zona para os botões. A grelha desloca-se numa zona própria e
   cada cartão pode ficar inteiramente visível.
-- Misturar cor abre um seletor com amostras de matiz, tons claros e escuros e uma poça de tinta.
+- Conta-gotas e Misturar cor ficam sempre visíveis ao deslocar as amostras da paleta.
+  Num telemóvel, a paleta fica acima das opções da ferramenta. Misturar cor abre um seletor com amostras de matiz, tons claros e escuros e uma poça de tinta.
   Cada toque acrescenta uma gota de tinta vermelha, amarela, azul, branca ou preta.
   Usar esta cor aplica o resultado e guarda-o entre as seis últimas de As minhas cores.
 - A interface simples esconde Linhas e Mover, filtra as escolhas por nível e aumenta os botões de ferramentas. A opção Mão esquerda espelha as colunas em paisagem.
 - O cartão do trabalho abre Título, Autor e Para quem é?. A galeria em Abrir abre trabalhos guardados, exporta a folha atual para PNG e importa ou exporta `.garatuja`.
+  Usar como modelo cria um trabalho cujo papel é a primeira ilustração do trabalho escolhido.
 - Tipografia da interface: **Andika** (SIL, feita para leitores iniciais), empacotada localmente.
 - Direção visual: «mesa de ateliê» — fundo creme, peças arredondadas e gordas, ícones a duas cores,
   sombra curta; a folha é a protagonista. Sem gradientes berrantes nem estética de jogo.
@@ -95,7 +97,7 @@ Pingo · Ouvir · Som · Definições
 | Linhas | `lines` | reta com qualquer pincel; Shift = ângulos de 15° |
 | Formas | `shapes` | quadrado, retângulo, círculo, elipse, triângulo, pentágono, hexágono, octógono, losango, estrelas 5/6 pontas, coração, seta; cheio/contorno; do centro/do canto; rodar |
 | Texto | `text` | escreve no bitmap; fontes: Andika, manuscrita escolar (Playwrite PT), título, máquina de escrever; tamanhos; o bloco sobe para caber na folha e avisa durante a escrita quando excede a altura da folha; opção Só maiúsculas em toda a interface |
-| Legenda | `label` | texto que continua editável (mover, reescrever, apagar). Só texto e Narrador abrem ao primeiro toque em clique fixo. Pronto termina a edição e liberta a seleção; **seta de legenda** e **número** para esquemas de texto informativo; **balões** de fala/pensamento/grito para narrativa |
+| Legenda | `label` | texto que continua editável (mover, reescrever, apagar). Em clique fixo, Só texto e Narrador abrem ao primeiro toque numa zona livre. Mover uma legenda ou a sua pega continua a usar dois cliques. Pronto mantém aberto o campo se o texto exceder a folha e liberta a seleção quando a edição é aceite; **seta de legenda** e **número** para esquemas de texto informativo; **balões** de fala/pensamento/grito para narrativa |
 | Encher | `fill` | sólido, gradiente linear, radial, padrões, Pincel limitado à zona tocada e Apagar zona para repor o papel; tolerância que respeita linhas do modelo |
 | Magia | `magic` | ≥ 60 efeitos (`MagicEffect`) em 5 categorias: pintar, cor, distorcer, padrões, página inteira |
 | Borracha | `eraser` | redonda/quadrada, 5 tamanhos; repõe o papel |
@@ -127,7 +129,7 @@ inteira, o interruptor Em toda a folha fica junto dos tamanhos.
   o avanço percorre primeiro o texto da página por ecrãs. No fim, painel de comentários «Gostei / Pergunto / Sugiro» (texto livre, com nome de quem diz).
 - **Ler/Imprimir como livro** tem capa tipográfica com título, autor, destinatário e turma, quando definida.
   Cada ilustração aparece junto do seu texto. Ler mostra a miniatura enquanto prepara a imagem completa.
-  O livro impresso usa letra de 16 a 18 pt consoante o comprimento do texto.
+  O livro impresso usa letra de 16 a 18 pt consoante o comprimento do texto. O rodapé acompanha o fim do texto.
   Um trabalho de uma página sem título nem autor começa na própria página.
 - **Abrir → Diapositivos** permite selecionar trabalhos pela ordem em que a turma os vai ver.
   O leitor em ecrã inteiro passa por todas as páginas e mostra o título e autor de cada trabalho.
@@ -167,7 +169,8 @@ alfabética ou QWERTY. Texto, Legenda, O meu texto, os dados do trabalho e os co
 rato, toque e teclado físico. O teclado no ecrã tem teclas de pelo menos 48 px, maiúsculas, vogais acentuadas,
 cedilha, algarismos, pontuação, «º», «ª», hífen, espaço, apagar e nova linha nos campos com várias linhas.
 Na folha, o teclado muda de posição para deixar o campo e as ações visíveis.
-Nos ecrãs estreitos, uma tecla alterna entre as letras e os números e sinais.
+Nos ecrãs estreitos, a tecla «á ç 123» dá acesso a acentos, números e sinais.
+Só maiúsculas aplica-se ao texto introduzido enquanto a opção está ativa. Os caracteres já escritos conservam a sua forma guardada.
 
 ## 7. Arquitetura
 
@@ -190,8 +193,10 @@ Nos ecrãs estreitos, uma tecla alterna entre as letras e os números e sinais.
   rascunho da página e volta ao campo de edição quando a página é reaberta. Escape cancela a edição.
   Desfazer cancela primeiro qualquer gesto pendente ou edição na folha. Refazer pode reabrir a escrita
   cancelada por Desfazer. Escape e Cancelar continuam a oferecer recuperação pelo histórico.
-  Cada sessão de O meu texto ou dos dados do trabalho acrescenta um passo ao histórico da página. Carimbo, Encher sem degradé e Magia de
-  folha inteira terminam com um toque, também em clique fixo.
+  Cada sessão com alterações em O meu texto acrescenta um passo ao histórico da página. Os dados do
+  trabalho têm um histórico comum ao livro. Desfazer escolhe o passo mais recente entre esse histórico
+  e o da página ativa. Carimbo, Encher sem degradé e Magia de folha inteira terminam com um toque,
+  também em clique fixo.
 - O primeiro traço prepara o PNG e grava um rascunho em IndexedDB antes da gravação automática.
   A publicação do trabalho usa uma transação separada da escrita do rascunho. Se a página fechar
   durante a publicação, o arranque seguinte pode recuperar o rascunho.
