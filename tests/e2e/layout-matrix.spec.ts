@@ -39,6 +39,8 @@ for (const [width, height, minOpen, minClosed] of formats) {
           const paper = box('.sheet');
           report(paper.width < minOpen - 1 || Math.abs(paper.width / paper.height - 4 / 3) > .01, `sheet ${paper.width}×${paper.height}`);
           report(document.documentElement.scrollWidth > width, 'horizontal page overflow');
+          const thumbnail = box('.page-strip .page');
+          report(!inside(thumbnail, box('.page-strip')), 'first page thumbnail clipped');
           for (const el of document.querySelectorAll<HTMLElement>('#app button, .options-fixed input[type=range]')) {
             if (!el.getClientRects().length) continue;
             const rect = el.getBoundingClientRect();

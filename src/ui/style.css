@@ -321,7 +321,7 @@ input:not([type="checkbox"]), select, textarea {
   .sheet-area { container-type: size; height: min(75vw - 12px, 55dvh); }
   .tools { position: sticky; top: 0; z-index: 1; flex-direction: row; align-items: center; overflow: hidden; gap: 4px; }
   .tool-deck { display: flex; gap: 6px; min-width: 0; overflow-x: auto; padding: 2px; }
-  .tool-deck, .options-scroll:not(:has(.stamp-panel)) {
+  .tool-deck, .feature-actions, .options-scroll:not(:has(.stamp-panel)) {
     scrollbar-width: thin;
     background:
       linear-gradient(90deg, var(--panel) 35%, transparent) left center / 18px 100% local,
@@ -387,11 +387,13 @@ input:not([type="checkbox"]), select, textarea {
 }
 
 @media (orientation: portrait) and (min-width: 700px) {
-  .workbar { grid-template-columns: auto minmax(90px, .45fr) minmax(0, 1fr) auto; }
+  .workbar { grid-template-columns: auto minmax(90px, .45fr) minmax(280px, 1fr) minmax(0, 1.12fr); }
+  .brand { font-size: 1.1rem; }
+  .brand .icon { width: 28px; height: 28px; }
   .page-strip-component { grid-column: auto; grid-row: auto; }
   .page-strip-scroller > button { display: none; }
-  .feature-actions { gap: 3px; }
-  .feature-actions button { font-size: .69rem; padding-inline: 3px; }
+  .feature-actions { gap: 3px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+  .feature-actions button { flex: none; font-size: .69rem; padding-inline: 3px; }
   .options-scroll:has(.stamp-panel) { max-height: 133px; }
   .stamp-gallery .stamp-tile { min-height: 56px; }
 }
