@@ -41,3 +41,26 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  cloudflare:
+    # Second copy at garatuja.infantinho.xyz. Skipped until the repository has
+    # a Cloudflare token limited to "Cloudflare Pages: Edit".
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "No Cloudflare token configured; skipping."
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: actions/checkout@v4
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        run: npm ci && npm run build
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        run: npx --yes wrangler@4 pages deploy dist --project-name garatuja --branch main
