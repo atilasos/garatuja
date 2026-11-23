@@ -1,0 +1,28 @@
+/* Adult gate and teacher area (batch G). */
+.hold-button { position: relative; overflow: hidden; --hold: 0; }
+.hold-button::after {
+  content: ''; position: absolute; left: 0; bottom: 0; height: 6px; width: 100%;
+  transform: scaleX(var(--hold)); transform-origin: left; background: var(--selected-edge);
+}
+.gate-question { font-size: 1.3rem; margin: 0; }
+.gate-message { margin: 0; min-height: 1.3em; color: #533810; font-weight: 700; }
+.teacher-panel { display: grid; gap: 14px; padding-bottom: 16px; }
+.privacy-note {
+  display: flex; gap: 10px; align-items: center; margin: 0; padding: 10px 12px;
+  border-radius: 12px; background: var(--selected); border: 1px solid var(--selected-edge);
+}
+.privacy-note .icon { width: 36px; height: 36px; }
+.teacher-section { display: grid; gap: 8px; }
+.teacher-section h3 { margin: 0; font-size: 1.05rem; }
+.teacher-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.teacher-label { min-width: 90px; font-weight: 700; color: var(--muted); }
+.segmented { display: flex; gap: 8px; flex-wrap: wrap; }
+.segmented button { min-width: 110px; }
+.teacher-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+.setting-name { display: inline-flex; align-items: center; gap: 8px; }
+.setting-name .icon { width: 28px; height: 28px; }
+.setting input[type="checkbox"] { width: 28px; height: 28px; min-height: 28px; }
+.storage-line { margin: 0; }
+.dialog-actions.start { justify-content: flex-start; }
+.danger-zone { display: grid; gap: 8px; justify-items: start; }
+.danger-zone p { margin: 0; }

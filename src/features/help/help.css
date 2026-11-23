@@ -1,0 +1,20 @@
+/* "Como se usa" help sheet (batch G). */
+.help-sheet { display: grid; gap: 10px; padding-bottom: 16px; }
+.help-sheet h3 { margin: 6px 0 0; font-size: 1.05rem; }
+.help-hello { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 14px; background: var(--note, #f2e8d8); }
+.help-hello .icon { width: 56px; height: 56px; }
+.help-hello p { margin: 0; flex: 1; font-size: 1.08rem; }
+.help-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.help-card {
+  display: grid; grid-template-columns: 48px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center;
+  padding: 8px 10px; border: 1px solid var(--edge); border-radius: 14px; background: var(--button);
+}
+.help-card .icon { grid-row: span 2; width: 48px; height: 48px; }
+.help-card span { font-size: .88rem; color: var(--muted); }
+.help-more summary { display: flex; align-items: center; gap: 8px; min-height: 56px; cursor: pointer; font-weight: 700; }
+.help-keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 4px 0 0; align-items: center; }
+.help-keys dd { margin: 0; }
+kbd {
+  display: inline-block; min-width: 2em; padding: 2px 7px; text-align: center;
+  border: 1px solid var(--edge); border-bottom-width: 3px; border-radius: 7px; background: #fff; font: inherit; font-weight: 700;
+}
