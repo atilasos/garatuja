@@ -35,6 +35,9 @@ A matriz de layout cobre oito formatos e seis modos com cada ferramenta disponí
 
 A [especificação](docs/SPEC.md) descreve os princípios de autoria, privacidade e inclusão. O [guia de plug-ins](docs/PLUGINS.md) explica como acrescentar ferramentas e recursos. O [relatório de QA](docs/QA.md) regista os fluxos, as capturas e as medições.
 
-## Licenças dos recursos
+## Licenças
+
+O código da Garatuja usa a licença MIT (ver `LICENSE`).
+
 
 Andika, Playwrite PT, Fredoka e Courier Prime usam a SIL Open Font License 1.1. As ilustrações Noto Emoji incluídas na biblioteca de carimbos usam Apache License 2.0. O codificador gifenc usa MIT. Os textos integrais estão em **Definições → Créditos**.
