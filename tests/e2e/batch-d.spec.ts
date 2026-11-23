@@ -157,23 +157,23 @@ test('clips a freehand lasso to its shape and keeps the cutout as a personal sta
   await waitForThumbnail(page, 'Carimbo 1');
 });
 
-test('captures the stamp selector and an illustration with a floating cutout', async ({ page }) => {
+test('captures the stamp selector and an illustration with a floating cutout', async ({ page }, testInfo) => {
   await ready(page);
   await control(page, 'Carimbo').click();
   await control(page, 'Categorias').click();
   await expect(page.getByRole('toolbar', { name: 'Categorias', exact: true })).toBeVisible();
-  await page.screenshot({ path: 'docs/screens/batch-d-categorias.png', animations: 'disabled' });
+  await page.screenshot({ path: testInfo.outputPath('batch-d-categorias.png'), animations: 'disabled' });
   await control(page, 'Animais').click();
   await waitForThumbnail(page, 'Cão');
   await waitForThumbnail(page, 'Gato');
-  await page.screenshot({ path: 'docs/screens/batch-d-animais.png', animations: 'disabled' });
+  await page.screenshot({ path: testInfo.outputPath('batch-d-animais.png'), animations: 'disabled' });
   await control(page, 'Grande').click();
   await tap(page, 620, 660);
 
   await category(page, 'Tempo e céu');
   await waitForThumbnail(page, 'Sol');
   await waitForThumbnail(page, 'Nuvem');
-  await page.screenshot({ path: 'docs/screens/batch-d-tempo.png', animations: 'disabled' });
+  await page.screenshot({ path: testInfo.outputPath('batch-d-tempo.png'), animations: 'disabled' });
   await control(page, 'Sol').click();
   await tap(page, 1270, 260);
   await category(page, 'Plantas e natureza');
@@ -185,7 +185,7 @@ test('captures the stamp selector and an illustration with a floating cutout', a
   await drag(page, [430, 460], [800, 840]);
   await drag(page, [615, 650], [520, 785]);
   await expect(control(page, 'Pousar')).toBeEnabled();
-  await page.screenshot({ path: 'docs/screens/batch-d-recorte.png', animations: 'disabled' });
+  await page.screenshot({ path: testInfo.outputPath('batch-d-recorte.png'), animations: 'disabled' });
 });
 
 test('resizes and rotates a floating selection using touch handles', async ({ page, context }) => {
@@ -224,13 +224,19 @@ test('resizes and rotates a floating selection using touch handles', async ({ pa
 
 test('opens the credits and expands the bundled license texts', async ({ page }) => {
   await ready(page);
+  await control(page, 'Definições').click();
   await control(page, 'Créditos').click();
   const credits = page.getByRole('dialog', { name: 'Créditos' });
   await expect(credits.getByRole('heading', { name: 'Noto Emoji' })).toBeVisible();
   await credits.getByText('Apache License 2.0', { exact: true }).click();
   await expect(credits.locator('pre').first()).toContainText('Copyright 2013 Google');
-  await credits.getByText('SIL Open Font License 1.1', { exact: true }).click();
-  await expect(credits.locator('pre').last()).toContainText('Andika');
+  for (const name of ['Andika', 'Playwrite PT', 'Fredoka', 'Courier Prime', 'gifenc']) {
+    const entry = credits.locator('section').filter({ has: page.getByRole('heading', { name, exact: true }) });
+    await expect(entry.getByRole('heading')).toBeVisible();
+    await entry.locator('summary').click();
+    await expect(entry.locator('pre')).toBeVisible();
+    await expect(entry.locator('summary')).toHaveText(name === 'gifenc' ? 'MIT' : 'SIL Open Font License 1.1');
+  }
 });
 
 test('opens a category for the first time offline', async ({ page, context }) => {

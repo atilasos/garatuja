@@ -1,3 +1,4 @@
+import { fillDetails } from './work-details';
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 
@@ -51,7 +52,7 @@ async function getDownload(page: Page, name: string) {
 test('arranges pages, preserves paper and history, records animations, and exchanges a whole work', async ({ page }, testInfo) => {
   test.setTimeout(60_000);
   await ready(page);
-  await page.getByRole('textbox', { name: 'Título' }).fill('A viagem');
+  await fillDetails(page, { title: 'A viagem' });
   await control(page, 'O meu texto').click();
   await page.getByRole('textbox', { name: 'O meu texto' }).fill('Era uma manhã de vento.');
   await page.keyboard.press('Escape');
@@ -133,7 +134,7 @@ test('arranges pages, preserves paper and history, records animations, and excha
   expect(playback[2]).toBeGreaterThan(1);
   await page.keyboard.press('Escape');
 
-  await control(page, 'Ficheiros').click();
+  await control(page, 'Abrir').click();
   const png = await getDownload(page, 'Guardar página em PNG');
   const pngPath = testInfo.outputPath('page.png');
   await png.saveAs(pngPath);
@@ -149,15 +150,21 @@ test('arranges pages, preserves paper and history, records animations, and excha
     return ctx && [...ctx.getImageData(0, 0, 1, 1).data];
   }, image.toString('base64'));
   expect(exportedPixel).toEqual([255, 255, 255, 255]);
-  const archive = await getDownload(page, 'Guardar .garatuja');
+  const archiveDownload = page.waitForEvent('download');
+  await page.getByRole('listitem').filter({ hasText: 'A viagem' }).getByRole('button', { name: 'Guardar .garatuja' }).click();
+  const archive = await archiveDownload;
   expect(archive.suggestedFilename()).toBe('A viagem.garatuja');
   const archivePath = testInfo.outputPath('project.garatuja');
   await archive.saveAs(archivePath);
 
-  const input = page.locator('dialog input[type=file]');
-  await input.setInputFiles({ name: 'inválido.garatuja', mimeType: 'application/json', buffer: Buffer.from('{"oops":true}') });
+  async function chooser() {
+    const event = page.waitForEvent('filechooser');
+    await control(page, 'Importar .garatuja').click();
+    return await event;
+  }
+  await (await chooser()).setFiles({ name: 'inválido.garatuja', mimeType: 'application/json', buffer: Buffer.from('{"oops":true}') });
   await expect(page.getByRole('dialog').getByRole('status')).toContainText('Escolhe um trabalho .garatuja válido.');
-  await input.setInputFiles(archivePath);
+  await (await chooser()).setFiles(archivePath);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const imported = await page.evaluate(() => {
     const project = window.__garatuja?.app.store.get().project;
@@ -173,11 +180,9 @@ test('arranges pages, preserves paper and history, records animations, and excha
 
 test('reads a cover and spread, navigates a presentation with the keyboard and saves qualitative comments', async ({ page }) => {
   await ready(page);
-  await page.getByRole('textbox', { name: 'Título' }).fill('O vento');
-  await page.getByRole('textbox', { name: 'Autor' }).fill('Mariana');
+  await fillDetails(page, { title: 'O vento', author: 'Mariana', audience: 'A turma' });
   await control(page, 'O meu texto').click();
   await page.getByRole('textbox', { name: 'O meu texto' }).fill('O vento levou o meu chapéu.');
-  await page.getByRole('textbox', { name: 'Para quem é?' }).fill('A turma');
   await page.keyboard.press('Escape');
   await control(page, 'Ler').click();
   await expect(page.getByRole('heading', { name: 'O vento' })).toBeVisible();
@@ -219,8 +224,8 @@ test('reads a cover and spread, navigates a presentation with the keyboard and s
 test('inherits a template and prints a cover and each page on separate A4 sheets', async ({ page }, testInfo) => {
   await ready(page);
   await control(page, 'Novo').click();
-  await page.getByRole('combobox', { name: 'Modelo' }).selectOption('notebook');
-  await control(page, 'Criar trabalho').click();
+  await control(page, 'Linhas de caderno').click();
+  await control(page, 'Começar').click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const paper = await page.evaluate(() => window.__garatuja?.pixel(500, 100));
   expect(paper).not.toEqual([255, 255, 255, 255]);

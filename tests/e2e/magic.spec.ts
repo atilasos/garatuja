@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 
 const white = [255, 255, 255, 255];
@@ -53,7 +53,7 @@ test('magic selector groups effects, previews them, and undoes a whole page', as
   expect(await read(page, 1400, 420)).toEqual(white);
 
   await choose(page, 'Magia');
-  await expect(page.locator('h4.choice-group')).toHaveText(['Pintar', 'Cor', 'Distorcer', 'Página inteira']);
+  await expect(page.locator('h4.choice-group')).toHaveText(['Pintar', 'Cor', 'Distorcer', 'Padrões', 'Página inteira']);
   for (const name of ['Mínimo', 'Pequeno', 'Médio', 'Grande', 'Máximo']) {
     await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
   }
@@ -85,7 +85,7 @@ test('magic selector groups effects, previews them, and undoes a whole page', as
   expect(await read(page, 1400, 420)).toEqual(white);
 });
 
-test('writes a contact sheet of every magic thumbnail', async ({ page }) => {
+test('writes a contact sheet of every magic thumbnail', async ({ page }, testInfo) => {
   test.setTimeout(60_000);
   await ready(page);
   await choose(page, 'Azul');
@@ -156,7 +156,6 @@ test('writes a contact sheet of every magic thumbnail', async ({ page }) => {
     return canvas.toDataURL('image/png');
   });
   const buffer = Buffer.from(sheet.split(',')[1] ?? '', 'base64');
-  await mkdir('docs/screens', { recursive: true });
-  await writeFile('docs/screens/batch-b-magic.png', buffer);
+  await writeFile(testInfo.outputPath('batch-b-magic.png'), buffer);
   expect(buffer.byteLength).toBeGreaterThan(10_000);
 });

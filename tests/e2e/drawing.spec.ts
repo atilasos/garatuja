@@ -1,3 +1,4 @@
+import { fillDetails } from './work-details';
 import { expect, test, type Page } from '@playwright/test';
 
 const white = [255, 255, 255, 255];
@@ -103,10 +104,8 @@ test('lines, shapes, eraser, magic and stamp alter the bitmap through their host
 
 test('switches pages and work, keeping original paper and author text', async ({ page }) => {
   await ready(page);
-  await page.getByRole('textbox', { name: 'Título' }).fill('Um passeio');
-  await page.getByRole('textbox', { name: 'Autor' }).fill('Lia');
+  await fillDetails(page, { title: 'Um passeio', author: 'Lia', audience: 'A turma' });
   await choose(page, 'O meu texto');
-  await page.getByRole('textbox', { name: 'Para quem é?' }).fill('A turma');
   await page.getByRole('textbox', { name: 'O meu texto' }).fill('Fomos ao jardim.');
   await page.keyboard.press('Escape');
   await tap(page, 480, 400);
@@ -133,7 +132,7 @@ test('switches pages and work, keeping original paper and author text', async ({
   expect(await read(page, 500, 100)).not.toEqual(white);
   await choose(page, 'Abrir');
   await choose(page, 'Um passeio, Lia, 2 páginas');
-  await expect(page.getByRole('textbox', { name: 'Autor' })).toHaveValue('Lia');
+  await expect(page.locator('.work-author')).toHaveText('Lia');
   await choose(page, 'O meu texto');
   await expect(page.getByRole('textbox', { name: 'O meu texto' })).toHaveValue('Fomos ao jardim.');
 });

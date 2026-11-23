@@ -1,3 +1,4 @@
+import { fillDetails } from './work-details';
 import { expect, test, type Page } from '@playwright/test';
 
 /** Documentation screenshots: run with GARATUJA_CAPTURE_SCREENS=1. */
@@ -71,7 +72,7 @@ for (const [width, height] of sizes) {
     await page.getByRole('button', { name: 'Novo', exact: true }).click();
     await page.getByRole('dialog', { name: 'Novo trabalho' }).locator('[data-starter="scene-meadow"]').click();
     await page.getByRole('button', { name: 'Começar' }).click();
-    await page.getByRole('textbox', { name: 'Título' }).fill('A minha horta');
+    await fillDetails(page, { title: 'A minha horta' });
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
     const invite = page.getByRole('dialog', { name: 'Guardado no dispositivo' });
     await invite.getByRole('button', { name: 'A turma', exact: true }).click();

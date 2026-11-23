@@ -163,10 +163,10 @@ test('the four bundled fonts load locally and each draws differently', async ({ 
   for (const count of counts) expect(count).toBeGreaterThan(300);
 });
 
-test('uppercase setting turns typed text into capitals for text and labels', async ({ page }) => {
+test('uppercase setting turns typed text into capitals for text, labels and page writing', async ({ page }) => {
   await ready(page);
   await choose(page, 'Definições');
-  await page.getByRole('checkbox', { name: 'Letras maiúsculas' }).check();
+  await choose(page, 'Só maiúsculas');
   await page.keyboard.press('Escape');
   await choose(page, 'Texto');
   await tap(page, 200, 200);
@@ -177,6 +177,12 @@ test('uppercase setting turns typed text into capitals for text and labels', asy
   await makeLabel(page, 'Balão de fala', [800, 600], 'cedilha ç');
   const [label] = await labelsOf(page);
   expect(label.text).toBe('CEDILHA Ç');
+  await choose(page, 'O meu texto');
+  const writing = page.getByRole('textbox', { name: 'O meu texto' });
+  await writing.fill('ação à manhã');
+  await expect(writing).toHaveValue('AÇÃO À MANHÃ');
+  await page.keyboard.press('Escape');
+  expect(await page.evaluate(() => window.__garatuja?.app.documents.page.text)).toBe('AÇÃO À MANHÃ');
 });
 
 test('arrow label: create, move, rewrite, undo and redo, and survive a reload', async ({ page }) => {
@@ -509,6 +515,19 @@ test('a label can be created from the keyboard alone', async ({ page }) => {
   const [label] = await labelsOf(page);
   expect(label.text).toBe('teclado');
   await expect(page.getByRole('button', { name: /Legenda com seta: teclado/ })).toBeFocused();
+});
+
+test('tapping empty paper lets go of a selected label before starting another', async ({ page }) => {
+  await ready(page);
+  await choose(page, 'Legenda');
+  await makeLabel(page, 'Legenda com seta', [700, 400], 'um ramo');
+  const label = page.getByRole('button', { name: /um ramo/ });
+  await expect(label).toHaveAttribute('aria-pressed', 'true');
+  await tap(page, 300, 900);
+  await expect(label).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('textbox', { name: 'Escreve aqui' })).toBeHidden();
+  await tap(page, 300, 900);
+  await expect(page.getByRole('textbox', { name: 'Escreve aqui' })).toBeFocused();
 });
 
 test('tapping elsewhere finishes the label being typed and starts the next one', async ({ page }) => {

@@ -316,6 +316,22 @@ test.describe('shapes', () => {
     expect(await inked(page)).toBe(0);
   });
 
+  test('updates the color and kind of a shape while it waits to rotate', async ({ page }) => {
+    await ready(page);
+    await choose(page, 'Formas');
+    await choose(page, 'Retângulo');
+    await choose(page, 'Rodar');
+    await drag(page, [[600, 500], [1000, 700]]);
+    await choose(page, 'Azul');
+    await choose(page, 'Quadrado');
+    await choose(page, 'Contorno');
+    expect(await inked(page)).toBe(0);
+    expect(await overlayInk(page)).toBeGreaterThan(1000);
+    await tap(page, 800, 900);
+    expect(await pixel(page, 750, 650)).toEqual([255, 255, 255, 255]);
+    expect(await pixel(page, 602, 650)).toEqual([73, 125, 187, 255]);
+  });
+
   test('a single tap draws a friendly default shape', async ({ page }) => {
     await ready(page);
     await choose(page, 'Formas');
@@ -401,8 +417,8 @@ test.describe('fill', () => {
   test('stops at the lines of a template', async ({ page }) => {
     await ready(page);
     await choose(page, 'Novo');
-    await page.getByRole('combobox', { name: 'Modelo' }).selectOption('notebook');
-    await choose(page, 'Criar trabalho');
+    await choose(page, 'Linhas de caderno');
+    await choose(page, 'Começar');
     await choose(page, 'Encher');
     await choose(page, 'Riscas');
     await choose(page, 'Azul');

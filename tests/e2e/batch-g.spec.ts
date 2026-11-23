@@ -1,3 +1,4 @@
+import { fillDetails } from './work-details';
 import { expect, test, type Page } from '@playwright/test';
 
 const white = [255, 255, 255, 255];
@@ -18,7 +19,7 @@ async function newWork(page: Page, model: string, title?: string) {
   await dialog.locator(`[data-starter="${model}"]`).click();
   await dialog.getByRole('button', { name: 'Começar' }).click();
   await expect(dialog).toHaveCount(0);
-  if (title) await page.getByRole('textbox', { name: 'Título' }).fill(title);
+  if (title) await fillDetails(page, { title: title });
 }
 
 const numbers: Record<string, number> = { três: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9 };
@@ -45,7 +46,7 @@ test('Novo creates a work from every template and keeps the previous one', async
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('pageerror', error => errors.push(error.message));
   await ready(page);
-  await page.getByRole('textbox', { name: 'Título' }).fill('O primeiro');
+  await fillDetails(page, { title: 'O primeiro' });
   const first = await projectId(page);
   const ids = await page.evaluate(() => window.__garatujaStarters?.ids() ?? []);
   expect(ids.length).toBeGreaterThanOrEqual(25);
@@ -86,8 +87,7 @@ test('a comic template limits the fill to one panel', async ({ page }) => {
 
 test('gallery opens, duplicates, deletes and undoes', async ({ page }) => {
   await ready(page);
-  await page.getByRole('textbox', { name: 'Título' }).fill('Mar');
-  await page.getByRole('textbox', { name: 'Autor' }).fill('Rui');
+  await fillDetails(page, { title: 'Mar', author: 'Rui' });
   await newWork(page, 'scene-forest', 'Floresta');
   await newWork(page, 'cycle', 'Ciclo da água');
   await choose(page, 'Abrir');
@@ -124,13 +124,13 @@ test('gallery opens, duplicates, deletes and undoes', async ({ page }) => {
   await choose(page, 'Abrir');
   await gallery.getByRole('button', { name: 'Mar, Rui, 1 página' }).click();
   await expect(gallery).toHaveCount(0);
-  await expect(page.getByRole('textbox', { name: 'Título' })).toHaveValue('Mar');
-  await expect(page.getByRole('textbox', { name: 'Autor' })).toHaveValue('Rui');
+  await expect(page.locator('.work-title')).toHaveText('Mar');
+  await expect(page.locator('.work-author')).toHaveText('Rui');
 });
 
 test('deleting the open work moves to a fresh sheet', async ({ page }) => {
   await ready(page);
-  await page.getByRole('textbox', { name: 'Título' }).fill('Atual');
+  await fillDetails(page, { title: 'Atual' });
   await choose(page, 'Abrir');
   const gallery = page.getByRole('dialog', { name: 'Abrir trabalho' });
   await gallery.getByRole('button', { name: 'Apagar' }).click();
@@ -139,7 +139,7 @@ test('deleting the open work moves to a fresh sheet', async ({ page }) => {
   await expect(gallery.getByRole('listitem')).toHaveCount(1);
   await expect(gallery.getByRole('listitem')).not.toContainText('Atual');
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('textbox', { name: 'Título' })).toHaveValue('');
+  await expect(page.locator('.work-title')).toHaveText('Sem título');
 });
 
 test('the gallery has a friendly empty state', async ({ page }) => {
@@ -200,14 +200,16 @@ test('Guardar confirms calmly and invites title, author and audience', async ({ 
   await expect(invite.getByRole('textbox', { name: 'Para quem é?' })).toHaveValue('O jornal');
   await expect(invite.getByRole('button', { name: 'O jornal' })).toHaveAttribute('aria-pressed', 'true');
   await invite.getByRole('button', { name: 'Agora não' }).click();
-  await expect(page.getByRole('textbox', { name: 'Título' })).toHaveValue('O vulcão');
+  await expect(page.locator('.work-title')).toHaveText('O vulcão');
   expect(await page.evaluate(() => window.__garatuja?.app.store.get().project.audience)).toBe('O jornal');
   await choose(page, 'Guardar');
   await expect(invite).toHaveCount(0);
 });
 
-test('the teacher area only opens through the adult gate', async ({ page }) => {
+test('the adult gate protects settings and exports all works to a clean session', async ({ page, browser, baseURL }, testInfo) => {
   await ready(page);
+  await fillDetails(page, { title: 'A história', author: 'Lia' });
+  await newWork(page, 'diagram', 'O esquema');
   await choose(page, 'Definições');
   const settings = page.getByRole('dialog', { name: 'Definições' });
   await expect(settings.getByRole('checkbox')).toHaveCount(0);
@@ -237,15 +239,40 @@ test('the teacher area only opens through the adult gate', async ({ page }) => {
   await expect(page.locator('.class-name')).toHaveText('3.º B');
   await teacher.getByRole('checkbox', { name: 'Clique fixo' }).check();
   await teacher.getByRole('checkbox', { name: 'Permitir imprimir' }).uncheck();
+  await teacher.getByRole('checkbox', { name: 'Permitir importar ficheiros' }).uncheck();
+  if (process.env.GARATUJA_CAPTURE_SCREENS === '1') {
+    await page.screenshot({ path: 'docs/screens/final-professor-1366x768.png' });
+  }
   await expect(page.getByRole('button', { name: 'Imprimir' })).toHaveCount(0);
   const download = page.waitForEvent('download');
   await teacher.getByRole('button', { name: 'Exportar todos os trabalhos' }).click();
   const file = await download;
-  expect(file.suggestedFilename()).toMatch(/^garatuja-todos-os-trabalhos-\d{4}-\d{2}-\d{2}\.json$/);
+  expect(file.suggestedFilename()).toMatch(/^garatuja-todos-os-trabalhos-\d{4}-\d{2}-\d{2}\.garatuja$/);
+  const archive = testInfo.outputPath('todos.garatuja');
+  await file.saveAs(archive);
+  await page.keyboard.press('Escape');
+  await choose(page, 'Abrir');
+  await expect(page.getByRole('button', { name: 'Importar imagem', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Importar .garatuja', exact: true })).toHaveCount(0);
   await page.reload();
   await page.waitForFunction(() => Boolean(window.__garatuja));
   const settingsAfter = await page.evaluate(() => window.__garatuja?.app.store.get().settings);
-  expect(settingsAfter).toMatchObject({ fixedClick: true, allowPrint: false, className: '3.º B' });
+  expect(settingsAfter).toMatchObject({ fixedClick: true, allowPrint: false, allowImport: false, className: '3.º B' });
+  const clean = await browser.newContext({ baseURL });
+  try {
+    const destination = await clean.newPage();
+    await ready(destination);
+    await choose(destination, 'Abrir');
+    const chooser = destination.waitForEvent('filechooser');
+    await choose(destination, 'Importar .garatuja');
+    await (await chooser).setFiles(archive);
+    await expect(destination.getByRole('status').filter({ hasText: 'Importaste 2 trabalhos.' })).toBeVisible();
+    await choose(destination, 'Abrir');
+    await expect(destination.getByRole('button', { name: 'A história, Lia, 1 página', exact: true })).toBeVisible();
+    await expect(destination.getByRole('button', { name: 'O esquema, 1 página', exact: true })).toBeVisible();
+  } finally {
+    await clean.close();
+  }
 });
 
 test('high contrast and left hand apply from the teacher area; child settings persist', async ({ page }) => {
@@ -273,7 +300,8 @@ test('high contrast and left hand apply from the teacher area; child settings pe
   await page.waitForFunction(() => Boolean(window.__garatuja));
   await expect(page.locator('html')).toHaveClass(/large-cursor/);
   await expect(page.getByRole('button', { name: 'Som ligado' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Interface simples' })).toHaveAttribute('aria-pressed', 'true');
+  await choose(page, 'Definições');
+  await expect(settings.getByRole('button', { name: 'Interface simples' })).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('help sheet opens with F1 and the help button', async ({ page }) => {
@@ -284,7 +312,8 @@ test('help sheet opens with F1 and the help button', async ({ page }) => {
   await expect(help.getByRole('listitem').filter({ hasText: 'Pintar' })).toBeVisible();
   await expect(help.getByRole('button', { name: 'Ouvir' })).toBeFocused();
   await page.keyboard.press('Escape');
-  await choose(page, 'Ajuda');
+  await choose(page, 'Definições');
+  await choose(page, 'Como se usa');
   await expect(help).toBeVisible();
 });
 
@@ -367,7 +396,11 @@ test('the build precaches every asset, sets a strict CSP and links nothing exter
   for (const file of ['./', './manifest.webmanifest', './icons/pingo-192.png', './icons/pingo-512.png', './icons/pingo-maskable-512.png']) {
     expect(precache.files).toContain(file);
   }
-  expect(precache.files.some(file => file.endsWith('.woff2'))).toBe(true);
+  for (const font of ['andika', 'playwrite-pt', 'fredoka', 'courier-prime']) {
+    expect(precache.files.some(file => file.startsWith('./assets/' + font) && file.endsWith('.woff2'))).toBe(true);
+  }
+  expect(precache.files.some(file => file.startsWith('./assets/emoji_') && file.endsWith('.svg'))).toBe(true);
+  expect(precache.files.some(file => file.startsWith('./assets/gif.worker-') && file.endsWith('.js'))).toBe(true);
   const scripts = [...html.matchAll(/(?:src|href)="(\.\/assets\/[^"]+)"/g)].map(match => match[1]);
   for (const asset of scripts) expect(precache.files).toContain(asset);
   const manifest = await (await request.get('/manifest.webmanifest')).json() as { icons: { purpose: string; sizes: string }[] };

@@ -1,3 +1,4 @@
+import { fillDetails } from './work-details';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
@@ -120,8 +121,7 @@ function paintScene(page: Page, scene: 'plant' | 'story') {
 test('plant diagram with four numbered arrow labels', async ({ page }) => {
   await ready(page);
   await paintScene(page, 'plant');
-  await page.getByRole('textbox', { name: 'Título' }).fill('As partes da planta');
-  await page.getByRole('textbox', { name: 'Autor' }).fill('Inês');
+  await fillDetails(page, { title: 'As partes da planta', author: 'Inês' });
 
   await choose(page, 'Texto');
   await choose(page, 'Título');

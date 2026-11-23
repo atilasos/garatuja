@@ -1,3 +1,4 @@
+import { fillDetails } from './work-details';
 import { expect, test, type Page } from '@playwright/test';
 
 function button(page: Page, name: string) {
@@ -65,8 +66,7 @@ for (const width of [1366, 1024]) {
       const filename = `batch-f-${name}-${width}x768.png`;
       return page.screenshot({ path: process.env.GARATUJA_CAPTURE_SCREENS === '1' ? 'docs/screens/' + filename : testInfo.outputPath(filename) });
     };
-    await page.getByRole('textbox', { name: 'Título' }).fill('O farol');
-    await page.getByRole('textbox', { name: 'Autor' }).fill('Lia');
+    await fillDetails(page, { title: 'O farol', author: 'Lia', audience: 'A turma do 2.º ano' });
     const texts = ['Ao amanhecer, o nosso barco saiu devagar.',
       'Quando o vento cresceu, vimos a luz do farol.',
       'O barco seguiu a luz e encontrou o caminho.'];
@@ -75,7 +75,6 @@ for (const width of [1366, 1024]) {
       await expect(button(page, `Página ${index + 1}`)).toHaveAttribute('aria-pressed', 'true');
       await button(page, 'O meu texto').click();
       await page.getByRole('textbox', { name: 'O meu texto' }).fill(text);
-      if (!index) await page.getByRole('textbox', { name: 'Para quem é?' }).fill('A turma do 2.º ano');
       await page.keyboard.press('Escape');
       await illustrate(page, index);
     }
