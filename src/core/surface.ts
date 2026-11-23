@@ -73,25 +73,33 @@ export class Surface {
     const request = ++this.onionRequest;
     this.onion.clearRect(0, 0, CANVAS_W, CANVAS_H);
     if (!page && !following) return;
-    const ghost = viewport(800, 600);
-    if (page) await this.compositePage(page, ghost);
-    if (request !== this.onionRequest) return;
-    if (page) this.onion.drawImage(ghost.canvas, 0, 0, CANVAS_W, CANVAS_H);
-    if (following) {
-      await this.compositePage(following, ghost);
+    const ghost = viewport(800, 600, false, true);
+    const base = viewport(800, 600, false, true);
+    for (const [source, next] of [[page, false], [following, true]] as const) {
+      if (!source) continue;
+      const [paper, guide] = await Promise.all([
+        createImageBitmap(source.paper), source.foreground ? createImageBitmap(source.foreground) : null,
+      ]);
+      copyCanvas(base, paper);
+      if (guide) base.drawImage(guide, 0, 0, 800, 600);
+      paper.close();
+      guide?.close();
+      await this.compositePage(source, ghost);
       if (request !== this.onionRequest) return;
       const image = ghost.getImageData(0, 0, 800, 600);
-      // Lift the red and blue channels of dark marks. White stays neutral.
+      const background = base.getImageData(0, 0, 800, 600).data;
       for (let i = 0; i < image.data.length; i += 4) {
-        image.data[i] += (255 - image.data[i]) * .25;
-        image.data[i + 2] += (255 - image.data[i + 2]) * .5;
+        const pixels = image.data;
+        const difference = Math.max(Math.abs(pixels[i] - background[i]),
+          Math.abs(pixels[i + 1] - background[i + 1]), Math.abs(pixels[i + 2] - background[i + 2]));
+        pixels[i + 3] = Math.min(255, difference * 2);
+        if (next) {
+          pixels[i] += (255 - pixels[i]) * .25;
+          pixels[i + 2] += (255 - pixels[i + 2]) * .5;
+        }
       }
       ghost.putImageData(image, 0, 0);
-      this.onion.save();
-      this.onion.globalAlpha = page ? .5 : 1;
-      this.onion.globalCompositeOperation = 'multiply';
       this.onion.drawImage(ghost.canvas, 0, 0, CANVAS_W, CANVAS_H);
-      this.onion.restore();
     }
   }
 

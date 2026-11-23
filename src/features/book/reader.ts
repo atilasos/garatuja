@@ -56,6 +56,8 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
   let closed = false;
   let closing = false;
   let wasFull = false;
+  let thumbUrl: string | undefined;
+  let writing: HTMLElement | undefined;
   const animatePlay = { pt: 'Reproduzir animação', en: 'Play animation' };
   const animateBack = { pt: 'Voltar à página', en: 'Back to the page' };
   const animation = button(animatePlay, pageIcons.play, () => {
@@ -78,8 +80,10 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
   const next = button({ pt: 'Seguinte', en: 'Next' }, pageIcons.right, () => move(1));
   const automatic = button({ pt: 'Avanço automático', en: 'Auto advance' }, pageIcons.play, () => {
     autoplay = !autoplay;
-    if (autoplay && pageIndex === last) pageIndex = first;
-    render();
+    if (autoplay && !canMove(1)) {
+      pageIndex = first;
+      render();
+    } else updateNavigation();
   });
   const speedRow = h('div', 'slide-speeds', ...speeds.map(({ label, icon, delay: ms }) => {
     const speed = button(label, icon, () => {
@@ -104,6 +108,7 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
     closed = true;
     window.clearTimeout(timer);
     closeAnimation();
+    clearThumbnail();
     document.removeEventListener('fullscreenchange', fullscreenChanged);
     if (document.fullscreenElement === content) void document.exitFullscreen().catch(() => {});
   } });
@@ -135,28 +140,34 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
     player = undefined;
   }
 
-  function scrollWriting(delta: number) {
-    if (player) return false;
-    const copy = display.querySelector<HTMLElement>('.book-copy, .book-cover-details');
-    if (!copy) return false;
-    const limit = copy.scrollHeight - copy.clientHeight;
-    if (limit <= 1 || (delta > 0 ? copy.scrollTop >= limit - 1 : copy.scrollTop <= 1)) return false;
-    copy.scrollTop += delta * Math.max(1, copy.clientHeight - 40);
-    schedule();
-    return true;
+  function clearThumbnail() {
+    if (thumbUrl) URL.revokeObjectURL(thumbUrl);
+    thumbUrl = undefined;
   }
 
+  function canScroll(delta: number) {
+    if (!writing || player) return false;
+    const limit = writing.scrollHeight - writing.clientHeight;
+    return delta > 0 ? writing.scrollTop < limit - 1 : writing.scrollTop > 1;
+  }
+
+  function canMove(delta: number) {
+    return Boolean(player) || canScroll(delta) || (delta > 0 ? pageIndex < last : pageIndex > first);
+  }
+
+  const beginning = { pt: 'Já estás no início.', en: 'You are at the beginning.' };
+  const ending = { pt: 'Já estás no fim.', en: 'You are at the end.' };
+
   function move(delta: number) {
-    if (scrollWriting(delta)) return;
-    const index = Math.min(last, Math.max(first, pageIndex + delta));
-    if (index === pageIndex && !player) {
-      explain(delta < 0 ? { pt: 'Já estás no início.', en: 'You are at the beginning.' }
-        : { pt: 'Já estás no fim.', en: 'You are at the end.' });
+    if (writing && canScroll(delta)) {
+      writing.scrollTop += delta * Math.max(1, writing.clientHeight - 40);
+      updateNavigation();
       return;
     }
-    pageIndex = index;
+    if (!canMove(delta)) { explain(delta < 0 ? beginning : ending); return; }
+    pageIndex = Math.min(last, Math.max(first, pageIndex + delta));
     closeAnimation();
-    render();
+    render(delta < 0);
   }
 
   function schedule() {
@@ -164,16 +175,34 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
     if (autoplay && !closed && !closing) timer = window.setTimeout(() => move(1), delay);
   }
 
-  function render() {
-    if (closed) return;
-    if (pageIndex === last) autoplay = false;
+  function updateNavigation() {
+    boundary.textContent = '';
+    unavailable(previous, canMove(-1) ? undefined : beginning, explain);
+    unavailable(next, canMove(1) ? undefined : ending, explain);
+    if (!canMove(1)) autoplay = false;
     pressed(automatic, autoplay);
     schedule();
-    boundary.textContent = '';
-    unavailable(previous, pageIndex === first && !player
-      ? { pt: 'Já estás no início.', en: 'You are at the beginning.' } : undefined, explain);
-    unavailable(next, pageIndex === last && !player
-      ? { pt: 'Já estás no fim.', en: 'You are at the end.' } : undefined, explain);
+  }
+
+  const resize = new ResizeObserver(updateNavigation);
+  const stopResize = () => resize.disconnect();
+  dialog?.addEventListener('close', stopResize, { once: true });
+
+  function render(fromEnd = false) {
+    if (closed) return;
+    clearThumbnail();
+    resize.disconnect();
+    renderPage();
+    writing = display.querySelector<HTMLElement>('.book-copy, .book-cover-details') ?? undefined;
+    if (writing) {
+      if (fromEnd) writing.scrollTop = writing.scrollHeight;
+      writing.addEventListener('scroll', updateNavigation, { passive: true });
+      resize.observe(writing);
+    }
+    updateNavigation();
+  }
+
+  function renderPage() {
     animation.hidden = !presenting || project.pages.length < 2 || pageIndex === project.pages.length;
     const playLabel = player ? animateBack : animatePlay;
     animation.setAttribute('aria-label', t(playLabel));
@@ -198,17 +227,27 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
     const page = slide?.page ?? project.pages[pageIndex];
     if (!page) return;
     const canvas = viewport(960, 720);
-    const illustration = h('div', 'book-illustration', canvas.canvas);
-    const writing = writingText(page.text, settings);
+    const thumbnail = h('img');
+    thumbnail.alt = '';
+    thumbnail.src = thumbUrl = URL.createObjectURL(page.thumb);
+    const illustration = h('div', 'book-illustration', thumbnail, canvas.canvas);
+    canvas.canvas.style.visibility = 'hidden';
+    const copy = writingText(page.text, settings);
     display.replaceChildren(h('article', 'book-spread', illustration,
       h('div', 'book-copy',
         slide ? h('header', 'slide-work', h('h3', '', slide.project.title || t(untitled)),
           h('p', '', slide.project.author)) : null,
-        h('p', '', writing))));
+        h('p', '', copy))));
     const index = (slide?.index ?? pageIndex) + 1;
     const count = slide?.project.pages.length ?? project.pages.length;
     position.textContent = t({ pt: `Página ${index} de ${count}`, en: `Page ${index} of ${count}` });
-    app.run(() => app.surface.compositePage(page, canvas));
+    app.run(async () => {
+      await app.surface.compositePage(page, canvas);
+      if (!illustration.isConnected) return;
+      canvas.canvas.style.visibility = '';
+      thumbnail.remove();
+      clearThumbnail();
+    });
   }
 
   dialog?.addEventListener('keydown', event => {

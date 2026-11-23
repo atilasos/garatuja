@@ -126,7 +126,7 @@ test('onion skin leaves a current color pixel exact outside ghost marks', async 
   const before = await screenPixel();
   expect(before).toEqual([224, 87, 72, 255]);
   await control(page, 'Papel vegetal').click();
-  await page.waitForFunction(() => window.__garatuja?.app.surface.onion.getImageData(800, 600, 1, 1).data[3] === 255);
+  await page.waitForFunction(() => window.__garatuja?.app.surface.onion.getImageData(95, 100, 1, 1).data[3] === 255);
   expect(await screenPixel()).toEqual(before);
 });
 
@@ -221,10 +221,15 @@ test('bitmap text rises near the bottom and keeps an oversized draft editable', 
   await tap(page, 300, 1120);
   const long = Array.from({ length: 12 }, () => 'Uma flor').join('\n');
   await field.fill(long);
+  const warning = page.locator('.label-fit-warning');
+  await expect(warning).toHaveText('Não cabe. Escolhe uma letra mais pequena.');
+  await expect(warning).toBeVisible();
   await control(page, 'Pousar').click();
   await expect(field).toHaveValue(long);
-  await expect(page.locator('.toast').filter({ hasText: 'Não cabe. Escolhe uma letra mais pequena.' })).toBeVisible();
+  await expect(warning).toBeVisible();
+  await expect(page.locator('.toast').filter({ hasText: 'Não cabe.' })).toHaveCount(0);
   await control(page, 'Mínimo').click();
+  await expect(warning).toBeHidden();
   await control(page, 'Pousar').click();
   await expect(field).toBeHidden();
 });

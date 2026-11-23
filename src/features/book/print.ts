@@ -104,8 +104,12 @@ export async function printWork(app: App) {
         const image = await picture(page);
         if (closed) return;
         const details = [project.title || t(untitled), project.author].filter(Boolean).join(' · ');
-        preview.append(h('section', 'print-work-sheet', image,
-          h('p', 'print-work-copy', writingText(page.text, settings)), h('footer', '', details)));
+        const copy = h('p', 'print-work-copy', writingText(page.text, settings));
+        if (book) {
+          const lines = page.text.split('\n').reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / 50)), 0);
+          copy.style.setProperty('--print-text-size', lines <= 8 ? '18pt' : lines <= 16 ? '17pt' : '16pt');
+        }
+        preview.append(h('section', 'print-work-sheet', image, copy, h('footer', '', details)));
       }
       print.disabled = false;
     } finally {

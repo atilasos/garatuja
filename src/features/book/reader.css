@@ -20,7 +20,8 @@
   background: #eaddca;
   padding: clamp(12px, 2.4vw, 28px);
 }
-.book-illustration canvas, .book-presentation-animation canvas {
+.book-illustration :is(img, canvas) { grid-area: 1 / 1; aspect-ratio: 4 / 3; }
+.book-illustration :is(img, canvas), .book-presentation-animation canvas {
   max-width: 100%;
   width: 100%;
   height: auto;
@@ -62,7 +63,7 @@
   overflow: visible;
 }
 .class-presentation .book-illustration { background: transparent; padding: 0; container-type: size; }
-.class-presentation .book-illustration canvas { width: min(100cqw, 133.33cqh); }
+.class-presentation .book-illustration :is(img, canvas) { width: min(100cqw, 133.33cqh); }
 .class-presentation .book-cover-details, .class-presentation .book-copy {
   font-size: clamp(1.5rem, 4vw, 4rem);
   max-height: none;
@@ -78,7 +79,7 @@
 .book-presentation-animation canvas { width: min(100cqw, 133.33cqh); }
 @media (max-width: 660px) {
   .book-spread { grid-template-columns: 1fr; min-height: 0; }
-  .book-illustration canvas { width: min(100%, 55dvh); }
+  .book-illustration :is(img, canvas) { width: min(100%, 55dvh); }
   .book-copy { max-height: 33dvh; }
   .class-presentation .book-spread { grid-template-rows: minmax(0, 1fr) minmax(0, .65fr); }
   .class-presentation .book-cover-details, .class-presentation .book-copy { padding-inline: 6px; }

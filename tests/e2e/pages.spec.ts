@@ -66,7 +66,7 @@ test('arranges pages, preserves paper and history, records animations, and excha
   await control(page, 'Adicionar página').click();
   await expect(control(page, 'Página 3')).toHaveAttribute('aria-pressed', 'true');
   await control(page, 'Organizar').click();
-  await control(page, 'Duplicar').click();
+  await control(page, 'Duplicar página').click();
   await expect(control(page, 'Página 4')).toHaveAttribute('aria-pressed', 'true');
   await control(page, 'Mover à esquerda').click();
   await expect(control(page, 'Página 3')).toHaveAttribute('aria-pressed', 'true');
@@ -75,7 +75,7 @@ test('arranges pages, preserves paper and history, records animations, and excha
   await control(page, 'Página 3').dragTo(control(page, 'Página 2'));
   await expect(control(page, 'Página 2')).toHaveAttribute('data-focus', moved ?? '');
   await control(page, 'Organizar').click();
-  await control(page, 'Apagar').click();
+  await control(page, 'Apagar página').click();
   await expect(page.getByRole('status').filter({ hasText: 'Página apagada.' })).toBeVisible();
   await expect(control(page, 'Página 4')).toHaveCount(0);
   await control(page, 'Anular').click();
@@ -93,7 +93,13 @@ test('arranges pages, preserves paper and history, records animations, and excha
   await page.keyboard.press('Escape');
   await expect(page.locator('.page-ghost-next')).toBeVisible();
   await expect(page.locator('.page-ghost-next')).toHaveCSS('border-top-style', 'dashed');
-  await page.waitForFunction(() => window.__garatuja?.app.surface.onion.getImageData(0, 0, 1, 1).data[3] === 255);
+  const sheet = await page.locator('.sheet').boundingBox();
+  if (!sheet) throw new Error('Missing sheet');
+  await page.waitForFunction(({ width, height }) => {
+    const ghost = window.__garatuja?.app.surface.onion;
+    return ghost?.getImageData(Math.round(78 * 1600 / width), Math.round(100 * 1200 / height), 1, 1).data[3] === 255 &&
+      ghost?.getImageData(0, 0, 1, 1).data[3] === 0;
+  }, sheet);
   const original = await page.evaluate(() => window.__garatuja?.app.store.get().project.id);
 
   await control(page, 'Animar').click();

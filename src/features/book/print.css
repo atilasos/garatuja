@@ -49,5 +49,5 @@
   .print-work .print-work-sheet img { max-height: 142mm; break-inside: avoid; }
   .print-work-landscape .print-work-sheet img { max-height: 104mm; }
   .print-work .print-work-sheet footer { padding-top: 12mm; }
-  .print-work .print-work-copy { font-size: 13pt; margin: 5mm 0; }
+  .print-work .print-work-copy { font-size: var(--print-text-size, 13pt); margin: 5mm 0; }
 }

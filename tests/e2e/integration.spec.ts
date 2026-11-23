@@ -235,7 +235,7 @@ test('animates eight duplicated and moved pages at three speeds and exports GIF 
   await tap(page, x, y);
   for (let i = 1; i <= 7; i++) {
     await choose(page, 'Organizar');
-    await page.getByRole('button', { name: 'Duplicar', exact: true }).filter({ visible: true }).first().click();
+    await page.getByRole('button', { name: 'Duplicar página', exact: true }).filter({ visible: true }).first().click();
     await expect(control(page, `Página ${i + 1}`)).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Escape');
     if (i === 1) await choose(page, 'Papel vegetal');
@@ -252,7 +252,7 @@ test('animates eight duplicated and moved pages at three speeds and exports GIF 
   await choose(page, 'Página 1');
   await expect(control(page, 'Página 1')).toHaveAttribute('aria-pressed', 'true');
   await tool(page, 'Legenda');
-  await page.locator('.options').getByRole('button', { name: 'Texto', exact: true }).click();
+  await page.locator('.options').getByRole('button', { name: 'Só texto', exact: true }).click();
   await choose(page, 'Preto');
   await addLabel(page, 'A bola', 600, 270);
   await choose(page, 'Animar');
