@@ -183,8 +183,10 @@ for (const tool of tools) {
       await prepare(page, tool, true);
       const pixel = () => page.evaluate(() => window.__garatuja!.pixel(352, 336).slice(0, 3));
       const undo = async () => {
-        if (via === 'shortcut') await page.keyboard.press('Control+z');
-        else await button(page, 'Desfazer').click();
+        if (via === 'shortcut') {
+          await page.locator('.sheet').focus();
+          await page.keyboard.press('Control+z');
+        } else await button(page, 'Desfazer').click();
       };
       await undo();
       await expect.poll(pixel).toEqual([41, 42, 51]);
