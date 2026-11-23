@@ -166,3 +166,131 @@ test('personal stamps created concurrently receive separate names', async ({ pag
   });
   expect((await Promise.all([write(page), write(other)])).sort()).toEqual([1, 2]);
 });
+
+function fillProjectQuota(page: Page) {
+  return page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'projects') throw new DOMException('Quota', 'QuotaExceededError');
+      return put.apply(this, args);
+    };
+  });
+}
+
+for (const moveAway of [false, true]) {
+  test(`backup exports both conflicting versions, and Duplicate takes the draft (left work: ${moveAway})`, async ({ page, context }) => {
+    await ready(page);
+    const id = await saveNamed(page, 'O meu livro');
+    const other = await context.newPage();
+    await ready(other);
+    await fillProjectQuota(page);
+    await page.evaluate(() => window.__garatuja!.app.documents.editText('Versão em memória'));
+    await other.evaluate(async () => {
+      const { documents } = window.__garatuja!.app;
+      documents.editText('Versão guardada');
+      await documents.save();
+    });
+    await page.bringToFront();
+    if (moveAway) {
+      await control(page, 'Novo').click();
+      await control(page, 'Começar').click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+    }
+    await control(page, 'Abrir').click();
+    await control(page, 'Diapositivos').click();
+    await page.locator(`[data-project="${id}"] .gallery-open`).click();
+    await control(page, 'Reproduzir seleção').click();
+    await expect(page.locator('.book-copy')).toContainText('Versão em memória');
+    await control(page, 'Sair').click();
+    await control(page, 'Abrir').click();
+    await page.locator(`[data-project="${id}"]`).getByRole('button', { name: 'Duplicar', exact: true }).click();
+    await expect.poll(() => page.evaluate(async id => (await window.__garatuja!.app.storage.list())
+      .find(work => work.id !== id && work.title.startsWith('O meu livro'))?.pages[0].text, id)).toBe('Versão em memória');
+    await page.keyboard.press('Escape');
+    await openAdultGate(page);
+    await answerAdultChallenge(page);
+    const downloading = page.waitForEvent('download');
+    await control(page, 'Exportar todos os trabalhos').click();
+    const versions = await readWorks(await downloading);
+    expect(versions.some(work => work.title === 'O meu livro' && work.pages[0].text === 'Versão guardada')).toBe(true);
+    expect(versions.some(work => work.title === 'O meu livro (cópia)' && work.pages[0].text === 'Versão em memória')).toBe(true);
+    expect(new Set(versions.map(work => work.id)).size).toBe(versions.length);
+  });
+}
+
+test('deleting the active work with full storage restores only the saved revision if undone', async ({ page }) => {
+  await ready(page);
+  const id = await saveNamed(page, 'Folha cheia');
+  await fillProjectQuota(page);
+  await page.evaluate(() => window.__garatuja!.app.documents.editText('Texto por guardar'));
+  await control(page, 'Abrir').click();
+  const card = page.locator(`[data-project="${id}"]`);
+  await card.getByRole('button', { name: 'Apagar', exact: true }).click();
+  await card.getByRole('button', { name: 'Sim, apagar' }).click();
+  await expect(card).toHaveCount(0);
+  await expect(page.locator('.work-title')).toHaveText('Sem título');
+  const gallery = page.getByRole('dialog', { name: 'Abrir trabalho' });
+  await gallery.getByRole('button', { name: 'Anular', exact: true }).click();
+  await card.getByRole('button', { name: /Folha cheia/ }).click();
+  await expect(page.locator('.writing-preview')).toHaveText('Escreve aqui o teu texto');
+  expect(await page.evaluate(() => window.__garatuja!.app.documents.recoveryProjects)).toHaveLength(0);
+});
+
+for (const delay of [0, 50, 100, 250, 350, 500]) {
+  test(`the first stroke survives real navigation after ${delay} ms, three times`, async ({ browser, baseURL }) => {
+    if (!baseURL) throw new Error('Missing base URL');
+    for (let sample = 0; sample < 3; sample++) {
+      const isolated = await browser.newContext({ baseURL });
+      try {
+        const page = await isolated.newPage();
+        await ready(page);
+        await page.evaluate(delay => {
+          const { surface } = window.__garatuja!.app;
+          surface.element.addEventListener('pointerup', () => {
+            if (delay === 0) location.replace('about:blank');
+            else setTimeout(() => location.replace('about:blank'), delay);
+          }, { once: true });
+        }, delay);
+        await page.locator('.sheet').click();
+        await page.waitForURL('about:blank');
+        await ready(page);
+        expect(await page.evaluate(() => window.__garatuja!.pixel(800, 600))).toEqual([41, 42, 51, 255]);
+        expect(await page.evaluate(() => window.__garatuja!.app.storage.list())).toHaveLength(1);
+      } finally {
+        await isolated.close();
+      }
+    }
+  });
+}
+
+test('first-stroke checkpoint is written while normal project publication is blocked by another transaction', async ({ page }) => {
+  await ready(page);
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('garatuja');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    const transaction = db.transaction('projects', 'readwrite');
+    const store = transaction.objectStore('projects');
+    const hold = () => {
+      const request = store.count();
+      request.onsuccess = hold;
+    };
+    hold();
+    setTimeout(() => { transaction.abort(); db.close(); }, 3000);
+  });
+  await page.locator('.sheet').click();
+  await page.evaluate(() => { void window.__garatuja!.app.documents.save(); });
+  const persisted = await page.evaluate(() => new Promise<number>((resolve, reject) => {
+    const req = indexedDB.open('garatuja');
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      const count = db.transaction('drafts').objectStore('drafts').count();
+      count.onsuccess = () => { resolve(count.result); db.close(); };
+      count.onerror = () => { reject(count.error); db.close(); };
+    };
+  }));
+  expect(persisted).toBe(1);
+});

@@ -1,4 +1,3 @@
-import { createPage, createProject } from '../../core/document';
 import { t } from '../../core/i18n';
 import type { L10n, ProjectRecord } from '../../core/types';
 import type { App } from '../../ui/app';
@@ -103,15 +102,22 @@ export async function openWork(app: App, trash: Trash) {
     renderCards();
     choose.focus();
   });
-  const play = button({ pt: 'Reproduzir seleção', en: 'Play selection' }, pageIcons.play, () => {
-    const ordered = selected.flatMap(id => projects.filter(project => project.id === id));
-    if (!ordered.length) {
+  const play = button({ pt: 'Reproduzir seleção', en: 'Play selection' }, pageIcons.play, () => app.run(async () => {
+    const entries = selected.flatMap(id => projects.filter(project => project.id === id));
+    if (!entries.length) {
       context().notice({ pt: 'Escolhe os trabalhos pela ordem em que os queres mostrar.', en: 'Choose the works in the order you want to show them.' });
       return;
     }
-    close();
-    showReader(app, ordered);
-  }, 'primary');
+    play.disabled = true;
+    try {
+      const ordered = await Promise.all(entries.map(project => app.documents.resolveProject(project)));
+      if (closed) return;
+      close();
+      showReader(app, ordered);
+    } finally {
+      play.disabled = false;
+    }
+  }), 'primary');
   const refreshFromStorage = () => { if (!closed) app.run(refresh); };
   const stopListening = trash.onChange(refreshFromStorage);
   const stopSettings = app.store.subscribe(({ settings }, previous) => {
@@ -211,7 +217,7 @@ export async function openWork(app: App, trash: Trash) {
       if (open.disabled) return;
       open.disabled = true;
       try {
-        const fresh = app.documents.recoveryProjects.find(local => local.id === project.id) ?? await app.storage.get(project.id) ?? project;
+        const fresh = await app.documents.resolveProject(project);
         if (!await app.documents.open(fresh, undefined, true)) return;
         close();
         app.say(words.opened);
@@ -226,7 +232,7 @@ export async function openWork(app: App, trash: Trash) {
 
     function normal() {
       const duplicate = button(words.duplicate, extraIcons.duplicate, () => app.run(async () => {
-        const copy = duplicateProject(await app.storage.get(project.id) ?? project);
+        const copy = duplicateProject(await app.documents.resolveProject(project));
         await app.storage.save(copy);
         await refresh();
         grid.querySelector<HTMLElement>(`[data-project="${copy.id}"] .gallery-open`)?.focus();
@@ -262,15 +268,12 @@ export async function openWork(app: App, trash: Trash) {
   }
 
   async function removeWork(project: ProjectRecord) {
-    if (app.store.get().project.id === project.id) {
-      // Leave the work being deleted: start on a fresh sheet instead.
-      const editedHere = app.documents.hasUnsavedChanges;
-      if (!await app.documents.save()) return;
-      const current = app.store.get().project;
-      await app.documents.open(createProject(createPage()));
-      if (editedHere) project = current;
+    const replacement = await app.documents.discardForTrash(project.id);
+    trash.put(await app.storage.get(project.id) ?? project);
+    if (replacement) {
+      await app.documents.keepReplacement(replacement);
+      await refresh();
     }
-    trash.put(project);
   }
 
   async function refresh() {

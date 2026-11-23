@@ -6,7 +6,6 @@ import type { L10n } from '../../core/types';
 import type { App, Feature } from '../../ui/app';
 import { art, button, h, pressed, roving } from '../../ui/dom';
 import { icons } from '../../ui/icons';
-import { untitled } from '../../ui/work-fields';
 import { extraIcons } from '../settings/icons';
 import './teacher.css';
 import { archiveVolumes } from '../exchange/format';
@@ -136,11 +135,11 @@ async function storageLine() {
 
 async function panel(app: App) {
   const settings = () => app.store.get().settings;
-  const choiceRow = <T,>(label: L10n, items: { value: T; label: L10n }[], current: () => T, set: (value: T) => void) => {
+  const choiceRow = <T,>(label: L10n, items: { value: T; label: L10n; icon: string }[], current: () => T, set: (value: T) => void) => {
     const row = h('div', 'segmented');
     const render = () => {
       row.replaceChildren(...items.map(item => {
-        const control = button(item.label, item.value === 1 || item.value === 'pt' ? icons.level : extraIcons.full, () => { set(item.value); render(); row.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus(); });
+        const control = button(item.label, item.icon, () => { set(item.value); render(); row.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus(); });
         pressed(control, item.value === current());
         return control;
       }));
@@ -150,11 +149,11 @@ async function panel(app: App) {
     return h('div', 'teacher-row', h('span', 'teacher-label', t(label)), row);
   };
 
-  const level = choiceRow(words.byDefault, [{ value: 1 as const, label: words.simple }, { value: 2 as const, label: words.full }],
+  const level = choiceRow(words.byDefault, [{ value: 1 as const, label: words.simple, icon: icons.level }, { value: 2 as const, label: words.full, icon: extraIcons.full }],
     () => settings().level, value => app.configure({ level: value }));
   const language = choiceRow(words.language, [
-    { value: 'pt' as const, label: { pt: 'Português', en: 'Português' } },
-    { value: 'en' as const, label: { pt: 'English', en: 'English' } }],
+    { value: 'pt' as const, label: { pt: 'Português', en: 'Português' }, icon: extraIcons.language },
+    { value: 'en' as const, label: { pt: 'English', en: 'English' }, icon: extraIcons.language }],
   () => settings().locale, value => { app.configure({ locale: value }); close(); app.openScreen('teacher.panel'); });
 
   const toggles = flags.map(flag => {
@@ -202,20 +201,13 @@ async function panel(app: App) {
       exportStatus.hidden = false;
       downloads.replaceChildren();
       const projects = (await app.storage.list()).filter(project => !app.isTrashed(project.id));
-      for (const recovery of app.documents.recoveryProjects) {
-        const index = projects.findIndex(project => project.id === recovery.id);
-        if (index >= 0) projects.splice(index, 1, recovery);
-        else projects.push(recovery);
-      }
-      const local = app.documents.snapshot();
-      const saved = projects.find(project => project.id === local.id);
-      if (!saved && app.documents.hasWork && !app.isTrashed(local.id)) projects.unshift(local);
-      else if (saved && app.documents.hasUnsavedChanges) {
-        if (saved.updatedAt <= local.updatedAt) projects.splice(projects.indexOf(saved), 1, local);
-        else {
-          const name = local.title.trim() || t(untitled);
-          projects.unshift({ ...local, id: crypto.randomUUID(), title: t({ pt: `${name} (cópia)`, en: `${name} (copy)` }) });
-        }
+      for (const draft of app.documents.backupDrafts()) {
+        const local = draft.project;
+        if (app.isTrashed(local.id)) continue;
+        const index = projects.findIndex(project => project.id === local.id);
+        if (index < 0) projects.push(local);
+        else if (projects[index].updatedAt === draft.expectedAt) projects[index] = local;
+        else projects.push({ ...local, id: crypto.randomUUID(), title: draft.copyTitle });
       }
       if (!projects.length) {
         exportStatus.textContent = t({ pt: 'Ainda não há trabalhos para exportar.', en: 'There are no works to export yet.' });

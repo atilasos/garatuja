@@ -150,16 +150,42 @@ export class Storage {
     await done;
   }
 
+  async forget(projectId: string) {
+    const transaction = this.db.transaction('workspace', 'readwrite');
+    const done = complete(transaction);
+    const workspace = transaction.objectStore('workspace');
+    try {
+      await this.requireEpoch(transaction);
+      const recent = await result<{ projectId: string } | undefined>(workspace.get('recent'));
+      if (recent?.projectId === projectId) workspace.delete('recent');
+      await done;
+    } catch (error) {
+      await this.abort(transaction, done);
+      throw error;
+    }
+  }
+
   async save(project: ProjectRecord): Promise<void> {
     await this.saveWorks([project]);
     this.changes.postMessage(project.id);
   }
 
-  async stage(draft: Draft) {
+  async stage(draft: Draft, superseded?: string) {
     // Enqueue the whole draft synchronously. During pagehide there may be no
     // opportunity to run an IndexedDB read callback before the tab disappears.
     const transaction = this.db.transaction('drafts', 'readwrite', { durability: 'strict' });
-    transaction.objectStore('drafts').put({ ...draft, epoch: this.epoch } satisfies StoredDraft);
+    const drafts = transaction.objectStore('drafts');
+    drafts.put({ ...draft, epoch: this.epoch } satisfies StoredDraft);
+    if (superseded && superseded !== draft.id) drafts.delete(superseded);
+    transaction.commit();
+    await complete(transaction);
+  }
+
+  async discardDrafts(draft: Draft) {
+    const transaction = this.db.transaction('drafts', 'readwrite', { durability: 'strict' });
+    const drafts = transaction.objectStore('drafts');
+    drafts.delete(draft.id);
+    if (draft.previous) drafts.delete(draft.previous);
     transaction.commit();
     await complete(transaction);
   }
@@ -182,16 +208,19 @@ export class Storage {
   async write(draft: Draft): Promise<ProjectRecord>;
   async write(draft: Draft, recovery: true): Promise<ProjectRecord | undefined>;
   async write(draft: Draft, recovery = false) {
-    const transaction = this.db.transaction(['projects', 'workspace', 'drafts'], 'readwrite', { durability: 'strict' });
+    // Publishing may wait on other project revisions. Keep the emergency
+    // draft store outside that transaction so pagehide can still queue a checkpoint.
+    const transaction = this.db.transaction(recovery ? ['projects', 'workspace', 'drafts'] : ['projects', 'workspace'],
+      'readwrite', { durability: 'strict' });
     const done = complete(transaction);
     const projects = transaction.objectStore('projects');
-    const drafts = transaction.objectStore('drafts');
+    const drafts = recovery ? transaction.objectStore('drafts') : undefined;
     const { project, id, pageId, expectedAt, copyTitle, previous } = draft;
     const get = (key: string) => result<StoredProject | undefined>(projects.get(key));
     let saved: StoredProject | undefined;
     try {
       await this.requireEpoch(transaction);
-      if (recovery) {
+      if (drafts) {
         const staged = await result<StoredDraft | undefined>(drafts.get(id));
         if (!staged || staged.epoch !== this.epoch) {
           if (staged) drafts.delete(id);
@@ -219,12 +248,14 @@ export class Storage {
         projects.put(saved);
         if (pageId !== undefined) transaction.objectStore('workspace').put({ projectId: saved.id, pageId }, 'recent');
       }
-      drafts.delete(id);
+      drafts?.delete(id);
+      if (previous) drafts?.delete(previous);
     } catch (error) {
       await this.abort(transaction, done);
       throw error;
     }
     await done;
+    if (!drafts) void this.discardDrafts(draft).catch(error => console.error(error));
     this.changes.postMessage(saved.id);
     return saved;
   }

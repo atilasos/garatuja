@@ -36,6 +36,9 @@ export class Documents {
   private timer?: number;
   private writing?: Promise<boolean>;
   private inFlight?: Draft;
+  private staged?: Draft;
+  private discarding = false;
+  private checkpointedPixels = false;
   private prepared?: { revision: number; draft: Draft };
   private stopped = false;
   private remoteId?: string;
@@ -80,6 +83,23 @@ export class Documents {
     this.schedule();
   }
 
+  rememberText(before: string) {
+    const after = this.page.text;
+    if (before !== after) this.surface.rememberWriting(() => this.editText(before), () => this.editText(after),
+      2 * (before.length + after.length));
+    this.store.set({});
+  }
+
+  rememberDetails(before: Pick<ProjectRecord, 'title' | 'author' | 'audience'>) {
+    const { title, author, audience } = this.store.get().project;
+    const after = { title, author, audience };
+    if (title !== before.title || author !== before.author || audience !== before.audience) {
+      this.surface.rememberWriting(() => this.editProject(before), () => this.editProject(after),
+        2 * (title.length + author.length + audience.length + before.title.length + before.author.length + before.audience.length));
+      this.store.set({});
+    }
+  }
+
   setWritingDraft(draft?: WritingDraft) {
     const { project, pageId } = this.store.get();
     if (JSON.stringify(this.page.writingDraft) === JSON.stringify(draft)) return;
@@ -90,6 +110,72 @@ export class Documents {
   get hasUnsavedChanges() { return this.pending; }
   get hasWork() { return this.savedAt !== undefined || this.pending; }
   get recoveryProjects() { return [...this.memory.values()].map(draft => draft.project); }
+
+  async resolveProject(entry: ProjectRecord) {
+    if (entry.id === this.store.get().project.id && this.pending) return this.snapshot();
+    return this.memory.get(entry.id)?.project ?? await this.storage.get(entry.id) ?? entry;
+  }
+
+  backupDrafts() {
+    this.input.flushPending();
+    return this.pending ? [...this.memory.values(), this.draft()] : [...this.memory.values()];
+  }
+
+  async discardForTrash(id: string) {
+    const active = id === this.store.get().project.id;
+    if (!active) {
+      const draft = this.memory.get(id);
+      if (draft) {
+        await this.storage.discardDrafts(draft);
+        this.memory.delete(id);
+        this.onSave(!this.pending && !this.memory.size);
+      }
+      return;
+    }
+    this.discarding = true;
+    this.store.set({ busy: true });
+    window.clearTimeout(this.timer);
+    try {
+      this.input.cancel();
+      await this.writing;
+      const draft = this.prepared?.draft ?? this.staged;
+      if (draft) await this.storage.discardDrafts(draft);
+      if (this.staged && this.staged.id !== draft?.id) await this.storage.discardDrafts(this.staged);
+      await this.storage.forget(id);
+      const page = createPage();
+      await this.surface.load(page);
+      this.surface.discardHistory();
+      this.savedAt = undefined;
+      this.remoteId = undefined;
+      this.pending = this.pixelsChanged = this.checkpointedPixels = false;
+      this.prepared = this.staged = undefined;
+      const replacement = createProject(page);
+      this.store.set({ project: replacement, pageId: page.id });
+      this.onSave(!this.memory.size);
+      return replacement.id;
+    } finally {
+      this.discarding = false;
+      this.store.set({ busy: false });
+      if (this.pending) this.scheduleSave();
+    }
+  }
+
+  async keepReplacement(id: string) {
+    if (this.store.get().project.id !== id || this.hasWork || this.stopped) return;
+    this.store.set({ busy: true });
+    try {
+      // Keep the replacement sheet in the gallery when there is room for it.
+      // Deleting the old work does not depend on creating this entry.
+      const saved = await this.storage.write(this.draft());
+      if (this.stopped) return;
+      this.savedAt = saved.updatedAt;
+      this.store.set({ project: saved });
+    } catch { /* The replacement sheet can stay empty in memory. */ }
+    finally {
+      this.prepared = undefined;
+      this.store.set({ busy: false });
+    }
+  }
 
   snapshot(): ProjectRecord {
     this.input.flushPending();
@@ -134,9 +220,9 @@ export class Documents {
 
   private async saveCommitted(): Promise<boolean> {
     window.clearTimeout(this.timer);
-    if (this.stopped) return false;
+    if (this.stopped || this.discarding) return false;
     if (this.writing && !await this.writing) return false;
-    if (this.stopped) return false;
+    if (this.stopped || this.discarding) return false;
     if (!this.pending) return true;
     // A waiter may have started saving another edit while this one was suspended.
     if (this.writing) return this.saveCommitted();
@@ -198,6 +284,7 @@ export class Documents {
       const previousPage = this.page;
       const changingWork = target.project.id !== current.id;
       const departingDraft = !saved && changingWork ? this.draft() : undefined;
+      if (departingDraft) this.stageCurrent();
       if (opening && target.project.id === current.id && target.project.updatedAt === current.updatedAt) {
         target = { project: current, page: current.pages.find(page => page.id === target?.page.id) ?? previousPage };
       }
@@ -212,6 +299,9 @@ export class Documents {
         const recovered = this.memory.get(target.project.id);
         this.memory.delete(target.project.id);
         this.pending = Boolean(recovered);
+        this.staged = recovered;
+        if (recovered?.pageId === target.page.id) this.prepared = { revision: this.revision, draft: recovered };
+        this.checkpointedPixels = Boolean(recovered);
         this.surface.discardHistory();
         this.savedAt = recovered ? recovered.expectedAt : opening ? target.project.updatedAt : undefined;
       } else {
@@ -265,7 +355,15 @@ export class Documents {
     this.pending = true;
     this.pixelsChanged ||= pixels;
     window.clearTimeout(this.timer);
-    if (pixels) this.store.set({});
+    if (pixels) {
+      // The first committed marks must have an independent write queued before
+      // autosave or a visibility change can open the project transaction.
+      if (!this.checkpointedPixels) {
+        this.checkpointedPixels = true;
+        this.stageCurrent();
+      }
+      this.store.set({});
+    }
     this.scheduleSave();
   }
 
@@ -276,12 +374,14 @@ export class Documents {
     }, 350);
   }
 
-  private draft(previous?: string): Draft {
+  private draft(): Draft {
     if (this.prepared?.revision === this.revision) return this.prepared.draft;
     const project = this.capture();
     const name = project.title.trim() || t({ pt: 'Sem título', en: 'Untitled' });
     const draft: Draft = {
-      id: crypto.randomUUID(), project, pageId: this.page.id, expectedAt: this.savedAt, previous, time: Date.now(),
+      id: crypto.randomUUID(), project, pageId: this.page.id, expectedAt: this.savedAt,
+      previous: this.inFlight?.id ?? this.staged?.id,
+      time: Math.max(Date.now(), (this.staged?.time ?? 0) + 1),
       copyTitle: t({ pt: `${name} (cópia)`, en: `${name} (copy)` }),
     };
     this.prepared = { revision: this.revision, draft };
@@ -295,8 +395,9 @@ export class Documents {
       const { project } = draft;
       this.inFlight = draft;
       const saved = await this.storage.write(draft);
-      if (this.stopped) return false;
+      if (this.stopped || this.discarding) return false;
       this.savedAt = saved.updatedAt;
+      if (this.staged?.id === draft.id || this.staged?.id === draft.previous) this.staged = undefined;
       const conflict = saved.id !== project.id;
       if (revision === this.revision) {
         this.prepared = undefined;
@@ -332,16 +433,24 @@ export class Documents {
     return this.saveCommitted();
   }
 
-  private stageOnExit = () => {
-    if (this.stopped) return;
-    this.input.flushPending();
-    for (const draft of this.memory.values()) void this.storage.stage(draft).catch(error => console.error(error));
-    if (!this.pending) return;
+  private stageCurrent() {
     try {
-      const draft = this.draft(this.inFlight?.id);
-      void this.storage.stage(draft).catch(error => console.error(error));
+      const draft = this.draft();
+      const previous = this.staged;
+      this.staged = draft;
+      void this.storage.stage(draft, previous?.id).catch(error => {
+        if (this.staged === draft) this.staged = previous;
+        console.error(error);
+      });
     } catch (error) {
       console.error(error);
     }
+  }
+
+  private stageOnExit = () => {
+    if (this.stopped || this.discarding) return;
+    this.input.flushPending();
+    for (const draft of this.memory.values()) void this.storage.stage(draft).catch(error => console.error(error));
+    if (this.pending) this.stageCurrent();
   };
 }

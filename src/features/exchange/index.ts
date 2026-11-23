@@ -87,9 +87,7 @@ export default {
         if (!entry) return;
         gallery.notice(preparing);
         try {
-          const current = app.documents.snapshot();
-          const project = current.id === entry.id && app.documents.hasUnsavedChanges ? current
-            : app.documents.recoveryProjects.find(work => work.id === entry.id) ?? await app.storage.get(entry.id) ?? entry;
+          const project = await app.documents.resolveProject(entry);
           const file = await serializeWorks([project]);
           if (!gallery.isOpen()) return;
           download(file, project.title, 'garatuja');
