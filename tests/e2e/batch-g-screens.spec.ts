@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /** Documentation screenshots: run with GARATUJA_CAPTURE_SCREENS=1. */
+test.setTimeout(120_000);
 test.skip(process.env.GARATUJA_CAPTURE_SCREENS !== '1', 'Screenshots are only captured on request');
 
 const sizes = [[1366, 768], [1024, 768]] as const;
@@ -49,7 +50,7 @@ for (const [width, height] of sizes) {
   test(`batch G screens at ${width}×${height}`, async ({ page }) => {
     await ready(page, width, height);
     await page.getByRole('button', { name: 'Novo', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Novo trabalho' }).getByRole('button', { name: 'Céu' }).click();
+    await page.getByRole('dialog', { name: 'Novo trabalho' }).getByRole('button', { name: 'Céu', exact: true }).click();
     await shot(page, `new-${width}x${height}`);
     await page.getByRole('dialog', { name: 'Novo trabalho' }).locator('[data-starter="cycle"]').scrollIntoViewIfNeeded();
     await shot(page, `new-scrolled-${width}x${height}`);
@@ -57,7 +58,7 @@ for (const [width, height] of sizes) {
 
     await seed(page);
     await page.getByRole('button', { name: 'Abrir', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'Abrir trabalho' }).getByRole('listitem')).toHaveCount(7);
+    await expect(page.getByRole('dialog', { name: 'Abrir trabalho' }).getByRole('listitem')).toHaveCount(7, { timeout: 15_000 });
     await shot(page, `gallery-${width}x${height}`);
     await page.getByRole('dialog', { name: 'Abrir trabalho' }).getByRole('button', { name: 'Apagar' }).nth(1).click();
     await shot(page, `gallery-confirm-${width}x${height}`);
@@ -66,9 +67,17 @@ for (const [width, height] of sizes) {
     await page.getByRole('button', { name: 'Anular' }).click();
     await page.keyboard.press('Escape');
 
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Novo', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Novo trabalho' }).locator('[data-starter="scene-meadow"]').click();
+    await page.getByRole('button', { name: 'Começar' }).click();
+    await page.getByRole('textbox', { name: 'Título' }).fill('A minha horta');
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-    await page.evaluate(() => window.__garatuja?.app.documents.editProject({ audience: '' }));
-    await page.keyboard.press('Escape');
+    const invite = page.getByRole('dialog', { name: 'Guardado no dispositivo' });
+    await invite.getByRole('button', { name: 'A turma', exact: true }).click();
+    await shot(page, `save-${width}x${height}`);
+    await invite.getByRole('button', { name: 'Agora não' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Definições' }).click();
     await shot(page, `settings-${width}x${height}`);
