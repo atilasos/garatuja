@@ -8,7 +8,7 @@ function button(page: Page, name: string) {
 
 function stats(values: number[]) {
   const sorted = values.toSorted((a, b) => a - b);
-  return { median: Math.round(sorted[Math.floor(sorted.length / 2)]), min: Math.round(sorted[0]), max: Math.round(sorted.at(-1) ?? 0) };
+  return { p95: Math.round(sorted[Math.ceil(sorted.length * .95) - 1]), median: Math.round(sorted[Math.floor(sorted.length / 2)]), min: Math.round(sorted[0]), max: Math.round(sorted.at(-1) ?? 0) };
 }
 
 test('measures the drawing desk at Chromium CPU 4× slowdown', async ({ page, context }) => {
@@ -55,8 +55,14 @@ test('measures the drawing desk at Chromium CPU 4× slowdown', async ({ page, co
     await button(page, 'Desfazer').click();
     await button(page, 'Encher').click();
     await button(page, 'Azul').click();
-    fill.push(await measure('pointerdown', () => page.mouse.click(x, y)));
-    expect(await page.evaluate(() => window.__garatuja?.pixel(800, 600))).toEqual([73, 125, 187, 255]);
+    for (let sample = 0; sample < 4; sample++) {
+      fill.push(await measure('pointerdown', () => page.mouse.click(x, y)));
+      expect(await page.evaluate(() => window.__garatuja?.pixel(800, 600))).toEqual([73, 125, 187, 255]);
+      if (sample < 3) {
+        await button(page, 'Desfazer').click();
+        expect(await page.evaluate(() => window.__garatuja?.pixel(800, 600))).toEqual([255, 255, 255, 255]);
+      }
+    }
 
     await button(page, 'Magia').click();
     await button(page, 'Negativo').click();
@@ -98,6 +104,7 @@ test('measures the drawing desk at Chromium CPU 4× slowdown', async ({ page, co
     const rect = await page.locator('.sheet').boundingBox();
     sheets.push({ width, height, sheetWidth: rect?.width, sheetHeight: rect?.height });
   }
+  expect(stats(fill).p95).toBeLessThan(150);
   console.log('GARATUJA_BENCHMARK', JSON.stringify({
     cold: stats(cold.slice(0, 1)), reload: stats(cold.slice(1)), stroke: stats(stroke), fill: stats(fill),
     negative: stats(magic), switchPage: stats(switchPage), sheets,

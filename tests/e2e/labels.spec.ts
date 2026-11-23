@@ -264,6 +264,7 @@ test('dragging from the target to the text makes an arrow; the round handle re-a
   const [label] = await labelsOf(page);
   expect(label.target?.x).toBeCloseTo(500, -1);
   expect(label.target?.y).toBeCloseTo(800, -1);
+  await page.getByRole('button', { name: /Legenda com seta: flor/ }).focus();
   const handle = page.locator('.label-handle');
   await expect(handle).toBeVisible();
   const box = await handle.boundingBox();
@@ -337,6 +338,7 @@ test('changing the kind, colour and size of a selected label edits it as one und
   await choose(page, 'Legenda');
   await makeLabel(page, 'Legenda com seta', [800, 500], 'casa');
   expect((await labelsOf(page))[0].kind).toBe('callout');
+  await page.getByRole('button', { name: /Legenda com seta: casa/ }).focus();
   await choose(page, 'Balão de fala');
   expect(await labelsOf(page)).toMatchObject([{ kind: 'balloon', shape: 'speech', text: 'casa' }]);
   await choose(page, 'Vermelho');
@@ -358,6 +360,7 @@ test('delete, copy and stick-to-paper are single undo steps; painting tools leav
   await ready(page);
   await choose(page, 'Legenda');
   await makeLabel(page, 'Legenda com seta', [800, 500], 'caule');
+  await page.getByRole('button', { name: /Legenda com seta: caule/ }).focus();
   await choose(page, 'Duplicar');
   let labels = await labelsOf(page);
   expect(labels).toHaveLength(2);
@@ -416,7 +419,12 @@ test('labels are keyboard operable: Tab, arrows, Enter, Delete', async ({ page }
   await page.keyboard.type('!');
   await page.keyboard.press('Control+Enter');
   expect((await labelsOf(page))[1].text).toBe('dois!');
-  await expect(page.getByRole('button', { name: /Legenda com seta: dois!/ })).toBeFocused();
+  const second = page.getByRole('button', { name: /Legenda com seta: dois!/ });
+  await expect(second).toHaveAttribute('aria-pressed', 'false');
+  await sheet.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expect(second).toBeFocused();
   await page.keyboard.press('Delete');
   expect(await labelsOf(page)).toHaveLength(1);
   for (const name of ['Escrever', 'Duplicar', 'Apagar', 'Colar na folha']) {
@@ -515,6 +523,9 @@ test('a label can be created from the keyboard alone', async ({ page }) => {
   await page.keyboard.press('Control+Enter');
   const [label] = await labelsOf(page);
   expect(label.text).toBe('teclado');
+  await expect(field).toBeHidden();
+  await page.getByRole('group', { name: 'Folha de desenho' }).focus();
+  await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: /Legenda com seta: teclado/ })).toBeFocused();
 });
 
@@ -523,6 +534,7 @@ test('tapping empty paper lets go of a selected label before starting another', 
   await choose(page, 'Legenda');
   await makeLabel(page, 'Legenda com seta', [700, 400], 'um ramo');
   const label = page.getByRole('button', { name: /um ramo/ });
+  await label.focus();
   await expect(label).toHaveAttribute('aria-pressed', 'true');
   await tap(page, 300, 900);
   await expect(label).toHaveAttribute('aria-pressed', 'false');

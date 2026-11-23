@@ -125,7 +125,7 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
     closing = true;
     if (!feedback) { close(); return; }
     app.run(async () => {
-      await app.documents.save();
+      await app.documents.save(false);
       close();
     });
   }

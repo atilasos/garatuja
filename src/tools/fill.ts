@@ -3,6 +3,7 @@ import { showCrossCursor } from '../core/tooling/brush-stroke';
 import {
   defaultGradient, drawFillSample, fillModes, fillPainter, gradientModes, type FillMode, type Gradient,
 } from '../core/tooling/fill-styles';
+import { rgbToHex } from '../core/draw';
 import { viewport } from '../core/canvas';
 import type { L10n, PaintPointer, Point, Tool, ToolContext } from '../core/types';
 import { icons } from '../ui/icons';
@@ -81,7 +82,9 @@ function start(p: PaintPointer, c: ToolContext) {
     c.ctx.fillStyle = c.color;
     c.ctx.fillRect(0, 0, c.width, c.height);
     c.ctx.restore();
-    c.markAllDirty();
+    const before = rgbToHex({ r: source.data[0], g: source.data[1], b: source.data[2] });
+    if (c.markSolidChange) c.markSolidChange(before, c.color);
+    else c.markAllDirty();
     c.sound('fill');
     return;
   }
@@ -106,6 +109,7 @@ export default {
       preview: (ctx, w, h, color) => drawFillSample(ctx, w, h, mode, color),
     })),
   }],
+  tapOnly: c => !gradientModes.has(c.opt<FillMode>('mode')),
   down(p, c) { c.clearOverlay(); start(p, c); },
   move(p, _previous, c) { if (pending) preview(c, pending, p); },
   up(p, c) {

@@ -141,6 +141,7 @@ export interface ToolContext {
   opt<T extends string | number | boolean>(id: string): T;
   markDirty(r: Rect): void;
   markAllDirty(): void;
+  markSolidChange?(before: string, after: string): void;
   clearOverlay(): void;
   /**
    * Close the current undo step now. The engine calls this automatically on
@@ -170,6 +171,10 @@ export interface Tool {
   usesColor: boolean;
   options?: OptionSpec[];
   manualCommit?: boolean;
+  /** A tap tool ends on the first activation, including in fixed-click mode. */
+  tapOnly?(c: ToolContext): boolean;
+  /** Settle state that outlives a pointer gesture before leaving the tool or taking a snapshot. */
+  flushPending?(c: ToolContext): void;
   optionHint?(option: (id: string) => string | number | boolean): L10n;
   onSelect?(c: ToolContext): void;
   onDeselect?(c: ToolContext): void;
@@ -181,7 +186,7 @@ export interface Tool {
   hover?(p: PaintPointer, c: ToolContext): void;
   /** Refresh a preview that is waiting for another pointer gesture. */
   updatePending?(c: ToolContext): void;
-  /** Gesture aborted (second finger, Escape, tool switch). Default: rollback. */
+  /** Gesture aborted (second finger or Escape). Default: rollback. */
   cancel?(c: ToolContext): void;
   /** Return true when the key was handled. */
   key?(e: KeyboardEvent, c: ToolContext): boolean;
@@ -285,6 +290,13 @@ export interface StarterDef {
 /* Documents                                                           */
 /* ------------------------------------------------------------------ */
 
+export interface WritingDraft extends Point {
+  text: string;
+  font: string;
+  size: number;
+  color: string;
+}
+
 /** One page = one picture. A story is several pages; an animation is several pages played fast. */
 export interface PageRecord {
   id: string;
@@ -297,6 +309,7 @@ export interface PageRecord {
   /** The child's text that this page illustrates. */
   text: string;
   thumb: Blob;
+  writingDraft?: WritingDraft;
 }
 
 export interface ProjectRecord {

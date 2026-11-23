@@ -13,7 +13,7 @@ export function mixColor(app: App) {
   input.value = app.store.get().color;
   const title = { pt: 'Misturar cor', en: 'Mix color' };
   const close = app.modal({
-    title, preservePending: true, content: h('div', 'dialog-stack',
+    title, content: h('div', 'dialog-stack',
       h('label', 'work-field', h('span', '', t({ pt: 'A tua cor', en: 'Your color' })), input),
       button({ pt: 'Usar esta cor', en: 'Use this color' }, icons.custom, () => { app.setColor(input.value); close(); }, 'primary')),
   });

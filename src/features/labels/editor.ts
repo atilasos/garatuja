@@ -91,9 +91,6 @@ export class LabelEditor {
       layer.setMode('label');
       this.wire();
     }
-    // Capture phase: settle an unfinished label before Documents flushes the page.
-    window.addEventListener('pagehide', () => this.finish(true), true);
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.finish(true); }, true);
   }
 
   /** The text field is shared with the Texto tool: point its callbacks at labels. */
@@ -149,7 +146,6 @@ export class LabelEditor {
   }
 
   onState(state: State, previous: State) {
-    if (state.busy && !previous.busy) this.finish(true);
     if (state.pageId !== previous.pageId) {
       this.selectedId = undefined;
       this.syncChrome();
@@ -286,7 +282,7 @@ export class LabelEditor {
     this.session = { label: structuredClone(label), isNew: false, center };
     this.selectedId = id;
     layer.field.open(label.text);
-    this.repaint();
+    this.typed(layer.field.value);
     this.app?.say(words.typing);
   }
 
@@ -312,14 +308,27 @@ export class LabelEditor {
   }
 
   /** Close the typing session. Returns true when there was one. */
-  finish(commit: boolean): boolean {
+  finish(commit: boolean, remember = true): boolean {
     const session = this.session;
     if (!session) return false;
     this.session = undefined;
     this.layer?.field.close();
     const label = { ...session.label, text: session.label.text.replace(/\s+$/, '') };
-    let keep: string | undefined;
-    if (!commit) keep = session.isNew ? undefined : label.id;
+    this.selectedId = undefined;
+    if (!commit) {
+      const app = this.app;
+      if (app && remember && session.label.text) {
+        app.surface.rememberWriting(() => {
+          app.chooseTool('label');
+          if (app.tool.id !== 'label') return;
+          this.session = structuredClone(session);
+          this.selectedId = label.id;
+          this.layer?.field.open(session.label.text);
+          this.repaint();
+          app.say(words.typing);
+        }, () => this.finish(false, false), session.label.text.length * 2);
+      }
+    }
     else if (!label.text.trim()) {
       if (!session.isNew) this.mutate(store => store.remove(label.id));
     } else {
@@ -328,12 +337,9 @@ export class LabelEditor {
         label.target = defaultTarget(layout.bounds, label.size);
       }
       this.mutate(store => store.list().some(item => item.id === label.id) ? store.update(label.id, label) : store.add(label));
-      keep = label.id;
     }
-    this.selectedId = keep;
     this.repaint();
-    if (keep && commit) this.layer?.focusItem(keep);
-    if (this.app?.tool.id === 'label') this.app.say(keep ? words.selected : this.app.tool.hint);
+    if (this.app?.tool.id === 'label') this.app.say(this.app.tool.hint);
     return true;
   }
 

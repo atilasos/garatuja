@@ -42,6 +42,7 @@ export default {
     { kind: 'toggle', id: 'flip', label: { pt: 'Virar', en: 'Flip' }, icon: icons.flip, default: false },
     { kind: 'size', id: 'angle', label: { pt: 'Rotação', en: 'Rotation' }, steps: angles, default: 0 },
   ],
+  tapOnly: () => true,
   down(p, c) { draw(p, c, true); },
   move(p, _previous, c) { draw(p, c, true); },
   up(p, c) { draw(p, c, false); },

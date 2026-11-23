@@ -321,5 +321,6 @@ export default {
       if (drag?.mode === 'outside' && distance(p, drag.start) < markers(state.selection, c).unit * 10) editSelection('drop');
     }
   },
+  flushPending() { editSelection('drop'); },
   cancel(c) { finish(c, false); },
 } satisfies Tool;

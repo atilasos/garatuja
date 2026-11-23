@@ -14,7 +14,9 @@ async function base64(blob: Blob) {
   return btoa(chunks.join(''));
 }
 
-export async function serializeWorks(projects: readonly ProjectRecord[]) {
+class ArchiveTooLarge extends Error {}
+
+export async function serializeWorks(projects: readonly ProjectRecord[], limit = maxFileBytes) {
   if (!projects.length) throw new Error('No work to export');
   const assets: string[] = [];
   const blobs = new Map<Blob, number>();
@@ -29,7 +31,7 @@ export async function serializeWorks(projects: readonly ProjectRecord[]) {
     const index = existing ?? assets.length;
     if (existing === undefined) {
       encodedSize += png.length;
-      if (encodedSize > maxFileBytes) throw new Error('The file is too large');
+      if (encodedSize > limit) throw new ArchiveTooLarge('The file is too large');
       assets.push(png);
       indexes.set(png, index);
     }
@@ -41,16 +43,61 @@ export async function serializeWorks(projects: readonly ProjectRecord[]) {
   for (const { title, author, audience, fps, comments, pages } of projects) {
     if (!pages.length || pages.length > maxPages) throw new Error('Unsupported page count');
     const records = [];
-    for (const { text, labels, bitmap, paper, foreground, thumb } of pages) {
-      records.push({ text, labels, bitmap: await asset(bitmap), paper: await asset(paper),
+    for (const { text, labels, bitmap, paper, foreground, thumb, writingDraft } of pages) {
+      records.push({ text, labels, writingDraft, bitmap: await asset(bitmap), paper: await asset(paper),
         foreground: foreground && await asset(foreground), thumb: await asset(thumb) });
     }
     works.push({ title, author, audience, fps, comments, pages: records });
   }
   const file = new Blob([JSON.stringify({ format, version, works, assets })],
     { type: 'application/json' });
-  if (file.size > maxFileBytes) throw new Error('The file is too large');
+  if (file.size > limit) throw new ArchiveTooLarge('The file is too large');
   return file;
+}
+
+export async function archiveVolumes(projects: readonly ProjectRecord[], progress: (works: number) => void, limit = maxFileBytes) {
+  const volumes: Blob[] = [];
+  let batch: ProjectRecord[] = [];
+  let estimated = 0;
+  const estimate = (project: ProjectRecord) => {
+    const assets = new Set<Blob>();
+    for (const page of project.pages) {
+      for (const blob of [page.bitmap, page.paper, page.foreground, page.thumb]) if (blob) assets.add(blob);
+    }
+    return [...assets].reduce((sum, blob) => sum + 4 * Math.ceil(blob.size / 3), 0);
+  };
+  async function pack(works: ProjectRecord[]): Promise<void> {
+    try {
+      volumes.push(await serializeWorks(works, limit));
+    } catch (error) {
+      if (!(error instanceof ArchiveTooLarge)) throw error;
+      if (works.length > 1) {
+        const middle = Math.ceil(works.length / 2);
+        await pack(works.slice(0, middle));
+        await pack(works.slice(middle));
+        return;
+      }
+      const work = works[0];
+      if (work.pages.length < 2) throw error;
+      const middle = Math.ceil(work.pages.length / 2);
+      await pack([{ ...work, pages: work.pages.slice(0, middle) }]);
+      await pack([{ ...work, comments: [], pages: work.pages.slice(middle) }]);
+    }
+  }
+  for (const [index, project] of projects.entries()) {
+    const size = estimate(project);
+    if (batch.length && estimated + size > limit) {
+      await pack(batch);
+      progress(index);
+      batch = [];
+      estimated = 0;
+    }
+    batch.push(project);
+    estimated += size;
+  }
+  if (batch.length) await pack(batch);
+  progress(projects.length);
+  return volumes;
 }
 
 function requireValue(value: unknown): asserts value {
@@ -75,6 +122,13 @@ function finite(value: unknown) {
 function array(value: unknown): unknown[] {
   requireValue(Array.isArray(value));
   return value;
+}
+
+function parseWritingDraft(value: unknown) {
+  const draft = record(value);
+  const size = finite(draft.size);
+  requireValue(size > 0 && size <= 300);
+  return { x: finite(draft.x), y: finite(draft.y), size, text: str(draft.text), font: str(draft.font), color: str(draft.color) };
 }
 
 function label(value: unknown): LabelObject {
@@ -140,8 +194,8 @@ export async function deserializeWorks(file: Blob, verifyImage?: (image: Blob) =
     const records = array(pages);
     requireValue(records.length > 0 && records.length <= maxPages);
     const importedPages: PageRecord[] = records.map(value => {
-      const { text, labels, bitmap, paper, foreground, thumb } = record(value);
-      return { id: crypto.randomUUID(), text: str(text), labels: array(labels).map(label), bitmap: png(bitmap),
+      const { text, labels, bitmap, paper, foreground, thumb, writingDraft } = record(value);
+      return { id: crypto.randomUUID(), writingDraft: writingDraft === undefined ? undefined : parseWritingDraft(writingDraft), text: str(text), labels: array(labels).map(label), bitmap: png(bitmap),
         paper: png(paper), foreground: foreground === undefined ? undefined : png(foreground), thumb: png(thumb, true) };
     });
     const speed = finite(fps);

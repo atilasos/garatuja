@@ -48,9 +48,10 @@ export default {
   options: [typeOption, fontOption, sizeOption(labelSizes, 60)],
   onSelect(c) { labelEditor.activate(c); },
   onDeselect() { drag = undefined; labelEditor.deactivate(); },
+  flushPending() { labelEditor.finish(true); },
   down(p, c) {
     const editor = labelEditor;
-    const wasTyping = editor.finish(true);
+    editor.finish(true);
     const selected = editor.selected();
     if (selected?.target && hasTarget(variantOf(selected)) && Math.hypot(p.x - selected.target.x, p.y - selected.target.y) <= grab()) {
       drag = { mode: 'target', id: selected.id };
@@ -63,7 +64,7 @@ export default {
       return;
     }
     editor.select(undefined);
-    drag = { mode: 'create', start: { x: p.x, y: p.y }, type: c.opt<LabelType>('type'), moved: false, wasSelected: !wasTyping && Boolean(selected) };
+    drag = { mode: 'create', start: { x: p.x, y: p.y }, type: c.opt<LabelType>('type'), moved: false, wasSelected: Boolean(selected) };
   },
   move(p, _previous, c) {
     if (!drag) return;

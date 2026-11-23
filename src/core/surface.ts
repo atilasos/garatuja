@@ -13,6 +13,7 @@ interface ToolBindings {
 }
 
 interface Gesture {
+  solid?: { before: string; after: string };
   dirty?: Rect;
   labels: LabelObject[];
   random(): number;
@@ -193,6 +194,10 @@ export class Surface {
     }
   }
 
+  rememberWriting(before: () => void, after: () => void, bytes: number) {
+    if (this.history.add({ writing: { before, after, bytes } })) this.trimHistory();
+  }
+
   undo() { this.restore('before'); }
   redo() { this.restore('after'); }
 
@@ -200,12 +205,19 @@ export class Surface {
     this.rollback();
     const step = direction === 'before' ? this.history.undo() : this.history.redo();
     if (!step) return;
+    if (step.writing) { step.writing[direction](); return; }
     const bitmap = step.bitmap;
     if (bitmap) {
       const { x, y, w, h } = bitmap.area;
       const image = this.ctx.getImageData(x, y, w, h);
       applyDelta(image.data, bitmap);
       this.ctx.putImageData(image, x, y);
+    }
+    if (step.solid) {
+      this.ctx.save();
+      this.ctx.fillStyle = step.solid[direction];
+      this.ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      this.ctx.restore();
     }
     if (step.labels) {
       this.labelObjects = structuredClone(step.labels[direction]);
@@ -225,10 +237,10 @@ export class Surface {
     if (!gesture) return;
     this.activeGesture = undefined;
     this.clearOverlay();
-    const bitmap = gesture.dirty ? capturePatch(this.snapshot, this.ctx, gesture.dirty) : undefined;
+    const bitmap = gesture.dirty && !gesture.solid ? capturePatch(this.snapshot, this.ctx, gesture.dirty) : undefined;
     const labels = JSON.stringify(gesture.labels) === JSON.stringify(this.labelObjects)
       ? undefined : { before: gesture.labels, after: structuredClone(this.labelObjects) };
-    if (this.history.add({ bitmap, labels })) {
+    if (this.history.add({ bitmap, labels, solid: gesture.solid })) {
       this.trimHistory();
       this.onChange();
     }
@@ -263,6 +275,11 @@ export class Surface {
       opt: <T extends string | number | boolean>(id: string) => bindings.opt(id) as T,
       markDirty: mark,
       markAllDirty: () => mark({ x: 0, y: 0, w: CANVAS_W, h: CANVAS_H }),
+      markSolidChange: (before, after) => {
+        if (!this.activeGesture || before === after) return;
+        mark({ x: 0, y: 0, w: CANVAS_W, h: CANVAS_H });
+        this.activeGesture.solid = { before, after };
+      },
       clearOverlay: () => this.clearOverlay(),
       commit: () => this.commit(),
       rollback: () => this.rollback(),

@@ -35,6 +35,7 @@ export class TextField {
   constructor() {
     const el = this.element;
     el.hidden = true;
+    el.dataset.writingInput = '';
     el.spellcheck = false;
     el.rows = 1;
     el.autocomplete = 'off';
@@ -67,7 +68,7 @@ export class TextField {
   get visible() { return !this.element.hidden; }
 
   open(value: string) {
-    this.element.value = value;
+    this.element.value = this.uppercase() ? value.toUpperCase() : value;
     this.element.hidden = false;
     this.focus();
   }

@@ -38,6 +38,10 @@ export default {
       return Boolean(effect?.stroke && effect.whole);
     },
   }],
+  tapOnly(c) {
+    const effect = magic.get(c.opt('effect'));
+    return Boolean(effect?.whole && (!effect.stroke || c.opt('whole')));
+  },
   down(p, c) {
     const effect = magic.get(c.opt('effect'));
     if (!effect) return;

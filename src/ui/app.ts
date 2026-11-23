@@ -8,7 +8,7 @@ import { PointerInput } from '../core/pointer';
 import { tools } from '../core/registry';
 import { Sounds } from '../core/sound';
 import type { Storage } from '../core/storage';
-import { readEditor, Store, type Settings } from '../core/store';
+import { readEditor, readSettings, settingsKey, Store, toolAllowed, writeSettings, type Settings } from '../core/store';
 import type { Surface } from '../core/surface';
 import type { IconSvg, L10n, OptionSpec, ProjectRecord, SoundId, Tool } from '../core/types';
 import { openModal, type ModalOptions } from './modal';
@@ -51,8 +51,8 @@ export class App {
   readonly input: PointerInput;
   private readonly recovery = new Set<HTMLElement>();
   private readonly discardDeviceData = new Set<() => void>();
+  isTrashed: (id: string) => boolean = () => false;
   private saveFailed = false;
-  finishDrawingText = () => true;
   private readonly sounds = new Sounds();
   private readonly actions = new Map<string, WorkAction>();
   private readonly optionPanels = new Map<string, (app: App) => CustomOptions>();
@@ -63,7 +63,7 @@ export class App {
     if (!fallback) throw new Error('The paint tool is required');
     const editor = readEditor({ toolId: fallback.id, color: palette[0].color, options: {} });
     const savedTool = tools.get(editor.toolId);
-    const tool = savedTool && savedTool.level <= settings.level ? savedTool : fallback;
+    const tool = savedTool && toolAllowed(settings, savedTool) ? savedTool : fallback;
     this.store = new Store({ ...editor, project, pageId, toolId: tool.id, hint: tool.hint, settings,
       busy: false, pickingColor: false, registryVersion: 0 });
     if (tool.optionHint) this.store.set({ hint: this.toolHint(tool) });
@@ -71,7 +71,15 @@ export class App {
       const { toolId, color, options } = state;
       if (toolId === previous.toolId && color === previous.color && options === previous.options) return;
       try {
-        localStorage.setItem('garatuja.editor', JSON.stringify({ toolId, color, options }));
+        if (toolId !== previous.toolId) localStorage.setItem('garatuja.editor.toolId', JSON.stringify(toolId));
+        if (color !== previous.color) localStorage.setItem('garatuja.editor.color', JSON.stringify(color));
+        for (const [scope, values] of Object.entries(options)) {
+          for (const [key, value] of Object.entries(values)) {
+            if (previous.options[scope]?.[key] !== value) {
+              localStorage.setItem('garatuja.editor.option.' + JSON.stringify([scope, key]), JSON.stringify(value));
+            }
+          }
+        }
       } catch {
         // Preference writes are optional when localStorage is unavailable.
       }
@@ -83,6 +91,9 @@ export class App {
       this.saveFailed = !ok;
       for (const notice of this.recovery) notice.hidden = ok;
     }, message => this.notify(message));
+    window.addEventListener('storage', event => {
+      if (event.key === null || event.key === settingsKey || event.key.startsWith(settingsKey + '.')) this.applySettings(readSettings());
+    });
     this.toasts.element.append(this.saveRecovery());
     storage.changes.addEventListener('message', event => {
       if (event.data !== null) return;
@@ -97,7 +108,7 @@ export class App {
       button(retry, icons.undo, () => this.run(() => this.documents.save())),
       button({ pt: 'Guardar num ficheiro', en: 'Save to a file' }, icons.save, () => this.run(async () => {
         const project = this.documents.snapshot();
-        download(await serializeWorks([project]), project.title, 'garatuja');
+        download(await serializeWorks([project, ...this.documents.recoveryProjects]), project.title, 'garatuja');
       })));
     notice.setAttribute('role', 'status');
     notice.hidden = !this.saveFailed;
@@ -191,8 +202,15 @@ export class App {
     }) ?? tool.hint;
   }
 
+  chooseTool(id: string) {
+    const tool = tools.get(id);
+    if (tool && tool.id !== this.tool.id) this.selectTool(tool);
+  }
+
   selectTool(tool: Tool) {
-    if (tool.id !== this.tool.id && !this.finishDrawingText()) return;
+    if (!toolAllowed(this.store.get().settings, tool)) return;
+    if (tool.id === this.tool.id) { this.say(this.toolHint(tool)); return; }
+    this.input.flushPending();
     this.cancelPicker();
     const hint = this.toolHint(tool);
     this.store.set({ toolId: tool.id, hint });
@@ -218,18 +236,26 @@ export class App {
   }
 
   configure(patch: Partial<Settings>) {
-    if (patch.level !== undefined || patch.fixedClick !== undefined) this.input.cancel();
-    const settings = { ...this.store.get().settings, ...patch };
+    try {
+      writeSettings(patch);
+      this.applySettings(readSettings());
+    } catch {
+      const current = this.store.get().settings;
+      this.applySettings({ ...current, ...patch, disabledTools: { ...current.disabledTools, ...patch.disabledTools } });
+      this.notify({ pt: 'As definições só ficam nesta sessão.', en: 'These settings last for this session.' });
+    }
+  }
+
+  private applySettings(settings: Settings) {
+    const previous = this.store.get().settings;
+    if (JSON.stringify(settings) === JSON.stringify(previous)) return;
+    if (previous.level !== settings.level || previous.fixedClick !== settings.fixedClick || !toolAllowed(settings, this.tool)) {
+      this.input.flushPending();
+    }
     setLocale(settings.locale);
     this.sounds.enabled = settings.sound;
     this.store.set({ settings });
-    const visible = tools.all().find(tool => tool.level <= settings.level);
-    if (this.tool.level > settings.level && visible) this.selectTool(visible);
-    try {
-      localStorage.setItem('garatuja.settings', JSON.stringify(settings));
-    } catch {
-      this.notify({ pt: 'As definições só ficam nesta sessão.', en: 'These settings last for this session.' });
-    }
+    if (!toolAllowed(settings, this.tool)) this.chooseTool('paint');
   }
 
   say(message: L10n) {
@@ -240,9 +266,9 @@ export class App {
   undo() {
     this.input.cancel();
     if (!this.surface.canUndo) return;
+    this.say({ pt: 'Voltaste atrás um passo.', en: 'You went back one step.' });
     this.surface.undo();
     this.sounds.play('undo');
-    this.say({ pt: 'Voltaste atrás um passo.', en: 'You went back one step.' });
   }
 
   redo() {
@@ -281,19 +307,24 @@ export class App {
   openScreen(id: string) {
     const screen = this.screens.get(id);
     if (!screen) throw new Error(`Unknown screen: ${id}`);
+    this.input.flushPending();
     this.run(() => screen(this));
   }
 
   refresh() { this.store.set({ registryVersion: this.store.get().registryVersion + 1 }); }
 
-  modal(options: ModalOptions & { preservePending?: boolean }) {
-    if (options.preservePending) this.input.changeAppearance(() => {});
-    else this.input.cancel();
+  modal(options: ModalOptions) {
+    this.input.flushPending();
     return openModal(options);
   }
 
   /** Play one of the interface sounds (silent when sound is off). */
   sound(id: SoundId) { this.sounds.play(id); }
+
+  confirm(message: L10n) {
+    const region = document.querySelector<HTMLElement>('dialog[open] .dialog-head') ?? document.querySelector<HTMLElement>('#app .help');
+    if (region) this.toasts.confirm(message, region);
+  }
 
   notify(message: L10n, action?: ToastAction) { return this.toasts.show(message, action); }
 }

@@ -1,7 +1,7 @@
 import { t } from '../../core/i18n';
 import { clamp, fontMetrics, layoutPlain, measureContext } from '../../core/labels';
 import type { State } from '../../core/store';
-import { CANVAS_H, CANVAS_W, type L10n, type Point, type Rect, type ToolContext } from '../../core/types';
+import { CANVAS_H, CANVAS_W, type L10n, type Point, type Rect, type ToolContext, type WritingDraft } from '../../core/types';
 import { ensureGlyphs } from '../../fonts/load';
 import { fontDefs } from '../../fonts/stacks';
 import type { App } from '../../ui/app';
@@ -45,8 +45,6 @@ export class BitmapText {
   attach(app: App, layer: LabelLayer) {
     this.app = app;
     this.layer = layer;
-    window.addEventListener('pagehide', () => this.land(), true);
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.land(); }, true);
     if (this.active) {
       layer.setMode('text');
       this.wire();
@@ -61,7 +59,7 @@ export class BitmapText {
   }
 
   deactivate() {
-    this.land();
+    this.close();
     this.active = false;
     this.layer?.setMode('none');
   }
@@ -83,7 +81,7 @@ export class BitmapText {
 
   onState(state: State, previous: State) {
     if (!this.active) return;
-    if (state.busy && !previous.busy) this.land();
+    if (state.pageId !== previous.pageId) this.close();
     if (this.session) {
       if (state.settings.locale !== previous.settings.locale) this.barKey = '';
       this.restyle();
@@ -185,15 +183,55 @@ export class BitmapText {
     return false;
   }
 
-  cancel() {
+  private draft(): WritingDraft | undefined {
+    if (!this.session || !this.app || !this.layer) return;
+    return { ...this.session, ...values(this.app.store.get()), text: this.layer.field.value };
+  }
+
+  flush() {
+    if (!this.session) return;
+    const changed = JSON.stringify(this.app?.documents.page.writingDraft) !== JSON.stringify(this.draft());
+    if (!this.land(changed)) this.app?.documents.setWritingDraft(this.draft());
+  }
+
+  resume(draft: WritingDraft) {
+    const app = this.app;
+    if (!app || !this.layer || this.session) return;
+    app.setOption('font', draft.font);
+    app.setOption('size', draft.size);
+    app.setColor(draft.color);
+    this.session = { x: draft.x, y: draft.y };
+    this.layer.field.open(draft.text);
+    this.restyle();
+    app.say(words.typing);
+  }
+
+  private close() {
+    if (!this.session) return;
     this.session = undefined;
     this.layer?.field.close();
     this.layer?.setBar([]);
-    this.app?.surface.element.focus({ preventScroll: true });
+  }
+
+  cancel(remember = true) {
+    const app = this.app;
+    const draft = this.draft();
+    this.close();
+    if (!app) return;
+    app.documents.setWritingDraft();
+    if (remember && draft?.text) {
+      app.surface.rememberWriting(() => {
+        app.chooseTool('text');
+        if (app.tool.id === 'text') this.resume(draft);
+        else app.documents.setWritingDraft(draft);
+      }, () => this.cancel(false), draft.text.length * 2);
+    }
+    app.surface.element.focus({ preventScroll: true });
+    app.say(app.toolHint());
   }
 
   /** Paint the typed text into the bitmap. Returns true when something was painted. */
-  land(): boolean {
+  land(warn = true): boolean {
     const layer = this.layer;
     const app = this.app;
     const g = this.geometry();
@@ -203,13 +241,14 @@ export class BitmapText {
     const plain = layoutPlain(text, g.v.font, g.v.size, g.maxWidth, measureContext());
     const rect = this.bounds(g.session, g.maxWidth, plain);
     if (text.trim() && (rect.h > CANVAS_H - edge * 2 || plain.width > rect.w)) {
-      app.say(words.tooLarge);
-      app.notify(words.tooLarge);
+      if (warn) {
+        app.say(words.tooLarge);
+        app.notify(words.tooLarge);
+      }
       return false;
     }
-    this.session = undefined;
-    layer.field.close();
-    layer.setBar([]);
+    this.close();
+    app.documents.setWritingDraft();
     if (!text.trim()) return false;
     const surface = app.surface;
     surface.begin();

@@ -8,6 +8,14 @@ export interface ToastAction { label: L10n; run(): void }
 export class Toasts {
   readonly element = h('div', 'toasts');
 
+  confirm(message: L10n, region: HTMLElement) {
+    const status = h('span', 'success-message', t(message));
+    status.setAttribute('role', 'status');
+    region.querySelector('.success-message')?.remove();
+    region.append(status);
+    window.setTimeout(() => status.remove(), 4000);
+  }
+
   /** Returns a function that removes the message early. */
   show(message: L10n, action?: ToastAction) {
     const status = h('span', 'toast-message');

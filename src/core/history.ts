@@ -13,6 +13,8 @@ interface BitmapDelta {
 }
 
 interface Step {
+  solid?: { before: string; after: string };
+  writing?: { before(): void; after(): void; bytes: number };
   bitmap?: BitmapDelta;
   labels?: { before: LabelObject[]; after: LabelObject[] };
 }
@@ -77,7 +79,7 @@ export function applyDelta(data: Uint8ClampedArray, { xor }: BitmapDelta) {
 }
 
 function bytes(step: Step) {
-  return (step.bitmap?.xor.byteLength ?? 0) + (step.labels ? JSON.stringify(step.labels).length * 2 : 0);
+  return (step.writing?.bytes ?? 0) + (step.bitmap?.xor.byteLength ?? 0) + (step.labels ? JSON.stringify(step.labels).length * 2 : 0);
 }
 
 export const HISTORY_BUDGET = 168 * 1024 * 1024;
@@ -93,7 +95,7 @@ export class History {
   get canRedo() { return this.future.length > 0; }
 
   add(step: Step): boolean {
-    if (!step.bitmap && !step.labels) return false;
+    if (!step.bitmap && !step.labels && !step.writing && !step.solid) return false;
     for (const undone of this.future) this.retainedBytes -= bytes(undone);
     this.future = [];
     this.past.push(step);

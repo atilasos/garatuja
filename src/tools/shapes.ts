@@ -214,5 +214,12 @@ export default {
     else showCrossCursor(c, p);
   },
   updatePending(c) { showPending(c); },
+  flushPending(c) {
+    if (!placed) return;
+    const { shape, box, heading } = dragBox(placed.from, placed.to, c);
+    placed = undefined;
+    start = undefined;
+    place(c, shape, box, heading, angle);
+  },
   cancel() { start = undefined; placed = undefined; angle = 0; turning = false; },
 } satisfies Tool;

@@ -8,6 +8,7 @@ export class PointerInput {
   private active?: { id: number; previous: PaintPointer; activeTool: ActiveTool; fixed: boolean };
   private readonly touches = new Set<number>();
   private selected: ActiveTool;
+  private flushing = false;
   private keyboardPoint = { x: CANVAS_W / 2, y: CANVAS_H / 2 };
   pickColor?: (point: Point) => void;
 
@@ -35,10 +36,24 @@ export class PointerInput {
   }
 
   select(next: ActiveTool) {
-    this.cancel();
     this.selected.tool.onDeselect?.(this.selected.context);
     this.selected = next;
     next.tool.onSelect?.(next.context);
+  }
+
+  flushPending() {
+    if (this.flushing) return;
+    this.flushing = true;
+    try {
+      const sequence = this.active;
+      if (sequence) {
+        this.finish(sequence.previous);
+        if (this.surface.element.hasPointerCapture(sequence.id)) this.surface.element.releasePointerCapture(sequence.id);
+      }
+      this.selected.tool.flushPending?.(this.selected.context);
+    } finally {
+      this.flushing = false;
+    }
   }
 
   cancel() {
@@ -57,7 +72,7 @@ export class PointerInput {
       update();
       tool.updatePending(context);
     } else {
-      this.cancel();
+      if (this.active || this.surface.inGesture) this.flushPending();
       update();
     }
   }
@@ -104,6 +119,7 @@ export class PointerInput {
         this.surface.begin();
         this.active = { id: -1, previous: point, activeTool: this.selected, fixed: false };
         this.selected.tool.down(point, this.selected.context);
+        if (this.selected.tool.tapOnly?.(this.selected.context)) this.finish(point);
       }
     }
     return point;
@@ -133,7 +149,7 @@ export class PointerInput {
       this.pickColor(point);
       return;
     }
-    const fixed = this.fixedClick();
+    const fixed = this.fixedClick() && !this.selected.tool.tapOnly?.(this.selected.context);
     this.active = { id: event.pointerId, previous: point, activeTool: this.selected, fixed };
     this.surface.begin();
     this.surface.element.setPointerCapture(event.pointerId);

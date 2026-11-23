@@ -1,7 +1,7 @@
 import { crc32, deflateSync } from 'node:zlib';
 import { expect, test } from 'vitest';
 import type { ProjectRecord } from '../../src/core/types';
-import { deserializeWorks, serializeWorks } from '../../src/features/exchange/format';
+import { archiveVolumes, deserializeWorks, serializeWorks } from '../../src/features/exchange/format';
 
 function chunk(type: string, contents: Uint8Array) {
   const name = Buffer.from(type);
@@ -57,4 +57,24 @@ test('rejects malformed JSON, missing pages, out-of-range assets and wrong PNG d
   const json = await file.text();
   await expect(deserializeWorks(new Blob([json.replace('"bitmap":0', '"bitmap":999')]))).rejects.toThrow();
   await expect(deserializeWorks(new Blob([json.replace('"thumb":1', '"thumb":0')]))).rejects.toThrow();
+});
+
+test('makes each volume independently importable and reports progress', async () => {
+  const works = ['Mar', 'Terra', 'Céu'].map(title => ({ ...work(), title }));
+  const limit = (await serializeWorks(works.slice(0, 1))).size + 10;
+  const progress: number[] = [];
+  const files = await archiveVolumes(works, count => progress.push(count), limit);
+  expect(files).toHaveLength(3);
+  expect(files.every(file => file.size <= limit)).toBe(true);
+  const imported = await Promise.all(files.map(file => deserializeWorks(file)));
+  expect(imported.flat().map(work => work.title)).toEqual(['Mar', 'Terra', 'Céu']);
+  expect(progress).toEqual([1, 2, 3]);
+});
+
+test('preserves an unplaced writing draft in an archive', async () => {
+  const original = work();
+  const writingDraft = { x: 40, y: 32, size: 84, font: 'andika', color: '#112233', text: 'Uma frase\n'.repeat(40) };
+  original.pages[0].writingDraft = writingDraft;
+  const [imported] = await deserializeWorks(await serializeWorks([original]));
+  expect(imported.pages[0].writingDraft).toEqual(writingDraft);
 });
