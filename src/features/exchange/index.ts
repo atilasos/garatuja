@@ -64,21 +64,34 @@ function chooseArchive(app: App, gallery: GalleryContext) {
   input.click();
 }
 
+const exportedImage: L10n = { pt: 'A imagem desta página está nas transferências.', en: 'The picture of this page is in your downloads.' };
+
+/** Download the current page, with its guide lines and labels, as a PNG picture. */
+function exportPicture(app: App) {
+  app.input.flushPending();
+  const canvas = viewport();
+  app.surface.composite(canvas);
+  download(png(canvas.canvas), app.store.get().project.title, 'png');
+}
+
 export default {
   id: 'exchange',
-  mount() {
+  mount(app: App) {
+    app.registerAction({
+      id: 'export', label: { pt: 'Exportar', en: 'Export' }, icon: pageIcons.download, placement: 'files', order: 35,
+      hint: { pt: 'Guarda esta página como imagem para a levares contigo.', en: 'Save this page as a picture to take with you.' },
+      run(app) {
+        exportPicture(app);
+        app.confirm(exportedImage);
+      },
+    });
     galleryActions.add({
       id: 'import-archive', scope: 'gallery', label: importLabel, icon: icons.open,
       available: app => app.store.get().settings.allowImport, run: chooseArchive,
     });
     galleryActions.add({
       id: 'export-png', scope: 'gallery', label: { pt: 'Guardar página em PNG', en: 'Save page as PNG' }, icon: pageIcons.download,
-      run(app) {
-        app.input.flushPending();
-        const canvas = viewport();
-        app.surface.composite(canvas);
-        download(png(canvas.canvas), app.store.get().project.title, 'png');
-      },
+      run: exportPicture,
     });
     galleryActions.add({
       id: 'export-archive', scope: 'project', label: exportLabel, icon: pageIcons.download,
