@@ -129,7 +129,8 @@ input:not([type="checkbox"]), select, textarea {
 }
 
 .sheet {
-  width: min(100cqw, 133.333cqh);
+  flex: none;
+  width: min(100cqw, (100cqh - var(--strip-space, 0px)) * 4 / 3);
   aspect-ratio: 4 / 3;
   position: relative;
   background: white;
@@ -154,6 +155,7 @@ input:not([type="checkbox"]), select, textarea {
   --option-width: clamp(252px, 20vw, 322px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  --strip-space: 0px;
   height: 100dvh;
   padding: 6px;
   gap: 6px;
@@ -217,6 +219,7 @@ input:not([type="checkbox"]), select, textarea {
   grid-template-columns: var(--option-width) minmax(0, 1fr) var(--tool-width);
   grid-template-areas: 'options stage tools';
 }
+.workbar, .tools, .options, .options-fixed, .footer { position: relative; }
 .tools { grid-area: tools; display: flex; flex-direction: column; gap: 8px; padding: 4px; overflow: auto; scrollbar-width: thin; }
 .tool-grid, .file-actions, .history-actions {
   display: grid;
@@ -233,9 +236,18 @@ input:not([type="checkbox"]), select, textarea {
 .uppercase .tools button { font-size: clamp(.56rem, .75vw, .65rem); }
 .file-actions .icon { width: 22px; height: 22px; }
 .simple-desk .tools .tool { min-height: 68px; }
-.stage { grid-area: stage; position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; padding: 2px; }
-.sheet-area { min-width: 0; min-height: 0; container-type: size; display: grid; place-items: center; }
-#app.writing-visible { row-gap: 2px; }
+.stage { grid-area: stage; position: relative; display: grid; padding: 2px; }
+/* The paper and its writing strip travel together, centred in the space between the panels. */
+.sheet-area {
+  min-width: 0;
+  min-height: 0;
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+#app.writing-visible { row-gap: 2px; --strip-space: 48px; }
 .writing-visible .stage { padding-block: 0; }
 .writing-visible .footer { padding-block: 0; gap: 0; }
 
@@ -255,8 +267,9 @@ input:not([type="checkbox"]), select, textarea {
 .size-choice .button-label { font-size: .58rem; letter-spacing: -.02em; }
 .size-choice .icon { width: 26px; height: 26px; }
 .option-toggle { width: 100%; }
-.option-categories { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; }
-.option-categories button { flex: 1 0 auto; font-size: .75rem; padding-inline: 7px; }
+.option-categories { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 3px; }
+.option-categories > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+.option-categories button { font-size: .75rem; padding-inline: 7px; }
 .option-categories .icon { width: 21px; height: 21px; }
 .options-empty { margin: 8px; color: var(--muted); }
 .scroll-controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-top: auto; padding: 2px; }
@@ -272,14 +285,6 @@ input:not([type="checkbox"]), select, textarea {
   overflow-x: auto;
   padding: 2px;
   scrollbar-width: none;
-}
-.palette {
-  background:
-    linear-gradient(90deg, var(--panel) 35%, transparent) left center / 18px 100% local,
-    linear-gradient(270deg, var(--panel) 35%, transparent) right center / 18px 100% local,
-    linear-gradient(90deg, var(--edge), transparent) left center / 12px 100% scroll,
-    linear-gradient(270deg, var(--edge), transparent) right center / 12px 100% scroll;
-  background-repeat: no-repeat;
 }
 .swatch, .palette-action { flex-direction: column; padding: 2px 1px; gap: 2px; font-size: .64rem; letter-spacing: -.015em; }
 .paint-chip {
@@ -318,19 +323,10 @@ input:not([type="checkbox"]), select, textarea {
     grid-template-areas: 'stage' 'tools' 'options';
     align-content: start;
   }
-  .sheet-area { container-type: size; height: min(75vw - 12px, 55dvh); }
+  .sheet-area { height: calc(min(75vw - 12px, 55dvh) + var(--strip-space)); }
   .tools { position: sticky; top: 0; z-index: 1; flex-direction: row; align-items: center; overflow: hidden; gap: 4px; }
   .tool-deck { display: flex; gap: 6px; min-width: 0; overflow-x: auto; padding: 2px; }
-  .tool-deck, .feature-actions, .options-scroll:not(:has(.stamp-panel)) {
-    scrollbar-width: thin;
-    background:
-      linear-gradient(90deg, var(--panel) 35%, transparent) left center / 18px 100% local,
-      linear-gradient(270deg, var(--panel) 35%, transparent) right center / 18px 100% local,
-      linear-gradient(90deg, var(--edge), transparent) left center / 12px 100% scroll,
-      linear-gradient(270deg, var(--edge), transparent) right center / 12px 100% scroll;
-    background-repeat: no-repeat;
-  }
-  .tool-deck { scrollbar-width: none; }
+  .tool-deck, .feature-actions, .options-scroll { scrollbar-width: none; }
   .tools .file-actions button { min-width: 50px; }
   .history-actions { border-inline-start: 1px solid var(--edge); padding-inline-start: 4px; }
   .tool-grid, .history-actions, .file-actions { display: flex; flex: none; margin: 0; }
@@ -345,18 +341,25 @@ input:not([type="checkbox"]), select, textarea {
   .options-scroll .choice-grid { grid-template: repeat(2, minmax(56px, auto)) / none; grid-auto-flow: column; grid-auto-columns: minmax(76px, max-content); }
   .options-scroll .choice { min-height: 56px; }
   .options-scroll .choice-preview { height: 22px; }
-  .options-scroll:has(.move-options) { max-height: 180px; }
+  .options-scroll:has(.move-options) { max-height: none; }
+  .options-scroll .move-options { display: flex; gap: 8px; align-items: start; }
+  .options-scroll .move-options > .option-title { display: none; }
+  .options-scroll .move-options .choice-grid { grid-template: repeat(2, minmax(56px, auto)) / none; grid-auto-flow: column; grid-auto-columns: minmax(84px, max-content); }
+  .options-scroll .move-options .move-actions { border-top: 0; padding-top: 0; border-inline-start: 1px solid var(--edge); padding-inline-start: 8px; }
+  .options-scroll .move-options > button { align-self: stretch; flex-direction: column; padding-inline: 10px; }
+  .options-scroll .move-options .choice { min-height: 56px; }
   .options-scroll:has(.stamp-panel) { display: block; max-height: 180px; }
   .options-scroll .stamp-panel .choice-grid { grid-template: none / repeat(auto-fit, minmax(112px, 1fr)); grid-auto-flow: row; }
   .options-fixed { display: flex; flex-wrap: wrap; align-items: center; }
-  .options-fixed .option-categories { flex: 1 1 0; flex-wrap: nowrap; overflow-x: auto; min-width: 0; scrollbar-width: thin; }
+  .options-fixed .option-categories { flex: 1 1 0; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; min-width: 0; scrollbar-width: none; }
+  .options-fixed .option-categories > :last-child:nth-child(odd) { grid-column: auto; }
   .options-fixed .option-section { margin: 0; }
   .options-fixed .size-choices { width: 245px; }
   .scroll-controls { display: none; }
 }
 @media (max-width: 540px) {
   .workbar { grid-template-columns: auto minmax(0, 1fr); }
-  .sheet-area { aspect-ratio: auto; height: min(75vw - 12px, 30dvh); }
+  .sheet-area { height: calc(min(75vw - 12px, 30dvh) + var(--strip-space)); }
   .feature-actions { grid-column: 1 / -1; grid-row: 3; overflow-x: auto; }
   .feature-actions button { flex: 1 0 auto; }
   .page-strip-scroller > button { display: none; }
@@ -418,3 +421,128 @@ input:not([type="checkbox"]), select, textarea {
   #app:not(.writing-visible) { row-gap: 2px; }
   #app:not(.writing-visible) .stage { padding-block: 0; }
 }
+
+/* «There is more» cue over the edge of a scrolling strip (see scroll-cue.ts). */
+.scroll-more {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  place-items: center end;
+  pointer-events: none;
+}
+.scroll-more-x { width: 46px; }
+.scroll-more-y { height: 42px; place-items: end center; }
+.scroll-more-x.scroll-more-end { background: linear-gradient(90deg, transparent, var(--panel) 68%); }
+.scroll-more-x.scroll-more-start { background: linear-gradient(270deg, transparent, var(--panel) 68%); place-items: center start; }
+.scroll-more-y.scroll-more-end { background: linear-gradient(180deg, transparent, var(--panel) 72%); }
+.scroll-more-y.scroll-more-start { background: linear-gradient(0deg, transparent, var(--panel) 72%); place-items: start center; }
+.scroll-more::after {
+  content: '';
+  width: 26px;
+  height: 26px;
+  margin: 2px;
+  border-radius: 50%;
+  background: var(--button) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 3.5 10.5 8 6 12.5' fill='none' stroke='%23352b23' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 15px no-repeat;
+  box-shadow: 0 0 0 1px var(--edge), 0 2px var(--lift);
+}
+.scroll-more-x.scroll-more-start::after { transform: scaleX(-1); }
+.scroll-more-y.scroll-more-end::after { transform: rotate(90deg); }
+.scroll-more-y.scroll-more-start::after { transform: rotate(-90deg); }
+.writing-strip:not(.collapsed) { flex: none; height: 48px; }
+
+/* Portrait tablets: the fixed choices (sizes, categories, stamp controls) sit beside the two rows
+   of scrolling choices, so the whole desk fits the window at 768 × 1024 and 810 × 1080. */
+@media (orientation: portrait) and (min-width: 700px) {
+  .brand { flex-direction: column; gap: 0; font-size: .8rem; }
+  .brand .icon { width: 26px; height: 26px; }
+  .workbar { column-gap: 6px; padding-inline: 4px; }
+  .options {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    column-gap: 6px;
+    padding: 3px;
+  }
+  .options-fixed, .options-fixed:has(.stamp-transforms) {
+    grid-row: 1;
+    grid-column: 1;
+    display: grid;
+    grid-template-columns: 245px;
+    grid-auto-columns: max-content;
+    grid-auto-flow: row;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+  }
+  .options-fixed > .option-section:not(.toggle-section) { grid-row: 1; grid-column: 1; }
+  .options-fixed > .toggle-section { grid-row: 1; grid-column: 2; }
+  .options-fixed > .toggle-section:last-child { grid-row: 1 / span 2; }
+  .options-fixed > .toggle-section .option-toggle { min-height: 100px; }
+  .options-fixed > .option-categories { grid-row: 2; grid-column: 1; padding: 0; overflow-x: auto; scrollbar-width: none; }
+  .options-fixed .option-categories { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(max-content, 1fr); }
+  .uppercase .options-fixed .option-categories button { font-size: .62rem; letter-spacing: -.02em; }
+  .options-fixed .stamp-categories-button { flex-direction: column; gap: 2px; justify-content: center; font-size: .75rem; }
+  .options-fixed .stamp-categories-button .icon { width: 22px; height: 22px; }
+  .uppercase .options-fixed .stamp-actions .stamp-transform { font-size: .57rem; letter-spacing: -.02em; }
+  .options-fixed .option-categories button { flex-direction: column; gap: 2px; padding: 2px 3px; font-size: .7rem; }
+  .options-fixed .option-categories .icon { width: 20px; height: 20px; }
+  .options-fixed .toggle-section .option-toggle { flex-direction: column; gap: 2px; font-size: .72rem; padding-inline: 6px; }
+  .options-fixed .stamp-sizes { grid-row: 1; grid-column: 1; }
+  .options-fixed .stamp-actions { grid-row: 2; grid-column: 1; }
+  .options-fixed .stamp-angle { grid-row: 1; grid-column: 2; width: 120px; }
+  .options-fixed .stamp-library-header { grid-row: 2; grid-column: 2; width: 120px; }
+  .options-fixed:has(.stamp-transforms):not(:has(.stamp-actions)) .stamp-library-header { grid-row: 2; grid-column: 1; }
+  .options-scroll { grid-row: 1; grid-column: 2; max-height: none; }
+  .options:has(.options-fixed:empty) .options-scroll { grid-column: 1 / -1; }
+  /* Stamps scroll sideways in two rows like every other set of choices. */
+  .options-scroll:has(.stamp-panel) { display: flex; max-height: none; }
+  .options-scroll .stamp-panel .choice-grid {
+    grid-template: repeat(2, max-content) / none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(96px, max-content);
+    align-content: start;
+  }
+  .options-scroll .stamp-panel { flex: none; }
+  .options-scroll .stamp-panel .button-label { white-space: nowrap; }
+}
+@media (orientation: portrait) and (min-width: 700px) {
+  .options-scroll .stamp-gallery .stamp-tile { padding-block: 3px; }
+  /* Tight but even spacing: the paper keeps its minimum (740 × 555 at 768 px) and nothing spills below the window. */
+  .sheet-area { height: calc(min(75vw - 20px, 55dvh) + var(--strip-space)); }
+  #app .workspace { gap: 4px; }
+  .tools { padding: 2px 3px; }
+  .tool-deck { padding: 1px; }
+  .options-scroll { padding-block: 1px; }
+  .options-scroll .choice { padding-block: 2px; gap: 3px; }
+  .simple-desk .tools .tool { min-height: 58px; }
+  #app { padding-bottom: 4px; }
+}
+/* Tall tablets (834 × 1194): the paper gets its full share of the height and the choices a third row. */
+@media (orientation: portrait) and (min-width: 700px) and (min-height: 1150px) {
+  .sheet-area { height: calc(55dvh + var(--strip-space)); }
+  .options-scroll .choice-grid, .options-scroll .move-options .choice-grid { grid-template-rows: repeat(3, minmax(56px, auto)); }
+  .options-scroll .stamp-panel .choice-grid { grid-template-rows: repeat(3, max-content); }
+}
+
+.dialog-more { position: sticky; bottom: -14px; height: 0; margin: 0; z-index: 3; pointer-events: none; }
+.dialog-wide > .dialog-more { bottom: 0; }
+.dialog-more::before {
+  content: '';
+  position: absolute;
+  inset: auto -14px 0;
+  height: 44px;
+  background: linear-gradient(180deg, transparent, var(--panel) 72%);
+}
+.dialog-more::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: calc(50% - 13px);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  transform: rotate(90deg);
+  background: var(--button) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 3.5 10.5 8 6 12.5' fill='none' stroke='%23352b23' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 15px no-repeat;
+  box-shadow: 0 0 0 1px var(--edge), 0 -2px var(--lift);
+}
+.dialog:has(.sticky-actions) > .dialog-more { display: none; }

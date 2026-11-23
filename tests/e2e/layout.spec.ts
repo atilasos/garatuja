@@ -97,7 +97,15 @@ for (const [width, height] of [[768, 1024], [390, 844]]) {
       await expect(page.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
     }
     const deck = page.locator('.tool-deck');
-    expect(await deck.evaluate(el => el.scrollWidth > el.clientWidth && getComputedStyle(el).backgroundImage.includes('linear-gradient'))).toBe(true);
+    // The cut tool at the edge carries a «more» cue: a fade with an arrow over the deck's end.
+    await expect.poll(() => deck.evaluate(el => {
+      const cue = el.parentElement?.querySelector<HTMLElement>(':scope > .scroll-more-end');
+      if (!cue || cue.hidden || el.scrollWidth <= el.clientWidth) return false;
+      const strip = el.getBoundingClientRect();
+      const mark = cue.getBoundingClientRect();
+      return mark.width > 0 && Math.abs(mark.right - strip.right) <= 2 && Math.abs(mark.top - strip.top) <= 2 &&
+        getComputedStyle(cue).backgroundImage.includes('linear-gradient');
+    })).toBe(true);
     await page.getByRole('button', { name: 'Mover', exact: true }).scrollIntoViewIfNeeded();
     await expect(page.getByRole('button', { name: 'Mover', exact: true })).toBeInViewport({ ratio: 1 });
     for (const name of ['Novo', 'Abrir', 'Guardar']) {

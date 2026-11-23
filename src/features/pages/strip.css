@@ -5,7 +5,7 @@
   min-width: 0;
 }
 
-.page-strip-scroller { flex: 1; overflow: hidden; }
+.page-strip-scroller { flex: 1; overflow: hidden; position: relative; }
 .page-strip-scroller > button, .page-strip-controls > button {
   flex: none;
   flex-direction: column;
@@ -92,4 +92,9 @@
   .page-strip-controls > button { width: 62px; padding-inline: 1px; font-size: .65rem; letter-spacing: -.015em; }
   .uppercase .page-strip-controls > button { font-size: .58rem; }
   .page-strip-controls .icon { width: 22px; height: 22px; }
+}
+
+/* Wide screens already show «Para trás» / «Para a frente»; the fade cues are for the strips without them. */
+@media (min-width: 1311px) and (orientation: landscape) {
+  .page-strip-scroller > .scroll-more { display: none; }
 }

@@ -18,7 +18,15 @@ export function openModal({ title, content, onClose }: ModalOptions): () => void
   dialog.setAttribute('aria-labelledby', heading.id);
   const close = () => { if (dialog.open) dialog.close(); };
   const dismiss = button({ pt: 'Fechar', en: 'Close' }, icons.close, close);
-  dialog.append(h('header', 'dialog-head', heading, dismiss), content);
+  // A fade with an arrow at the bottom while the dialog still has content below the fold.
+  const more = h('div', 'dialog-more');
+  more.setAttribute('aria-hidden', 'true');
+  dialog.append(h('header', 'dialog-head', heading, dismiss), content, more);
+  const checkMore = () => { more.hidden = dialog.scrollHeight - dialog.scrollTop - dialog.clientHeight < 2; };
+  dialog.addEventListener('scroll', checkMore, { passive: true });
+  const watcher = new ResizeObserver(checkMore);
+  watcher.observe(dialog);
+  watcher.observe(content);
   dialog.addEventListener('keydown', event => {
     if (event.key !== 'Tab') return;
     const focusable = [...dialog.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]')]
@@ -34,6 +42,7 @@ export function openModal({ title, content, onClose }: ModalOptions): () => void
     }
   });
   dialog.addEventListener('close', () => {
+    watcher.disconnect();
     dialog.remove();
     if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     onClose?.();

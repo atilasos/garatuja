@@ -28,6 +28,7 @@ for (const [width, height, minOpen, minClosed] of formats) {
           if (id === 'magic') app?.setOption('effect', 'negative');
           window.scrollTo(0, 0);
         }, id);
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         const issues = await page.evaluate(({ minOpen, width, height }) => {
           const issues: string[] = [];
           const report = (condition: boolean, problem: string) => { if (condition) issues.push(problem); };
@@ -39,6 +40,18 @@ for (const [width, height, minOpen, minClosed] of formats) {
           const paper = box('.sheet');
           report(paper.width < minOpen - 1 || Math.abs(paper.width / paper.height - 4 / 3) > .01, `sheet ${paper.width}×${paper.height}`);
           report(document.documentElement.scrollWidth > width, 'horizontal page overflow');
+          if (width >= 700 && width < height) report(box('.footer').bottom > height + 1, `portrait desk taller than the window (${box('.footer').bottom})`);
+          for (const strip of document.querySelectorAll<HTMLElement>('.tool-deck, .feature-actions, .palette, .options-scroll, .options-fixed .option-categories')) {
+            if (!strip.getClientRects().length) continue;
+            const horizontal = getComputedStyle(strip).overflowX !== 'visible' && strip.scrollWidth > strip.clientWidth + 1;
+            const vertical = getComputedStyle(strip).overflowY !== 'visible' && strip.scrollHeight > strip.clientHeight + 1;
+            const cues = [...strip.parentElement!.querySelectorAll<HTMLElement>(':scope > .scroll-more-end')]
+              .filter(cue => !cue.hidden && cue.previousElementSibling !== null);
+            const end = (axis: string) => cues.some(cue => cue.classList.contains(`scroll-more-${axis}`) &&
+              [...strip.parentElement!.children].indexOf(cue) > [...strip.parentElement!.children].indexOf(strip));
+            if (horizontal && strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1) report(!end('x'), `no «more» cue on ${strip.className}`);
+            if (vertical && strip.scrollTop + strip.clientHeight < strip.scrollHeight - 1) report(!end('y'), `no «more» cue below ${strip.className}`);
+          }
           const thumbnail = box('.page-strip .page');
           report(!inside(thumbnail, box('.page-strip')), 'first page thumbnail clipped');
           for (const el of document.querySelectorAll<HTMLElement>('#app button, .options-fixed input[type=range]')) {

@@ -3,6 +3,7 @@ import type { State } from '../core/store';
 import type { ChoiceItem, L10n, OptionSpec, Tool } from '../core/types';
 import { button, h, pressed, replaceControls, roving, unavailable } from './dom';
 import { icon, icons } from './icons';
+import { scrollCue } from './scroll-cue';
 
 export function choices(spec: Extract<OptionSpec, { kind: 'choice' }>, level: 1 | 2) {
   return (typeof spec.items === 'function' ? spec.items() : spec.items).filter(choice => (choice.level ?? 1) <= level);
@@ -67,6 +68,8 @@ export class OptionsPanel {
     this.controls.append(this.up, this.down);
     this.element.append(this.fixed, this.list, this.controls);
     this.observer.observe(this.list);
+    scrollCue(this.list, 'x');
+    scrollCue(this.list, 'y');
     this.list.addEventListener('scroll', () => this.updateScroll());
   }
 
@@ -143,6 +146,7 @@ export class OptionsPanel {
         }
         if (categories.childElementCount > 1) {
           fixed.push(categories);
+          scrollCue(categories);
           roving(categories, categoryLabel);
         }
         sections.push(section);

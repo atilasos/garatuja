@@ -11,6 +11,7 @@ import { art, button, h, pressed, replaceControls, roving, unavailable } from '.
 import { icons } from './icons';
 import { OptionsPanel } from './options';
 import { palette } from './palette';
+import { revealInStrip, scrollCue } from './scroll-cue';
 import { mixColor, untitled } from './work-fields';
 
 const words = {
@@ -65,10 +66,13 @@ export function mountShell(app: App, root: HTMLElement) {
   const header = h('header', 'workbar', brand, card, pages, featureActions);
   const history = h('div', 'history-actions');
   const toolbox = h('div', 'tool-grid');
-  const toolDeck = h('div', 'tool-deck scroll-cue', toolbox);
+  const toolDeck = h('div', 'tool-deck', toolbox);
+  scrollCue(toolDeck);
+  scrollCue(featureActions);
   const toolsPanel = h('aside', 'tools panel', toolDeck, history, files);
   const options = new OptionsPanel();
-  const stage = h('main', 'stage', h('div', 'sheet-area', app.surface.element), writing);
+  const sheetArea = h('div', 'sheet-area', app.surface.element, writing);
+  const stage = h('main', 'stage', sheetArea);
   new ResizeObserver(() => {
     stage.style.setProperty('--sheet-width', app.surface.element.getBoundingClientRect().width + 'px');
   }).observe(app.surface.element);
@@ -90,6 +94,7 @@ export function mountShell(app: App, root: HTMLElement) {
   arrangeFocus();
   stacked.addEventListener('change', arrangeFocus);
   const colors = h('div', 'palette');
+  scrollCue(colors);
   colors.addEventListener('wheel', event => {
     if (event.ctrlKey || event.deltaX || colors.scrollWidth <= colors.clientWidth) return;
     const left = colors.scrollLeft;
@@ -171,7 +176,7 @@ export function mountShell(app: App, root: HTMLElement) {
       showHelpOnFocus(app, text, { pt: 'Escreve o texto que esta página ilustra.', en: 'Write the text this page illustrates.' });
       replaceControls(featureActions, [text, ...actionButtons.filter(([action]) => action.placement !== 'files').map(([, control]) => control),
         ...(state.settings.textCollapsed ? [writing] : [])]);
-      if (!state.settings.textCollapsed && writing.parentElement !== stage) stage.append(writing);
+      if (!state.settings.textCollapsed && writing.parentElement !== sheetArea) sheetArea.append(writing);
       refreshFiles();
       refreshActions();
     }
@@ -223,6 +228,7 @@ export function mountShell(app: App, root: HTMLElement) {
       });
       replaceControls(toolbox, controls);
       refreshTools();
+      if (state.toolId !== previous?.toolId) requestAnimationFrame(() => revealInStrip(toolDeck, toolbox.querySelector('[aria-pressed="true"]')));
     }
     const activeToolButton = toolbox.querySelector<HTMLButtonElement>('[aria-pressed="true"]');
     if (activeToolButton) activeToolButton.title = t(app.toolHint());
@@ -252,6 +258,7 @@ export function mountShell(app: App, root: HTMLElement) {
       if (!paletteColor) mix.style.setProperty('--custom-color', state.color);
       replaceControls(colors, [...swatches, picker, mix]);
       refreshColors();
+      if (state.color !== previous?.color) requestAnimationFrame(() => revealInStrip(colors, colors.querySelector('[aria-pressed="true"]')));
     }
     hint.textContent = t(state.hint);
   }

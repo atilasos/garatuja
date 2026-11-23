@@ -5,6 +5,7 @@ import type { PageRecord } from '../../core/types';
 import type { App } from '../../ui/app';
 import { art, button, h, pressed, replaceControls, roving, unavailable } from '../../ui/dom';
 import { icons } from '../../ui/icons';
+import { scrollCue } from '../../ui/scroll-cue';
 import { pageIcons } from './icons';
 import { duplicatePage, maxPages, movePage, removePage, restorePage } from './operations';
 import './strip.css';
@@ -18,6 +19,7 @@ const nextGhost = { pt: 'Página seguinte · · ·', en: 'Next page · · ·' };
 
 export function pageStrip(app: App) {
   const strip = h('div', 'page-strip');
+  scrollCue(strip);
   const controls = h('div', 'page-strip-controls');
   const arrangement = h('div', 'page-arrangement');
   arrangement.id = 'page-arrangement';
