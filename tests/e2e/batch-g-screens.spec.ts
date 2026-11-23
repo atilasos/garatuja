@@ -1,3 +1,4 @@
+import { answerAdultChallenge } from './teacher-access';
 import { fillDetails } from './work-details';
 import { expect, test, type Page } from '@playwright/test';
 
@@ -6,7 +7,6 @@ test.setTimeout(120_000);
 test.skip(process.env.GARATUJA_CAPTURE_SCREENS !== '1', 'Screenshots are only captured on request');
 
 const sizes = [[1366, 768], [1024, 768]] as const;
-const numbers: Record<string, number> = { três: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9 };
 
 async function ready(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height });
@@ -89,11 +89,9 @@ for (const [width, height] of sizes) {
     await page.mouse.down();
     await page.waitForTimeout(3300);
     await page.mouse.up();
-    const gate = page.getByRole('dialog', { name: 'Área do adulto' });
+    await expect(page.getByRole('dialog', { name: 'Área do adulto' })).toBeVisible();
     await shot(page, `gate-${width}x${height}`);
-    const [a, b] = (await gate.locator('strong').innerText()).split(' mais ');
-    await gate.getByRole('textbox').fill(String(numbers[a] + numbers[b]));
-    await gate.getByRole('button', { name: 'Entrar' }).click();
+    await answerAdultChallenge(page);
     const teacher = page.getByRole('dialog', { name: 'Área do professor' });
     await teacher.getByRole('textbox', { name: 'Nome da turma' }).fill('3.º B');
     await shot(page, `teacher-${width}x${height}`);

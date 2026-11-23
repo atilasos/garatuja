@@ -1,3 +1,4 @@
+import { answerAdultChallenge, openAdultGate } from './teacher-access';
 import { fillDetails } from './work-details';
 import { expect, test, type Page } from '@playwright/test';
 
@@ -22,22 +23,9 @@ async function newWork(page: Page, model: string, title?: string) {
   if (title) await fillDetails(page, { title: title });
 }
 
-const numbers: Record<string, number> = { três: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9 };
-
 async function enterTeacherArea(page: Page) {
-  await choose(page, 'Definições');
-  const adult = page.getByRole('button', { name: 'Adulto' });
-  const box = await adult.boundingBox();
-  if (!box) throw new Error('Missing adult button');
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.waitForTimeout(3300);
-  await page.mouse.up();
-  const gate = page.getByRole('dialog', { name: 'Área do adulto' });
-  await expect(gate).toBeVisible();
-  const [a, b] = (await gate.locator('strong').innerText()).split(' mais ');
-  await gate.getByRole('textbox').fill(String(numbers[a] + numbers[b]));
-  await gate.getByRole('button', { name: 'Entrar' }).click();
+  await openAdultGate(page);
+  await answerAdultChallenge(page);
   return page.getByRole('dialog', { name: 'Área do professor' });
 }
 
@@ -149,21 +137,10 @@ test('the gallery has a friendly empty state', async ({ page }) => {
     for (const project of await app?.storage.list() ?? []) await app?.storage.remove(project.id);
   });
   await page.evaluate(() => window.__garatuja?.app.openScreen('gallery.open'));
-  // The current work is saved again when the gallery opens; remove it to see the empty state.
   const gallery = page.getByRole('dialog', { name: 'Abrir trabalho' });
-  await expect(gallery.getByRole('listitem')).toHaveCount(1);
-  await gallery.getByRole('button', { name: 'Apagar' }).click();
-  await gallery.getByRole('button', { name: 'Sim, apagar' }).click();
-  await expect(gallery.getByRole('listitem')).toHaveCount(1);
-  await page.keyboard.press('Escape');
-  await page.evaluate(async () => {
-    const app = window.__garatuja?.app;
-    for (const project of await app?.storage.list() ?? []) {
-      if (project.id !== app?.store.get().project.id) await app?.storage.remove(project.id);
-    }
-  });
-  await page.evaluate(() => window.__garatuja?.app.openScreen('gallery.open'));
-  await expect(gallery.getByRole('listitem')).toHaveCount(1);
+  await expect(gallery.getByRole('listitem')).toHaveCount(0);
+  await expect(gallery.getByRole('button', { name: 'Novo' })).toBeVisible();
+  await expect(gallery.locator('.gallery-empty')).toBeVisible();
 });
 
 test('imports a picture as the paper of a new work, only when allowed', async ({ page }) => {
@@ -214,7 +191,7 @@ test('the adult gate protects settings and exports all works to a clean session'
   const settings = page.getByRole('dialog', { name: 'Definições' });
   await expect(settings.getByRole('checkbox')).toHaveCount(0);
   await settings.getByRole('button', { name: 'Adulto' }).click();
-  await expect(page.locator('#pingo-hint')).toContainText('Mantém premido');
+  await expect(settings.getByRole('status')).toContainText('Mantém premido');
   await expect(page.getByRole('dialog', { name: 'Área do adulto' })).toHaveCount(0);
   await page.keyboard.press('Escape');
 
@@ -226,7 +203,7 @@ test('the adult gate protects settings and exports all works to a clean session'
   await page.waitForTimeout(3300);
   await page.keyboard.up('Space');
   const gate = page.getByRole('dialog', { name: 'Área do adulto' });
-  await expect(gate.locator('strong')).toHaveText(/^\p{L}+ mais \p{L}+$/u);
+  await expect(gate.locator('strong')).toHaveText(/^\p{L}+(?: \p{L}+)* mais \p{L}+(?: \p{L}+)*$/u);
   await gate.getByRole('textbox').fill('99');
   await gate.getByRole('button', { name: 'Entrar' }).click();
   await expect(gate.getByRole('alert')).toContainText('Experimenta outra vez');
@@ -241,6 +218,7 @@ test('the adult gate protects settings and exports all works to a clean session'
   await teacher.getByRole('checkbox', { name: 'Permitir imprimir' }).uncheck();
   await teacher.getByRole('checkbox', { name: 'Permitir importar ficheiros' }).uncheck();
   if (process.env.GARATUJA_CAPTURE_SCREENS === '1') {
+    await teacher.evaluate(dialog => { dialog.scrollTop = 0; });
     await page.screenshot({ path: 'docs/screens/final-professor-1366x768.png' });
   }
   await expect(page.getByRole('button', { name: 'Imprimir' })).toHaveCount(0);

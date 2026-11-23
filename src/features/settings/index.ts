@@ -36,7 +36,7 @@ const toggles: Toggle[] = [
   { key: 'largeCursor', label: words.cursor, on: extraIcons.cursor },
   { key: 'uppercase', label: { pt: 'Só maiúsculas', en: 'Capital letters only' }, on: extraIcons.uppercase },
   { key: 'highContrast', label: { pt: 'Alto contraste', en: 'High contrast' }, on: extraIcons.contrast },
-  { key: 'fixedClick', label: { pt: 'Clique fixo', en: 'Click to start and stop' }, on: extraIcons.cursor },
+  { key: 'fixedClick', label: { pt: 'Clique fixo', en: 'Click to start and stop' }, on: extraIcons.fixedClick },
 
 ];
 
@@ -56,7 +56,7 @@ function childSettings(app: App) {
       return control;
     });
     for (const [value, label] of [[1, words.simple], [2, words.full]] as const) {
-      const control = button(label, icons.level, () => { app.configure({ level: value }); render(); }, 'big-toggle');
+      const control = button(label, value === 1 ? icons.level : extraIcons.full, () => { app.configure({ level: value }); render(); }, 'big-toggle');
       control.dataset.focus = 'level-' + value;
       control.setAttribute('aria-label', t(value === 1
         ? { pt: 'Interface simples', en: 'Simple interface' } : { pt: 'Interface completa', en: 'Full interface' }));
@@ -70,11 +70,13 @@ function childSettings(app: App) {
   render();
   roving(grid, words.mine);
   const help = button(words.help, extraIcons.help, () => { close(); app.openScreen('help.show'); });
-  const credits = button({ pt: 'Créditos', en: 'Credits' }, extraIcons.help, () => { close(); app.openScreen('credits.show'); });
-  const adult = holdButton(app, words.adult, extraIcons.adult, () => { close(); app.openScreen('teacher.gate'); });
+  const credits = button({ pt: 'Créditos', en: 'Credits' }, extraIcons.credits, () => { close(); app.openScreen('credits.show'); });
+  const instruction = h('p', 'hold-instruction');
+  instruction.setAttribute('role', 'status');
+  const adult = holdButton(instruction, words.adult, extraIcons.adult, () => { close(); app.openScreen('teacher.gate'); });
   const close = app.modal({
     title: words.title,
-    content: h('div', 'dialog-stack', grid, h('div', 'dialog-actions spread', help, credits, adult)),
+    content: h('div', 'dialog-stack', grid, h('div', 'dialog-actions spread', help, credits, adult), instruction),
   });
 }
 

@@ -1,21 +1,32 @@
-import { createPage, createProject } from '../../core/document';
 import { getLocale, t } from '../../core/i18n';
 import type { Settings } from '../../core/store';
 import type { L10n } from '../../core/types';
 import type { App, Feature } from '../../ui/app';
 import { art, button, h, pressed, roving } from '../../ui/dom';
 import { icons } from '../../ui/icons';
+import { untitled } from '../../ui/work-fields';
 import { extraIcons } from '../settings/icons';
 import './teacher.css';
 import { serializeWorks } from '../exchange/format';
 import { download } from '../exchange/download';
 import { clearPreferences, formatBytes } from './data';
-import { checkAnswer, makeChallenge } from './gate';
+import { checkAnswer, checkPin, makeChallenge, readPin, setPin, validPin } from './gate';
 
 const words = {
   gateTitle: { pt: 'Área do adulto', en: 'Adult area' },
   question: { pt: 'Quanto é', en: 'What is' },
-  answer: { pt: 'Resposta (em algarismos)', en: 'Answer (in digits)' },
+  answer: { pt: 'Resposta por extenso', en: 'Answer in words' },
+  pin: { pt: 'PIN do adulto', en: 'Adult PIN' },
+  setPin: { pt: 'Definir PIN', en: 'Set PIN' },
+  changePin: { pt: 'Alterar PIN', en: 'Change PIN' },
+  pinHelp: {
+    pt: 'Podes proteger esta área com um PIN de quatro algarismos, guardado neste dispositivo. Se te esqueceres, apaga os dados deste site no navegador. Isso também apaga os trabalhos e as definições.',
+    en: 'You can protect this area with a four-digit PIN stored on this device. If you forget it, clear this site’s data in the browser. This also deletes works and settings.',
+  },
+  pinSaved: { pt: 'PIN guardado neste dispositivo.', en: 'PIN saved on this device.' },
+  pinInvalid: { pt: 'Escreve quatro algarismos.', en: 'Enter four digits.' },
+  erase: { pt: 'Escreve APAGAR', en: 'Type DELETE' },
+  eraseWord: { pt: 'APAGAR', en: 'DELETE' },
   enter: { pt: 'Entrar', en: 'Enter' },
   wrong: { pt: 'Não é essa. Experimenta outra vez.', en: 'That is not it. Try again.' },
   title: { pt: 'Área do professor', en: 'Teacher area' },
@@ -62,7 +73,7 @@ const flags: { key: Flag; label: L10n; icon: string }[] = [
   { key: 'uppercase', label: { pt: 'Só maiúsculas', en: 'Capital letters only' }, icon: extraIcons.uppercase },
   { key: 'allowPrint', label: { pt: 'Permitir imprimir', en: 'Allow printing' }, icon: icons.print },
   { key: 'allowImport', label: { pt: 'Permitir importar ficheiros', en: 'Allow importing files' }, icon: extraIcons.importImage },
-  { key: 'fixedClick', label: { pt: 'Clique fixo', en: 'Click to start and stop' }, icon: extraIcons.cursor },
+  { key: 'fixedClick', label: { pt: 'Clique fixo', en: 'Click to start and stop' }, icon: extraIcons.fixedClick },
   { key: 'largeCursor', label: { pt: 'Cursor grande', en: 'Large cursor' }, icon: extraIcons.cursor },
   { key: 'highContrast', label: { pt: 'Alto contraste', en: 'High contrast' }, icon: extraIcons.contrast },
   { key: 'leftHanded', label: { pt: 'Mão esquerda', en: 'Left-handed layout' }, icon: extraIcons.hand },
@@ -71,26 +82,32 @@ const flags: { key: Flag; label: L10n; icon: string }[] = [
 function gate(app: App) {
   const challenge = makeChallenge();
   const input = h('input');
-  input.inputMode = 'numeric';
+  const pin = readPin();
+  if (pin) {
+    input.type = 'password';
+    input.inputMode = 'numeric';
+    input.maxLength = 4;
+  }
   input.autocomplete = 'off';
   input.autofocus = true;
   const message = h('p', 'gate-message');
   message.setAttribute('role', 'alert');
-  const submit = () => {
-    if (checkAnswer(input.value, challenge.answer)) {
+  const submit = () => app.run(async () => {
+    if (pin ? await checkPin(input.value, pin) : checkAnswer(input.value, challenge.answer)) {
+      if (!input.closest('dialog')?.open) return;
       close();
       app.openScreen('teacher.panel');
     } else {
       message.textContent = t(words.wrong);
       input.select();
     }
-  };
+  });
   input.addEventListener('keydown', event => { if (event.key === 'Enter') submit(); });
   const close = app.modal({
     title: words.gateTitle,
     content: h('div', 'dialog-stack',
-      h('p', 'gate-question', `${t(words.question)} `, h('strong', '', t(challenge.question)), '?'),
-      h('label', 'work-field', h('span', '', t(words.answer)), input), message,
+      pin ? null : h('p', 'gate-question', `${t(words.question)} `, h('strong', '', t(challenge.question)), '?'),
+      h('label', 'work-field', h('span', '', t(pin ? words.pin : words.answer)), input), message,
       h('div', 'dialog-actions', button(words.enter, extraIcons.check, submit, 'primary'))),
   });
 }
@@ -162,8 +179,18 @@ async function panel(app: App) {
   const exportButton = button(words.exportAll, extraIcons.download, () => app.run(async () => {
     exportButton.disabled = true;
     try {
-      await app.documents.save();
-      const file = await serializeWorks(await app.storage.list());
+      const projects = await app.storage.list();
+      const local = app.documents.snapshot();
+      const saved = projects.find(project => project.id === local.id);
+      if (!saved) projects.unshift(local);
+      else if (app.documents.hasUnsavedChanges) {
+        if (saved.updatedAt <= local.updatedAt) projects.splice(projects.indexOf(saved), 1, local);
+        else {
+          const name = local.title.trim() || t(untitled);
+          projects.unshift({ ...local, id: crypto.randomUUID(), title: t({ pt: `${name} (cópia)`, en: `${name} (copy)` }) });
+        }
+      }
+      const file = await serializeWorks(projects);
       const day = new Date().toISOString().slice(0, 10);
       download(file, 'garatuja-todos-os-trabalhos-' + day, 'garatuja');
       app.notify(words.exported);
@@ -172,15 +199,43 @@ async function panel(app: App) {
     }
   }));
 
+  const pin = h('input');
+  pin.type = 'password';
+  pin.inputMode = 'numeric';
+  pin.autocomplete = 'new-password';
+  pin.maxLength = 4;
+  const pinStatus = h('p', 'gate-message');
+  pinStatus.setAttribute('role', 'status');
+  const pinButton = button(readPin() ? words.changePin : words.setPin, extraIcons.check, () => app.run(async () => {
+    if (!validPin(pin.value)) {
+      pinStatus.textContent = t(words.pinInvalid);
+      pin.focus();
+      return;
+    }
+    await setPin(pin.value);
+    pin.value = '';
+    pinStatus.textContent = t(words.pinSaved);
+    pinButton.setAttribute('aria-label', t(words.changePin));
+    const label = pinButton.querySelector('.button-label');
+    if (label) label.textContent = t(words.changePin);
+  }));
+
   const danger = h('div', 'danger-zone');
   const clearStart = () => {
     const cancel = button(words.cancel, icons.close, reset);
     danger.replaceChildren(h('p', '', t(words.confirm1)), h('div', 'dialog-actions',
       cancel, button(words.continue, extraIcons.trash, () => {
         const no = button(words.cancel, icons.close, reset);
-        danger.replaceChildren(h('p', '', h('strong', '', t(words.confirm2))), h('div', 'dialog-actions',
-          no, button(words.confirmFinal, extraIcons.trash, () => app.run(() => clearEverything(app)), 'warning')));
-        no.focus();
+        const confirmation = h('input');
+        confirmation.autocomplete = 'off';
+        const erase = button(words.confirmFinal, extraIcons.trash, () => {
+          if (confirmation.value === t(words.eraseWord)) app.run(() => clearEverything(app));
+        }, 'warning');
+        erase.disabled = true;
+        confirmation.addEventListener('input', () => { erase.disabled = confirmation.value !== t(words.eraseWord); });
+        danger.replaceChildren(h('p', '', h('strong', '', t(words.confirm2))),
+          h('label', 'work-field', h('span', '', t(words.erase)), confirmation), h('div', 'dialog-actions', no, erase));
+        confirmation.focus();
       }, 'warning')));
     cancel.focus();
   };
@@ -194,6 +249,7 @@ async function panel(app: App) {
   const content = h('div', 'teacher-panel',
     h('p', 'privacy-note', art(extraIcons.adult), h('span', '', t(words.privacy))),
     section(words.interface, level, language),
+    section(words.pin, h('p', '', t(words.pinHelp)), h('label', 'work-field', h('span', '', t(words.pin)), pin), pinButton, pinStatus),
     section(words.options, h('div', 'teacher-grid', ...toggles)),
     section(words.className, h('label', 'work-field', h('span', '', t(words.classHint)), className)),
     section(words.data, used, persistStatus, h('div', 'dialog-actions start', persistButton, exportButton), danger));
@@ -205,12 +261,7 @@ async function panel(app: App) {
 }
 
 async function clearEverything(app: App) {
-  // Move to a fresh sheet first so autosave never writes an old work back.
-  await app.documents.open(createProject(createPage()));
-  const current = app.store.get().project.id;
-  for (const project of await app.storage.list()) {
-    if (project.id !== current) await app.storage.remove(project.id);
-  }
+  await app.clearData();
   clearPreferences();
   location.reload();
 }

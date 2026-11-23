@@ -1,6 +1,5 @@
 import { t } from '../../core/i18n';
 import type { IconSvg, L10n } from '../../core/types';
-import type { App } from '../../ui/app';
 import { button } from '../../ui/dom';
 import { HOLD_MS } from './gate';
 
@@ -13,10 +12,10 @@ const keepHolding: L10n = {
  * A button that only acts after being held for `ms` (mouse, touch, pen, or the
  * Space/Enter key). A plain click does nothing except explain what to do.
  */
-export function holdButton(app: App, label: L10n, icon: IconSvg, done: () => void, ms = HOLD_MS) {
+export function holdButton(status: HTMLElement, label: L10n, icon: IconSvg, done: () => void, ms = HOLD_MS) {
   const control = button(label, icon, event => {
     event.preventDefault();
-    if (!fired) app.say(keepHolding);
+    if (!fired) status.textContent = t(keepHolding);
   }, 'hold-button');
   control.setAttribute('aria-description', t(keepHolding));
   let started = 0;
@@ -60,7 +59,9 @@ export function holdButton(app: App, label: L10n, icon: IconSvg, done: () => voi
     if (!event.repeat) start();
   });
   control.addEventListener('keyup', event => {
-    if (event.key === ' ' || event.key === 'Enter') stop();
+    if (event.key !== ' ' && event.key !== 'Enter') return;
+    stop();
+    if (!fired) status.textContent = t(keepHolding);
   });
   return control;
 }
