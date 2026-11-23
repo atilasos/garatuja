@@ -1,5 +1,5 @@
 import type { StarterDef } from '../core/types';
-import { arrow, guideStroke, inkStroke, roundRect, structureCategory } from './lib/art';
+import { arrow, guideStroke, inkStroke, panel, structureCategory } from './lib/art';
 
 export default {
   id: 'timeline', label: { pt: 'Linha do tempo', en: 'Timeline' }, category: structureCategory,
@@ -7,8 +7,6 @@ export default {
     const step = (w - 240) / 5;
     for (let i = 0; i < 5; i++) {
       const x = 120 + step * i + step / 2;
-      roundRect(ctx, { x: x - step / 2 + 16, y: 110, w: step - 32, h: 560 }, 24);
-      guideStroke(ctx, '#a9bfd3', 4, [4, 16]);
       ctx.beginPath();
       for (const y of [920, 1010, 1100]) { ctx.moveTo(x - step / 2 + 22, y); ctx.lineTo(x + step / 2 - 22, y); }
       guideStroke(ctx);
@@ -20,6 +18,7 @@ export default {
     const step = (w - 240) / 5;
     for (let i = 0; i < 5; i++) {
       const x = 120 + step * i + step / 2;
+      panel(ctx, { x: x - step / 2 + 16, y: 110, w: step - 32, h: 560 }, 24);
       ctx.beginPath();
       ctx.arc(x, y, 22, 0, Math.PI * 2);
       inkStroke(ctx, 7);

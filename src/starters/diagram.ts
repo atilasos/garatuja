@@ -1,13 +1,10 @@
 import type { StarterDef } from '../core/types';
-import { guideStroke, roundRect, structureCategory } from './lib/art';
+import { guideStroke, panel, structureCategory } from './lib/art';
 
 /** A central drawing zone with guide lines around it for labels (informative texts). */
 export default {
   id: 'diagram', label: { pt: 'Esquema com legendas', en: 'Labelled diagram' }, category: structureCategory,
-  paper(ctx, w, h) {
-    const zone = { x: w / 2 - 340, y: h / 2 - 300, w: 680, h: 600 };
-    roundRect(ctx, zone, 60);
-    guideStroke(ctx, '#8fa8c0', 5, [14, 14]);
+  paper(ctx, w) {
     ctx.save();
     ctx.fillStyle = '#9fb6cc';
     for (const side of [-1, 1]) {
@@ -25,5 +22,8 @@ export default {
       }
     }
     ctx.restore();
+  },
+  foreground(ctx, w, h) {
+    panel(ctx, { x: w / 2 - 340, y: h / 2 - 300, w: 680, h: 600 }, 60);
   },
 } satisfies StarterDef;

@@ -13,7 +13,7 @@ function transformPt(p: Point, cx: number, cy: number, cos: number, sin: number,
 
 export default {
   id: 'paint-kaleidoscope',
-  label: { pt: 'Caleidoscópio', en: 'Kaleidoscope' },
+  label: { pt: 'Pincel caleidoscópio', en: 'Kaleidoscope brush' },
   hint: { pt: 'Arrasta para pintar um caleidoscópio colorido.', en: 'Drag to paint a colorful kaleidoscope.' },
   category: 'padroes',
   level: 2,

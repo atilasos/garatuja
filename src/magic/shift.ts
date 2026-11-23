@@ -1,7 +1,4 @@
 import type { MagicEffect } from '../core/types';
-import { paintingContext } from './_util/b-bitmap';
-import { byte } from './_util/b-color';
-
 let originX = 0;
 let originY = 0;
 let hasOrigin = false;
@@ -11,24 +8,10 @@ function wrapShift(c: Parameters<NonNullable<MagicEffect['stroke']>>[2], dx: num
   const h = c.height;
   const shiftX = ((dx % w) + w) % w;
   const shiftY = ((dy % h) + h) % h;
-  if (!shiftX && !shiftY) return;
-  const src = paintingContext(c.snapshot).getImageData(0, 0, w, h);
-  const image = new ImageData(w, h);
-  const source = src.data;
-  const data = image.data;
-  for (let y = 0; y < h; y++) {
-    const sy = (y - shiftY + h) % h;
-    for (let x = 0; x < w; x++) {
-      const sx = (x - shiftX + w) % w;
-      const from = (sy * w + sx) * 4;
-      const to = (y * w + x) * 4;
-      data[to] = byte(source[from]);
-      data[to + 1] = byte(source[from + 1]);
-      data[to + 2] = byte(source[from + 2]);
-      data[to + 3] = 255;
-    }
-  }
-  c.ctx.putImageData(image, 0, 0);
+  c.ctx.drawImage(c.snapshot, shiftX, shiftY);
+  if (shiftX) c.ctx.drawImage(c.snapshot, shiftX - w, shiftY);
+  if (shiftY) c.ctx.drawImage(c.snapshot, shiftX, shiftY - h);
+  if (shiftX && shiftY) c.ctx.drawImage(c.snapshot, shiftX - w, shiftY - h);
   c.markAllDirty();
 }
 
