@@ -1,0 +1,10 @@
+{
+  "name": "Garatuja",
+  "short_name": "Garatuja",
+  "lang": "pt-PT",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fff9ed",
+  "theme_color": "#fff9ed",
+  "icons": [{ "src": "./pingo.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
