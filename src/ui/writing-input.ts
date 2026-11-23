@@ -15,22 +15,60 @@ export function uppercaseValue(value: string, settings: Settings) {
   return settings.uppercase ? value.toLocaleUpperCase(settings.locale === 'pt' ? 'pt-PT' : 'en') : value;
 }
 
-export function writingInput(field: Field, settings: () => Settings, edit?: (value: string) => void) {
+export function writingInput(field: Field, settings: () => Settings | undefined, edit?: (value: string) => void) {
   field.dataset.writingInput = '';
+  let previous = field.value;
+  let selection: { start: number; end: number } | undefined;
+  const reset = () => {
+    previous = field.value;
+    selection = undefined;
+  };
+  field.addEventListener('beforeinput', event => {
+    if (event instanceof InputEvent && event.isComposing) return;
+    selection = { start: field.selectionStart ?? previous.length, end: field.selectionEnd ?? previous.length };
+  });
+  field.addEventListener('compositionstart', () => {
+    selection = { start: field.selectionStart ?? previous.length, end: field.selectionEnd ?? previous.length };
+  });
   const update = (event: Event) => {
-    if ((event as InputEvent).isComposing) return;
+    if (event instanceof InputEvent && event.isComposing) return;
+    const options = settings();
     const current = field.value;
-    const value = uppercaseValue(current, settings());
-    if (value !== current) {
-      const start = uppercaseValue(current.slice(0, field.selectionStart ?? current.length), settings()).length;
-      const end = uppercaseValue(current.slice(0, field.selectionEnd ?? current.length), settings()).length;
-      field.value = value;
-      field.setSelectionRange(start, end);
+    const caret = field.selectionEnd ?? current.length;
+    if (options?.uppercase && !(event instanceof InputEvent && event.inputType.startsWith('history'))) {
+      // Keep the text outside the replaced selection intact. Paste, IME and
+      // normal typing have a beforeinput range. Fall back to the changed span
+      // for browser edits whose actual range differs (e.g. autocorrect).
+      let start = selection?.start ?? 0;
+      let suffix = selection ? previous.length - selection.end : 0;
+      if (!selection || start + suffix > current.length ||
+          previous.slice(0, start) !== current.slice(0, start) ||
+          previous.slice(previous.length - suffix) !== current.slice(current.length - suffix)) {
+        suffix = 0;
+        while (suffix < Math.min(previous.length, current.length - caret) &&
+          previous.at(-1 - suffix) === current.at(-1 - suffix)) suffix++;
+        start = 0;
+        while (start < Math.min(previous.length, current.length) - suffix && previous[start] === current[start]) start++;
+      }
+      const end = current.length - suffix;
+      const inserted = current.slice(start, end);
+      const upper = uppercaseValue(inserted, options);
+      if (upper !== inserted) {
+        const cursor = (position: number) => position <= start ? position
+          : position >= end ? position + upper.length - inserted.length
+            : start + uppercaseValue(current.slice(start, position), options).length;
+        const from = cursor(field.selectionStart ?? caret);
+        const to = cursor(caret);
+        field.setRangeText(upper, start, end, 'preserve');
+        field.setSelectionRange(from, to);
+      }
     }
+    reset();
     edit?.(field.value);
   };
   field.addEventListener('input', update);
   field.addEventListener('compositionend', update);
+  return reset;
 }
 
 export function keyboardLayoutField(app: App) {
@@ -106,8 +144,10 @@ export function mountWritingKeyboard(app: App) {
     const end = field.selectionEnd ?? start;
     const previous = [...field.value.slice(0, start)].at(-1)?.length ?? 0;
     if (value !== null && field.maxLength >= 0 && field.value.length - (end - start) + value.length > field.maxLength) return;
+    const inputType = value === null ? 'deleteContentBackward' : 'insertText';
+    field.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, inputType, data: value }));
     field.setRangeText(value ?? '', value === null && end === start ? start - previous : start, end, 'end');
-    field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: value === null ? 'deleteContentBackward' : 'insertText' }));
+    field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType, data: value }));
   }
 
   function render() {
@@ -133,14 +173,13 @@ export function mountWritingKeyboard(app: App) {
       return control;
     };
     const caps = toggle('caps', { pt: 'Maiúsculas', en: 'Capitals' }, upper, () => { capital = !capital; });
-    const switchKeys = toggle('symbols', symbols ? { pt: 'Letras', en: 'Letters' } : { pt: 'Números e sinais', en: 'Numbers and symbols' },
+    const switchKeys = toggle('symbols', symbols ? { pt: 'Letras', en: 'Letters' } : { pt: 'á ç 123', en: 'á ç 123' },
       symbols, () => { symbols = !symbols; });
     const small = narrow.matches || compact;
-    const extra = ['0123456789', 'áàâãéêíóôõúç', '.,?!-ºª'];
+    const extra = ['áàâãéêíóôõúç', '0123456789', '.,?!-ºª'];
     const keys = small ? [symbols ? extra.join('') : alphabet.join('')] : [...alphabet, ...extra];
     board.replaceChildren(...keys.map(row),
-      ...(small ? [h('div', 'writing-symbol-switch', switchKeys)] : []),
-      h('div', 'writing-key-row writing-commands', caps,
+      h('div', 'writing-key-row writing-commands', ...(small ? [switchKeys] : []), caps,
         key({ pt: 'Espaço', en: 'Space' }, keyboardIcon, () => insert(' ')),
         key({ pt: 'Apagar', en: 'Backspace' }, icons.undo, () => insert(null)),
         ...(field instanceof HTMLTextAreaElement

@@ -77,7 +77,7 @@ export class BitmapText {
       const font = this.geometry()?.v.font;
       if (font) void ensureGlyphs(font, value).then(loaded => { if (loaded) this.restyle(); });
     };
-    field.uppercase = () => app.store.get().settings.uppercase;
+    field.settings = () => app.store.get().settings;
   }
 
   onState(state: State, previous: State) {

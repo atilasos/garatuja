@@ -34,10 +34,10 @@ export const audienceSuggestions: L10n[] = [
 function field(app: App, label: L10n, placeholder: L10n, value: string, change: (value: string) => void) {
   const input = h('input');
   const settings = () => app.store.get().settings;
-  input.value = uppercaseValue(value, settings());
+  input.value = value;
   input.placeholder = t(placeholder);
-  writingInput(input, settings, change);
-  return { input, element: h('label', 'work-field', h('span', '', t(label)), input) };
+  const reset = writingInput(input, settings, change);
+  return { input, reset, element: h('label', 'work-field', h('span', '', t(label)), input) };
 }
 
 /** "Para quem é?" with suggestion chips and free text. */
@@ -47,6 +47,7 @@ export function audienceField(app: App) {
   const chips = audienceSuggestions.map(suggestion => {
     const chip = button(suggestion, icons.text, () => {
       audience.input.value = uppercaseValue(t(suggestion), app.store.get().settings);
+      audience.reset();
       app.documents.editProject({ audience: audience.input.value });
       sync();
     }, 'chip');

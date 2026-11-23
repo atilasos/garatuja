@@ -400,12 +400,23 @@ export function hitLabel(label: LabelObject, layout: LabelLayout, p: Point, tole
   return false;
 }
 
+/** Keep a little room for the painted outline and the text halo. */
+export function labelMargin(layout: LabelLayout) {
+  return Math.ceil(Math.max(layout.lineWidth * 1.5, layout.lineHeight * .12));
+}
+
+export function labelFits(layout: LabelLayout) {
+  const margin = labelMargin(layout) * 2;
+  return layout.bounds.w + margin <= CANVAS_W && layout.bounds.h + margin <= CANVAS_H;
+}
+
 /** Move by (dx, dy), keeping the shape on the page; the target travels with it. */
-export function movedLabel(label: LabelObject, layout: LabelLayout, dx: number, dy: number):
+export function movedLabel(label: Pick<LabelObject, 'x' | 'y' | 'target'>, layout: LabelLayout, dx: number, dy: number):
 Pick<LabelObject, 'x' | 'y' | 'target'> {
-  const x = clamp(label.x + dx, 0, Math.max(0, CANVAS_W - layout.bounds.w));
-  const y = clamp(label.y + dy, 0, Math.max(0, CANVAS_H - layout.bounds.h));
-  const target = label.target && { x: clamp(label.target.x + (x - label.x), 0, CANVAS_W), y: clamp(label.target.y + (y - label.y), 0, CANVAS_H) };
+  const margin = labelMargin(layout);
+  const x = clamp(label.x + dx, margin, Math.max(margin, CANVAS_W - layout.bounds.w - margin));
+  const y = clamp(label.y + dy, margin, Math.max(margin, CANVAS_H - layout.bounds.h - margin));
+  const target = label.target && clampToPage({ x: label.target.x + x - label.x, y: label.target.y + y - label.y }, margin);
   return target ? { x, y, target } : { x, y };
 }
 

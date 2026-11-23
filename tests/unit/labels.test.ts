@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  arrowGeometry, defaultTarget, distanceToSegment, ellipseTail, hitLabel, labelExtent, labelRenderer, layoutLabel, layoutPlain,
+  arrowGeometry, defaultTarget, distanceToSegment, ellipseTail, hitLabel, labelExtent, labelMargin, labelRenderer, layoutLabel, layoutPlain,
   legibleInk, contrastWithWhite, movedLabel, nextBadge, onColor, shoutPoints, thoughtTrail, typeOf, typePatch, wrapText,
   type MeasureContext,
 } from '../../src/core/labels';
@@ -185,12 +185,13 @@ describe('moving', () => {
     expect(moved.x).toBe(250);
     expect(moved.target).toEqual({ x: 500, y: 400 });
     const clamped = movedLabel(item, layout, -500, -500);
-    expect(clamped.x).toBe(0);
-    expect(clamped.y).toBe(0);
-    expect(clamped.target).toEqual({ x: 250, y: 250 });
+    const inset = labelMargin(layout);
+    expect(clamped.x).toBe(inset);
+    expect(clamped.y).toBe(inset);
+    expect(clamped.target).toEqual({ x: 250 + inset, y: 250 + inset });
     const far = movedLabel(item, layout, 5000, 5000);
-    expect(far.x + layout.bounds.w).toBeLessThanOrEqual(CANVAS_W);
-    expect(far.y + layout.bounds.h).toBeLessThanOrEqual(CANVAS_H);
+    expect(far.x + layout.bounds.w + inset).toBeLessThanOrEqual(CANVAS_W);
+    expect(far.y + layout.bounds.h + inset).toBeLessThanOrEqual(CANVAS_H);
   });
 });
 

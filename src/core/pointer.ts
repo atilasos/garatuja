@@ -123,8 +123,9 @@ export class PointerInput {
       else {
         this.surface.begin();
         this.active = { id: -1, previous: point, activeTool: this.selected, fixed: false };
+        const tap = this.selected.tool.tapOnly?.(this.selected.context, point);
         this.selected.tool.down(point, this.selected.context);
-        if (this.selected.tool.tapOnly?.(this.selected.context)) this.finish(point);
+        if (tap) this.finish(point);
         else this.gestureChanged();
       }
     }
@@ -155,7 +156,7 @@ export class PointerInput {
       this.pickColor(point);
       return;
     }
-    const fixed = this.fixedClick() && !this.selected.tool.tapOnly?.(this.selected.context);
+    const fixed = this.fixedClick() && !this.selected.tool.tapOnly?.(this.selected.context, point);
     this.active = { id: event.pointerId, previous: point, activeTool: this.selected, fixed };
     this.surface.begin();
     this.surface.element.setPointerCapture(event.pointerId);

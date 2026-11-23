@@ -1,14 +1,15 @@
 import { t } from '../../core/i18n';
 import {
-  centerOf, clamp, defaultTarget, drawLabel, drawLabels, hasTarget, labelExtent, labelRenderer, layoutOf, movedLabel, nextBadge,
+  centerOf, clampToPage, defaultTarget, drawLabel, drawLabels, hasTarget, labelExtent, labelFits, labelMargin, labelRenderer,
+  layoutOf, movedLabel, nextBadge,
   targetIsInside, typeHasTarget, typeOf, typePatch, variantOf, type LabelRenderer, type LabelType,
 } from '../../core/labels';
 import type { State } from '../../core/store';
-import { CANVAS_H, CANVAS_W, type L10n, type LabelObject, type LabelStore, type Point, type ToolContext } from '../../core/types';
+import { CANVAS_H, type L10n, type LabelObject, type LabelStore, type Point, type ToolContext } from '../../core/types';
 import { ensureGlyphs } from '../../fonts/load';
 import { fontDefs } from '../../fonts/stacks';
 import type { App } from '../../ui/app';
-import { button } from '../../ui/dom';
+import { button, h } from '../../ui/dom';
 import { labelIcons } from './icons';
 import { LabelLayer, type LabelEntry, type LayerMode } from './layer';
 import { labelSizes, typeLabel } from './options';
@@ -24,6 +25,7 @@ interface Session {
 const balloons = new Set(['speech', 'thought', 'shout']);
 
 const words = {
+  tooLarge: { pt: 'Não cabe. Escolhe uma letra mais pequena.', en: 'It doesn’t fit. Choose a smaller letter size.' },
   write: { pt: 'Escrever', en: 'Write' },
   copy: { pt: 'Duplicar legenda', en: 'Duplicate label' },
   remove: { pt: 'Apagar legenda', en: 'Delete label' },
@@ -67,6 +69,7 @@ export class LabelEditor {
   private known: readonly LabelObject[] = [];
   private mode: LayerMode = 'none';
   private suppress = false;
+  private warning?: HTMLElement;
   private barKey = '';
   private barButtons: HTMLElement[] = [];
   private readonly renderer: LabelRenderer = {
@@ -98,7 +101,7 @@ export class LabelEditor {
     const field = this.layer?.field;
     const app = this.app;
     if (!field || !app) return;
-    field.uppercase = () => app.store.get().settings.uppercase;
+    field.settings = () => app.store.get().settings;
     field.onInput = value => this.typed(value);
     field.onKey = event => this.fieldKey(event);
   }
@@ -130,7 +133,7 @@ export class LabelEditor {
   }
 
   deactivate() {
-    this.finish(true);
+    this.flush();
     this.selectedId = undefined;
     this.mode = 'none';
     this.layer?.setMode('none');
@@ -213,7 +216,15 @@ export class LabelEditor {
       this.refit(this.session);
       this.repaint();
     } else {
-      if (patch.size !== undefined || patch.font !== undefined || patch.kind !== undefined) this.refitPatch(target, patch);
+      if (patch.size !== undefined || patch.font !== undefined || patch.kind !== undefined) {
+        const next = layoutOf({ ...target, ...patch });
+        if (!labelFits(next)) {
+          this.app?.notify(words.tooLarge);
+          this.syncPanelFrom(target.id);
+          return;
+        }
+        this.refitPatch(target, patch);
+      }
       this.mutate(store => store.update(target.id, patch));
     }
   }
@@ -221,18 +232,20 @@ export class LabelEditor {
   /** Keep the working label on the page while its text grows. */
   private refit(session: Session) {
     const label = session.label;
-    const { bounds } = layoutOf(label);
+    const layout = layoutOf(label);
     const c = session.center;
-    label.x = clamp(c ? c.x - bounds.w / 2 : label.x, 0, Math.max(0, CANVAS_W - bounds.w));
-    label.y = clamp(c ? c.y - bounds.h / 2 : label.y, 0, Math.max(0, CANVAS_H - bounds.h));
+    const origin = c ? { x: c.x - layout.bounds.w / 2, y: c.y - layout.bounds.h / 2 } : label;
+    const { x, y } = movedLabel(origin, layout, 0, 0);
+    label.x = x;
+    label.y = y;
   }
 
   /** Same idea for a saved label whose size, font or kind changed: grow around its centre, stay on the page. */
   private refitPatch(label: LabelObject, patch: Partial<LabelObject>) {
     const before = layoutOf(label).bounds;
-    const after = layoutOf({ ...label, ...patch }).bounds;
-    patch.x = clamp(before.x + before.w / 2 - after.w / 2, 0, Math.max(0, CANVAS_W - after.w));
-    patch.y = clamp(before.y + before.h / 2 - after.h / 2, 0, Math.max(0, CANVAS_H - after.h));
+    const layout = layoutOf({ ...label, ...patch });
+    const origin = { x: before.x + (before.w - layout.bounds.w) / 2, y: before.y + (before.h - layout.bounds.h) / 2 };
+    Object.assign(patch, movedLabel(origin, layout, 0, 0));
   }
 
   /** Fields that turn `label` into another kind, keeping text, colour and place. */
@@ -256,6 +269,7 @@ export class LabelEditor {
     const layer = this.layer;
     if (!app || !layer) return;
     this.finish(true);
+    if (this.session) return;
     const state = app.store.get();
     const { font, size } = readLabelOptions(state);
     const label: LabelObject = {
@@ -263,10 +277,11 @@ export class LabelEditor {
       ...defined(typePatch(type, this.known)),
     };
     const { bounds, lineHeight } = layoutOf(label);
-    label.x = clamp(type === 'text' ? point.x : point.x - bounds.w / 2, 0, Math.max(0, CANVAS_W - bounds.w));
-    label.y = clamp(point.y - (type === 'text' ? lineHeight / 2 : bounds.h / 2), 0, Math.max(0, CANVAS_H - bounds.h));
-    if (typeHasTarget(type)) label.target = from ?? defaultTarget({ ...bounds, x: label.x, y: label.y }, size);
+    label.x = type === 'text' ? point.x : point.x - bounds.w / 2;
+    label.y = point.y - (type === 'text' ? lineHeight / 2 : bounds.h / 2);
     this.session = { label, isNew: true, center: balloons.has(variantOf(label)) ? point : undefined };
+    this.refit(this.session);
+    if (typeHasTarget(type)) label.target = from ?? defaultTarget(layoutOf(label).bounds, size);
     this.selectedId = label.id;
     layer.field.open('');
     this.repaint();
@@ -278,11 +293,12 @@ export class LabelEditor {
     const label = this.known.find(item => item.id === id);
     if (!layer || !label) return;
     this.finish(true);
+    if (this.session) return;
     const center = balloons.has(variantOf(label)) ? centerOf(layoutOf(label).bounds) : undefined;
     this.session = { label: structuredClone(label), isNew: false, center };
     this.selectedId = id;
     layer.field.open(label.text);
-    this.typed(layer.field.value);
+    this.repaint();
     this.app?.say(words.typing);
   }
 
@@ -325,27 +341,39 @@ export class LabelEditor {
     app.say(words.typing);
   }
 
+  private tooLarge(label: LabelObject) {
+    return !labelFits(layoutOf({ ...label, text: label.text.trimEnd() }));
+  }
+
+  flush() {
+    this.finish(true);
+    // An oversized draft remains recoverable with Undo when leaving the editor.
+    if (this.session) this.finish(false);
+  }
+
   /** Close the typing session. Returns true when there was one. */
   finish(commit: boolean, remember = true): boolean {
     const session = this.session;
     if (!session) return false;
+    const unchanged = !session.isNew && JSON.stringify(this.selected()) === JSON.stringify(session.label);
+    if (commit && !unchanged && this.tooLarge(session.label)) return false;
     this.session = undefined;
     this.layer?.field.close();
-    const label = { ...session.label, text: session.label.text.replace(/\s+$/, '') };
+    const label = { ...session.label, text: session.label.text.trimEnd() };
     this.selectedId = undefined;
     if (!commit) {
       const app = this.app;
       if (app && remember && session.label.text) {
         app.surface.rememberWriting(() => this.resume(session), () => this.finish(false, false), session.label.text.length * 2);
       }
-    }
-    else if (!label.text.trim()) {
+    } else if (!unchanged && !label.text.trim()) {
       if (!session.isNew) this.mutate(store => store.remove(label.id));
-    } else {
+    } else if (!unchanged) {
       const layout = layoutOf(label);
       if (session.isNew && hasTarget(layout.variant) && (!label.target || targetIsInside(layout.bounds, label.target, 20))) {
         label.target = defaultTarget(layout.bounds, label.size);
       }
+      if (label.target) label.target = clampToPage(label.target, labelMargin(layout));
       this.mutate(store => store.list().some(item => item.id === label.id) ? store.update(label.id, label) : store.add(label));
     }
     this.repaint();
@@ -488,7 +516,7 @@ export class LabelEditor {
         y: layout.textBox.y, w: width, h: layout.textBox.h,
       },
       font: label.font, size: label.size, lineHeight: layout.lineHeight, color: label.color,
-      caret: '#23578d', align: layout.align, invisible: true,
+      caret: '#23578d', align: layout.align, invisible: true, bottomEdge: CANVAS_H - 16,
     });
   }
 
@@ -514,7 +542,14 @@ export class LabelEditor {
           : [];
       for (const control of this.barButtons) control.dataset.bar = state;
     }
-    layer.setBar(this.barButtons, selected && LabelLayer.footprint(selected), t(words.actions));
+    const buttons = this.barButtons;
+    if (this.session) {
+      const warning = this.warning ??= h('p', 'label-fit-warning');
+      warning.setAttribute('role', 'status');
+      warning.textContent = t(words.tooLarge);
+      warning.hidden = !this.tooLarge(this.session.label);
+      layer.setBar([...buttons, warning], selected && LabelLayer.footprint(selected), t(words.actions));
+    } else layer.setBar(buttons, selected && LabelLayer.footprint(selected), t(words.actions));
   }
 }
 

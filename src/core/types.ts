@@ -172,7 +172,7 @@ export interface Tool {
   options?: OptionSpec[];
   manualCommit?: boolean;
   /** A tap tool ends on the first activation, including in fixed-click mode. */
-  tapOnly?(c: ToolContext): boolean;
+  tapOnly?(c: ToolContext, p: Point): boolean;
   /** Settle state that outlives a pointer gesture before leaving the tool or taking a snapshot. */
   flushPending?(c: ToolContext): void;
   /** An editor can stay open outside a pointer gesture. Undo closes it before touching committed work. */

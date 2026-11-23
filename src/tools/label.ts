@@ -1,4 +1,4 @@
-import { clampToPage, hasTarget, layoutOf, movedLabel, typeHasTarget, variantOf, type LabelType } from '../core/labels';
+import { clampToPage, hasTarget, labelMargin, layoutOf, movedLabel, typeHasTarget, variantOf, type LabelType } from '../core/labels';
 import type { LabelObject, PaintPointer, Point, Tool, ToolContext } from '../core/types';
 import { labelEditor } from '../features/labels/editor';
 import { labelIcons } from '../features/labels/icons';
@@ -6,14 +6,19 @@ import { fontOption, labelSizes, sizeOption, typeOption } from '../features/labe
 
 type Drag =
   | { mode: 'move'; id: string; origin: LabelObject; start: Point; moved: boolean }
-  | { mode: 'target'; id: string }
+  | { mode: 'target'; id: string; margin: number }
   | { mode: 'create'; start: Point; type: LabelType; moved: boolean; wasSelected: boolean };
 
 let drag: Drag | undefined;
 let lastTap: { id: string; t: number } | undefined;
 
 /** Fingertip radius, in page pixels, for grabbing the arrow/tail handle (44 px across on screen). */
-const grab = () => 24 * labelEditor.pageUnitsPerPixel;
+function handleAt(point: Point) {
+  const label = labelEditor.selected();
+  if (label?.target && hasTarget(variantOf(label)) &&
+      Math.hypot(point.x - label.target.x, point.y - label.target.y) <= 24 * labelEditor.pageUnitsPerPixel) return label;
+  return undefined;
+}
 
 function preview(from: Point, to: Point, c: ToolContext) {
   const ctx = c.overlay;
@@ -48,16 +53,21 @@ export default {
   options: [typeOption, fontOption, sizeOption(labelSizes, 60)],
   onSelect(c) { labelEditor.activate(c); },
   onDeselect() { drag = undefined; labelEditor.deactivate(); },
-  tapOnly(c) { return !typeHasTarget(c.opt<LabelType>('type')); },
+  tapOnly(c, p) {
+    return !labelEditor.selected() && !labelEditor.session && !typeHasTarget(c.opt<LabelType>('type')) &&
+      !c.labels.at(p);
+  },
   hasPendingEdit() { return Boolean(labelEditor.session); },
   undoPendingEdit() { return labelEditor.undoEdit(); },
-  flushPending() { labelEditor.finish(true); },
+  flushPending() { labelEditor.flush(); },
   down(p, c) {
     const editor = labelEditor;
     editor.finish(true);
+    if (editor.session) return;
     const selected = editor.selected();
-    if (selected?.target && hasTarget(variantOf(selected)) && Math.hypot(p.x - selected.target.x, p.y - selected.target.y) <= grab()) {
-      drag = { mode: 'target', id: selected.id };
+    const aimed = handleAt(p);
+    if (aimed) {
+      drag = { mode: 'target', id: aimed.id, margin: labelMargin(layoutOf(aimed)) };
       return;
     }
     const hit = c.labels.at(p);
@@ -79,7 +89,7 @@ export default {
       drag.moved = true;
       c.labels.update(drag.id, movedLabel(drag.origin, layoutOf(drag.origin), dx, dy));
     } else if (drag.mode === 'target') {
-      c.labels.update(drag.id, { target: clampToPage(p) });
+      c.labels.update(drag.id, { target: clampToPage(p, drag.margin) });
     } else if (typeHasTarget(drag.type)) {
       drag.moved = Math.hypot(p.x - drag.start.x, p.y - drag.start.y) > reach * 2;
       if (drag.moved) preview(drag.start, p, c);

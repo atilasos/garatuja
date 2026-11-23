@@ -2,6 +2,8 @@ import { fontDef } from '../../fonts/stacks';
 import { t } from '../../core/i18n';
 import { CANVAS_H, CANVAS_W, type L10n, type Rect } from '../../core/types';
 import { h } from '../../ui/dom';
+import type { Settings } from '../../core/store';
+import { writingInput } from '../../ui/writing-input';
 
 export interface FieldStyle {
   /** Where the text sits, in page pixels. */
@@ -30,37 +32,21 @@ export class TextField {
   onInput: (value: string) => void = () => {};
   /** Return true when the key was handled. */
   onKey: (event: KeyboardEvent) => boolean = () => false;
-  uppercase: () => boolean = () => false;
+  settings: () => Settings | undefined = () => undefined;
+  private readonly resetInput: () => void;
 
   constructor() {
     const el = this.element;
     el.hidden = true;
-    el.dataset.writingInput = '';
     el.spellcheck = false;
     el.rows = 1;
     el.autocomplete = 'off';
     el.setAttribute('autocorrect', 'off');
     el.setAttribute('enterkeyhint', 'enter');
-    el.addEventListener('input', event => {
-      if (this.uppercase() && !(event as InputEvent).isComposing) this.shout();
-      this.onInput(el.value);
-    });
-    el.addEventListener('compositionend', () => {
-      if (this.uppercase()) this.shout();
-      this.onInput(el.value);
-    });
+    this.resetInput = writingInput(el, () => this.settings(), value => this.onInput(value));
     el.addEventListener('keydown', event => {
       if (this.onKey(event)) event.preventDefault();
     });
-  }
-
-  private shout() {
-    const el = this.element;
-    const upper = el.value.toUpperCase();
-    if (upper === el.value) return;
-    const { selectionStart, selectionEnd } = el;
-    el.value = upper;
-    el.setSelectionRange(selectionStart, selectionEnd);
   }
 
   get value() { return this.element.value; }
@@ -68,7 +54,8 @@ export class TextField {
   get visible() { return !this.element.hidden; }
 
   open(value: string) {
-    this.element.value = this.uppercase() ? value.toUpperCase() : value;
+    this.element.value = value;
+    this.resetInput();
     this.element.hidden = false;
     this.focus();
   }

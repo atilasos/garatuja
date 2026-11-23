@@ -17,7 +17,7 @@ export function editWriting(app: App) {
   const { settings } = app.store.get();
   const text = h('textarea', 'book-writing');
   const before = app.documents.page.text;
-  text.value = writingText(before, settings);
+  text.value = before;
   text.autofocus = true;
   text.lang = settings.locale === 'pt' ? 'pt-PT' : 'en';
   text.setAttribute('autocorrect', 'off');
@@ -50,7 +50,7 @@ export function editWriting(app: App) {
     content: h('div', 'dialog-stack', h('label', 'work-field', h('span', '', t(textLabel)), text),
       settings.readAloud ? listen : null, notice),
     onClose: () => {
-      app.documents.editText(uppercaseValue(text.value, app.store.get().settings));
+      app.documents.editText(text.value);
       app.documents.rememberText(before);
       void app.documents.save(false);
       if (settings.readAloud && 'speechSynthesis' in window) window.speechSynthesis.cancel();

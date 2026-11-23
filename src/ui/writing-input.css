@@ -22,10 +22,9 @@
 }
 .stage .writing-keyboard-top { top: 6px; bottom: auto; }
 .stage:has(.writing-keyboard) .label-field { max-height: min(23dvh, 70%); overflow-y: auto !important; }
-.writing-symbol-switch { display: flex; justify-content: center; }
 .dialog > .writing-keyboard { margin-top: 8px; }
 .writing-dialog:has(> .writing-keyboard) .book-writing { min-height: 96px; height: clamp(96px, 88dvh - 470px, 360px); resize: none; }
-.class-presentation:has(.writing-keyboard) { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+.class-presentation:has(.writing-keyboard) { grid-template-rows: auto minmax(0, 1fr) 56px auto; }
 @media (max-width: 629px) {
   .writing-key-row:not(.writing-commands) button { padding-inline: 0; width: 48px; }
   .writing-commands .writing-key { gap: 2px; flex-direction: column; padding: 2px; min-width: min(20%, 70px); }
