@@ -9,7 +9,7 @@ import { animationIcons } from '../animation/icons';
 import { animationFps } from '../animation/frames';
 import { Player } from '../animation/player';
 import { pageIcons } from '../pages/icons';
-import { audienceLabel, writingText } from './writing';
+import { audienceLabel } from './writing';
 import './reader.css';
 
 export const readLabel = { pt: 'Ler', en: 'Read' };
@@ -20,10 +20,10 @@ export const hasCover = (project: ProjectRecord) => project.pages.length > 1 || 
 
 export function coverDetails(project: ProjectRecord, className: string) {
   return h('div', 'book-cover-details',
-    h('h1', '', project.title || t(untitled)),
-    className.trim() ? h('p', 'book-class', className) : null,
-    project.author ? h('p', 'book-author', project.author) : null,
-    project.audience ? h('div', 'book-audience', h('strong', '', t(audienceLabel)), h('p', '', project.audience)) : null);
+    h('h1', project.title ? 'authored-text' : '', project.title || t(untitled)),
+    className.trim() ? h('p', 'book-class authored-text', className) : null,
+    project.author ? h('p', 'book-author authored-text', project.author) : null,
+    project.audience ? h('div', 'book-audience', h('strong', '', t(audienceLabel)), h('p', 'authored-text', project.audience)) : null);
 }
 
 export function showReader(app: App, presentation?: (() => HTMLElement) | readonly ProjectRecord[]) {
@@ -232,12 +232,11 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
     thumbnail.src = thumbUrl = URL.createObjectURL(page.thumb);
     const illustration = h('div', 'book-illustration', thumbnail, canvas.canvas);
     canvas.canvas.style.visibility = 'hidden';
-    const copy = writingText(page.text, settings);
     display.replaceChildren(h('article', 'book-spread', illustration,
       h('div', 'book-copy',
-        slide ? h('header', 'slide-work', h('h3', '', slide.project.title || t(untitled)),
-          h('p', '', slide.project.author)) : null,
-        h('p', '', copy))));
+        slide ? h('header', 'slide-work', h('h3', slide.project.title ? 'authored-text' : '', slide.project.title || t(untitled)),
+          h('p', 'authored-text', slide.project.author)) : null,
+        h('p', 'authored-text', page.text))));
     const index = (slide?.index ?? pageIndex) + 1;
     const count = slide?.project.pages.length ?? project.pages.length;
     position.textContent = t({ pt: `Página ${index} de ${count}`, en: `Page ${index} of ${count}` });

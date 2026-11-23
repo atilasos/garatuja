@@ -1,17 +1,12 @@
 import { speak, t } from '../../core/i18n';
-import type { Settings } from '../../core/store';
 import type { App } from '../../ui/app';
 import { button, h, replaceControls, unavailable } from '../../ui/dom';
 import { icons } from '../../ui/icons';
-import { writingInput, uppercaseValue } from '../../ui/writing-input';
+import { writingInput } from '../../ui/writing-input';
 import './writing.css';
 
 export const audienceLabel = { pt: 'Para quem é?', en: 'Who is it for?' };
 export const textLabel = { pt: 'O meu texto', en: 'My text' };
-
-export function writingText(value: string, settings: Settings) {
-  return uppercaseValue(value, settings);
-}
 
 export function editWriting(app: App) {
   const { settings } = app.store.get();
@@ -38,10 +33,13 @@ export function editWriting(app: App) {
   const listen = button({ pt: 'Ouvir', en: 'Listen' }, icons.sound, () => {
     const value = text.value.trim();
     if (!value) return;
-    notice.hidden = speak({ pt: value, en: value });
-    if (!notice.hidden) notice.textContent = t({
-      pt: 'A leitura precisa de uma voz instalada neste dispositivo.',
-      en: 'Reading aloud needs a voice installed on this device.',
+    notice.hidden = true;
+    speak({ pt: value, en: value }, () => {
+      notice.hidden = false;
+      notice.textContent = t({
+        pt: 'A leitura precisa de uma voz instalada neste dispositivo.',
+        en: 'Reading aloud needs a voice installed on this device.',
+      });
     });
   });
   unavailable(listen, text.value.trim() ? undefined : listenReason, explain);
@@ -75,7 +73,7 @@ export function writingStrip(app: App) {
     toggle.dataset.focus = 'writing-toggle';
     toggle.setAttribute('aria-expanded', String(!collapsed));
     toggle.setAttribute('aria-controls', 'page-writing-preview');
-    const value = writingText(app.documents.page.text, settings);
+    const value = app.documents.page.text;
     const preview = button({ pt: value || invitation.pt, en: value || invitation.en }, icons.text,
       () => editWriting(app), 'writing-preview');
     preview.id = 'page-writing-preview';
@@ -83,6 +81,7 @@ export function writingStrip(app: App) {
     preview.setAttribute('aria-label', t(labels.edit) + (value.trim() ? '. ' + value : ''));
     preview.title = value || t(invitation);
     preview.classList.toggle('writing-invitation', !value.trim());
+    preview.querySelector('.button-label')?.classList.toggle('authored-text', Boolean(value.trim()));
     preview.hidden = collapsed;
     preview.disabled = busy;
     element.classList.toggle('collapsed', collapsed);

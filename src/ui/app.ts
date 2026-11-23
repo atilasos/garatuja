@@ -359,5 +359,18 @@ export class App {
     if (region) this.toasts.confirm(message, region);
   }
 
-  notify(message: L10n, action?: ToastAction) { return this.toasts.show(message, action); }
+  notify(message: L10n, action?: ToastAction, near?: HTMLElement) {
+    const dialog = [...document.querySelectorAll<HTMLDialogElement>('dialog[open]')].at(-1);
+    if (!dialog) return this.toasts.show(message, action);
+    if (near && dialog.contains(near)) {
+      const item = h('div', 'dialog-action-notice');
+      if (near.nextElementSibling?.matches('.dialog-action-notice')) near.nextElementSibling.remove();
+      near.after(item);
+      return this.toasts.show(message, action, item);
+    }
+    const region = dialog.querySelector<HTMLElement>('.dialog-notices');
+    const fullscreen = document.fullscreenElement;
+    if (region && fullscreen && dialog.contains(fullscreen)) fullscreen.append(region);
+    return this.toasts.show(message, action, region ?? dialog);
+  }
 }

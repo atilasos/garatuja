@@ -51,13 +51,15 @@ function voices() {
   return window.speechSynthesis.getVoices();
 }
 
-export function speak(text: L10n) {
+/** On-demand reading reports unavailable voices at the requesting control. */
+export function speak(text: L10n, unavailable?: () => void) {
+  const report = unavailable ?? missingVoice;
   if (!('speechSynthesis' in window)) {
-    missingVoice?.();
+    report?.();
     return false;
   }
   const available = voices();
-  if (!available.length) {
+  if (!available.length && !unavailable) {
     // Chrome loads voices asynchronously: say it once they arrive.
     pending = text;
     if (!listening) {
@@ -71,7 +73,7 @@ export function speak(text: L10n) {
     return true;
   }
   const spoken = say(text);
-  if (!spoken) missingVoice?.();
+  if (!spoken) report?.();
   return spoken;
 }
 

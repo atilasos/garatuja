@@ -18,13 +18,14 @@
   padding: 4%;
   color: #222;
   margin: 0 auto;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .print-work-preview .print-work-sheet {
   width: min(100%, 42dvh);
   min-height: min(58dvh, 72vw);
   box-shadow: 0 2px 6px #352b2330;
   font-size: .82rem;
+  container-type: inline-size;
 }
 .print-work-preview[data-orientation="landscape"] .print-work-sheet {
   width: min(100%, 76dvh);
@@ -36,7 +37,8 @@
 .print-work-credit { font-size: .82rem; }
 .print-work-copy { white-space: pre-wrap; margin: 8px 0; }
 .print-work-cover .book-cover-details { padding: 0 0 9px; overflow: visible; text-align: center; }
-.print-work-cover .book-cover-details h1 { font-size: clamp(1.25rem, 2.6vw, 2.25rem); }
+.print-work-cover .book-cover-details h1 { font-size: 8cqw; }
+.print-work-cover .book-cover-details .book-author { font-size: 4.5cqw; }
 .print-work-sheet.print-work-cover { justify-content: center; }
 @page garatuja-portrait { size: A4 portrait; margin: 13mm; }
 @page garatuja-landscape { size: A4 landscape; margin: 13mm; }
@@ -45,6 +47,8 @@
   .print-work-landscape { page: garatuja-landscape; }
   .print-work .print-work-sheet { display: block; padding: 0; }
   .print-work .print-work-cover { display: grid; place-items: center; min-height: 270mm; }
+  .print-work .print-work-cover h1 { font-size: 36pt; }
+  .print-work .print-work-cover .book-author { font-size: 20pt; }
   .print-work-landscape .print-work-cover { min-height: 183mm; }
   .print-work .print-work-sheet + .print-work-sheet { break-before: page; }
   .print-work .print-work-sheet img { max-height: 142mm; break-inside: avoid; }

@@ -32,6 +32,7 @@ export function openModal({ title, content, footer, onClose }: ModalOptions): ()
   const more = h('div', 'dialog-more');
   more.setAttribute('aria-hidden', 'true');
   dialog.append(h('header', 'dialog-head', heading, dismiss));
+  dialog.append(h('div', 'dialog-notices'));
   if (footer) {
     dialog.classList.add('dialog-with-footer');
     footer.classList.add('dialog-footer');

@@ -6,7 +6,6 @@ import { icon, icons } from '../../ui/icons';
 import { untitled } from '../../ui/work-fields';
 import { pageIcons } from '../pages/icons';
 import { coverDetails, hasCover } from './reader';
-import { writingText } from './writing';
 import './print.css';
 
 export const printLabel = { pt: 'Imprimir', en: 'Print' };
@@ -104,7 +103,7 @@ export async function printWork(app: App) {
         const image = await picture(page);
         if (closed) return;
         const details = [project.title || t(untitled), project.author].filter(Boolean).join(' · ');
-        const copy = h('p', 'print-work-copy', writingText(page.text.trimEnd(), settings));
+        const copy = h('p', 'print-work-copy authored-text', page.text);
         if (book) {
           const lines = page.text.split('\n').reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / 50)), 0);
           copy.style.setProperty('--print-text-size', lines <= 8 ? '18pt' : lines <= 16 ? '17pt' : '16pt');

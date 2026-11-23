@@ -408,7 +408,7 @@ test('upper case reaches controls and dialogs, orientation and settings icons di
   await page.keyboard.press('Escape');
   await expect(control(page, 'Pintar')).toHaveCSS('text-transform', 'uppercase');
   await control(page, 'O meu texto').click();
-  await expect(page.getByRole('textbox')).toHaveCSS('text-transform', 'uppercase');
+  await expect(page.getByRole('textbox')).toHaveCSS('text-transform', 'none');
   await page.keyboard.press('Escape');
   await page.evaluate(() => window.__garatuja?.app.configure({ locale: 'en', uppercase: false }));
   await page.keyboard.press('F1');

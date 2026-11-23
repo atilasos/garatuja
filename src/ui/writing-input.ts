@@ -26,6 +26,11 @@ export function writingInput(field: Field, settings: () => Settings | undefined,
   field.addEventListener('beforeinput', event => {
     if (event instanceof InputEvent && event.isComposing) return;
     selection = { start: field.selectionStart ?? previous.length, end: field.selectionEnd ?? previous.length };
+    const options = settings();
+    if (!options?.uppercase || !(event instanceof InputEvent) || !event.cancelable ||
+      event.inputType !== 'insertText' || !event.data) return;
+    const upper = uppercaseValue(event.data, options);
+    if (upper !== event.data && document.execCommand('insertText', false, upper)) event.preventDefault();
   });
   field.addEventListener('compositionstart', () => {
     selection = { start: field.selectionStart ?? previous.length, end: field.selectionEnd ?? previous.length };
@@ -144,6 +149,11 @@ export function mountWritingKeyboard(app: App) {
     const end = field.selectionEnd ?? start;
     const previous = [...field.value.slice(0, start)].at(-1)?.length ?? 0;
     if (value !== null && field.maxLength >= 0 && field.value.length - (end - start) + value.length > field.maxLength) return;
+    const focused = document.activeElement;
+    field.focus({ preventScroll: true });
+    const edited = value === null ? document.execCommand('delete') : document.execCommand('insertText', false, value);
+    if (focused instanceof HTMLElement && board.contains(focused)) focused.focus({ preventScroll: true });
+    if (edited) return;
     const inputType = value === null ? 'deleteContentBackward' : 'insertText';
     field.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, inputType, data: value }));
     field.setRangeText(value ?? '', value === null && end === start ? start - previous : start, end, 'end');
@@ -157,9 +167,9 @@ export function mountWritingKeyboard(app: App) {
     builtFor = settings;
     const upper = settings.uppercase || capital;
     const alphabet = settings.keyboardLayout === 'qwerty' ? ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'] : ['abcdefghi', 'jklmnopqr', 'stuvwxyz'];
-    const row = (characters: string) => h('div', 'writing-key-row',
+    const row = (characters: string, symbolRow: boolean) => h('div', 'writing-key-row',
       ...[...(upper ? characters.toUpperCase() : characters)].map(letter =>
-        button({ pt: letter, en: letter }, undefined, () => insert(letter))));
+        button({ pt: letter, en: letter }, undefined, () => { symbols = symbolRow; insert(letter); })));
     const key = (label: L10n, art: string, run: () => void) => button(label, art, run, 'writing-key');
     const toggle = (id: string, label: L10n, active: boolean, change: () => void) => {
       const control = key(label, keyboardIcon, () => {
@@ -176,9 +186,10 @@ export function mountWritingKeyboard(app: App) {
     const switchKeys = toggle('symbols', symbols ? { pt: 'Letras', en: 'Letters' } : { pt: 'á ç 123', en: 'á ç 123' },
       symbols, () => { symbols = !symbols; });
     const small = narrow.matches || compact;
-    const extra = ['áàâãéêíóôõúç', '0123456789', '.,?!-ºª'];
-    const keys = small ? [symbols ? extra.join('') : alphabet.join('')] : [...alphabet, ...extra];
-    board.replaceChildren(...keys.map(row),
+    const extra = ['áàâãéêíóôõúç', '0123456789ºª', '.,?!-:;—«»"()…'];
+    const keys = small ? [row((symbols ? extra : alphabet).join(''), symbols)]
+      : [...alphabet.map(characters => row(characters, false)), ...extra.map(characters => row(characters, true))];
+    board.replaceChildren(...keys,
       h('div', 'writing-key-row writing-commands', ...(small ? [switchKeys] : []), caps,
         key({ pt: 'Espaço', en: 'Space' }, keyboardIcon, () => insert(' ')),
         key({ pt: 'Apagar', en: 'Backspace' }, icons.undo, () => insert(null)),

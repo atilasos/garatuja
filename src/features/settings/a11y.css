@@ -47,6 +47,9 @@ html.large-cursor, html.large-cursor button, html.large-cursor input, html.large
 /* Capital letters only. */
 html.uppercase body, html.uppercase :is(button, input, textarea, select, dialog) { text-transform: uppercase; }
 
+.uppercase :is(.authored-text, [data-writing-input]) { text-transform: none; }
+.uppercase [data-writing-input]::placeholder { text-transform: uppercase; }
+
 /* Left hand: also move messages to the left. */
 html.left-handed .toasts { right: auto; left: 14px; }
 

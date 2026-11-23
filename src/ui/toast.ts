@@ -36,7 +36,7 @@ export class Toasts {
   }
 
   /** Returns a function that removes the message early. */
-  show(message: L10n, action?: ToastAction) {
+  show(message: L10n, action?: ToastAction, region: HTMLElement = this.element) {
     const status = h('span', 'toast-message');
     status.setAttribute('role', 'status');
     this.labels.set(status, message);
@@ -51,7 +51,7 @@ export class Toasts {
     const close = button(closeLabel, icons.close, remove);
     this.labels.set(close, closeLabel);
     item.append(close);
-    this.element.append(item);
+    region.append(item);
     status.textContent = t(message);
     if (!action) window.setTimeout(remove, 5200);
     return remove;

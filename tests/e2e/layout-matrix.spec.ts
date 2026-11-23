@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import type { Settings } from '../../src/core/store';
 
 const formats = [
@@ -173,76 +173,79 @@ for (const [width, height] of formats) {
 }
 
 for (const [width, height] of formats) {
-  test(`lower-half keyboard and fixed dialog actions at ${width}×${height}`, async ({ page }, info) => {
-    await page.setViewportSize({ width, height });
-    await page.goto('/');
-    await page.waitForFunction(() => Boolean(window.__garatuja));
-    await page.evaluate(() => window.__garatuja!.app.configure({ screenKeyboard: true }));
-    const board = page.getByRole('toolbar', { name: 'Teclado no ecrã' });
-    const sheet = page.locator('.sheet');
-    for (const [tool, kind, action] of [['text', '', 'Pousar'], ['label', 'text', 'Pronto'], ['label', 'speech', 'Pronto']]) {
-      await page.evaluate(({ tool, kind }) => {
-        const app = window.__garatuja!.app;
-        app.chooseTool(tool);
-        if (kind) app.setOption('type', kind);
-        window.scrollTo(0, 0);
-      }, { tool, kind });
-      const size = await sheet.boundingBox();
-      if (!size) throw new Error('Missing paper');
-      await sheet.click({ position: { x: size.width * .35, y: size.height * .90 } });
-      const field = page.locator('.label-field');
-      const done = page.getByRole('button', { name: action, exact: true });
-      const cancel = page.getByRole('button', { name: 'Cancelar', exact: true });
-      await expect(board).toBeVisible();
-      await expect(board).toHaveClass(/writing-keyboard-top/);
-      await expect.poll(async () => {
-        const keyboard = await board.boundingBox();
-        if (!keyboard) return false;
-        const bottom = keyboard.y + keyboard.height;
-        const controls = await Promise.all([field.boundingBox(), done.boundingBox(), cancel.boundingBox()]);
-        return controls.every(box => box && box.y >= bottom && box.y + box.height <= height);
-      }).toBe(true);
-      for (const key of ['Maiúsculas', 'Espaço', 'Apagar', 'Nova linha']) {
-        const target = board.getByRole('button', { name: key, exact: true });
-        await expect(target).toBeInViewport({ ratio: 1 });
-        const box = await target.boundingBox();
-        expect(box?.width).toBeGreaterThanOrEqual(48);
-        expect(box?.height).toBeGreaterThanOrEqual(48);
+  for (const uppercase of [false, true]) {
+    test(`lower-half keyboard and fixed dialog actions at ${width}×${height}, uppercase ${uppercase}`, async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await page.goto('/');
+      await page.waitForFunction(() => Boolean(window.__garatuja));
+      await page.evaluate(uppercase => window.__garatuja!.app.configure({ screenKeyboard: true, uppercase }), uppercase);
+      const board = page.getByRole('toolbar', { name: 'Teclado no ecrã' });
+      const sheet = page.locator('.sheet');
+      for (const [tool, kind, action] of [['text', '', 'Pousar'], ['label', 'text', 'Pronto'], ['label', 'speech', 'Pronto']]) {
+        await page.evaluate(({ tool, kind }) => {
+          const app = window.__garatuja!.app;
+          app.chooseTool(tool);
+          if (kind) app.setOption('type', kind);
+          window.scrollTo(0, 0);
+        }, { tool, kind });
+        const size = await sheet.boundingBox();
+        if (!size) throw new Error('Missing paper');
+        await sheet.click({ position: { x: size.width * .35, y: size.height * .90 } });
+        const field = page.locator('.label-field');
+        const done = page.getByRole('button', { name: action, exact: true });
+        const cancel = page.getByRole('button', { name: 'Cancelar', exact: true });
+        await expect(board).toBeVisible();
+        await expect(board).toHaveClass(/writing-keyboard-top/);
+        await expect.poll(async () => {
+          const keyboard = await board.boundingBox();
+          if (!keyboard) return false;
+          const bottom = keyboard.y + keyboard.height;
+          const controls = await Promise.all([field.boundingBox(), done.boundingBox(), cancel.boundingBox()]);
+          return controls.every(box => box && box.y >= bottom && box.y + box.height <= height);
+        }).toBe(true);
+        for (const key of ['Maiúsculas', 'Espaço', 'Apagar', 'Nova linha']) {
+          const target = board.getByRole('button', { name: key, exact: true });
+          await expect(target).toBeInViewport({ ratio: 1 });
+          const box = await target.boundingBox();
+          expect(box?.width).toBeGreaterThanOrEqual(48);
+          expect(box?.height).toBeGreaterThanOrEqual(48);
+        }
+        await expectControlsFit(board);
+        if (width === 390) await board.getByRole('button', { name: 'á ç 123' }).click();
+        for (const key of (uppercase ? 'ÁÇ' : 'áç')) await board.getByRole('button', { name: key, exact: true }).click();
+        for (const key of '0123456789ºª-:;—«»"()…') {
+          const target = board.getByRole('button', { name: key, exact: true });
+          await expect(target).toBeInViewport({ ratio: 1 });
+          await target.click();
+        }
+        await expect(field).toHaveValue((uppercase ? 'ÁÇ' : 'áç') + '0123456789ºª-:;—«»"()…');
+        await expectControlsFit(board);
+        if (tool === 'text' && (width === 1366 && !uppercase || width === 390 && uppercase)) {
+          const name = `final-teclado-em-baixo-${width}x${height}.png`;
+          await page.screenshot({ path: process.env.GARATUJA_CAPTURE_SCREENS === '1' ? 'docs/screens/' + name : info.outputPath(name) });
+        }
+        await cancel.click();
+        await expect(board).toHaveCount(0);
       }
-      if (width === 390) await board.getByRole('button', { name: 'á ç 123' }).click();
-      for (const key of ['á', 'ç']) await board.getByRole('button', { name: key, exact: true }).click();
-      for (const key of '0123456789ºª-') {
-        const target = board.getByRole('button', { name: key, exact: true });
-        await expect(target).toBeInViewport({ ratio: 1 });
-        await target.click();
-      }
-      await expect(field).toHaveValue('áç0123456789ºª-');
-      if (tool === 'text' && width === 1366 && process.env.GARATUJA_CAPTURE_SCREENS === '1') {
-        await page.screenshot({ path: 'docs/screens/final-teclado-em-baixo-1366x768.png' });
-      } else if (tool === 'text' && width === 1366) {
-        await page.screenshot({ path: info.outputPath('final-teclado-em-baixo-1366x768.png') });
-      }
-      await cancel.click();
-      await expect(board).toHaveCount(0);
-    }
 
-    await page.getByRole('button', { name: 'Novo', exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: 'Novo trabalho' });
-    const region = dialog.locator('.dialog-scroll');
-    const footer = dialog.getByRole('button', { name: 'Começar' });
-    await expect(footer).toBeInViewport({ ratio: 1 });
-    const models = region.locator('.model-choice');
-    for (const model of [models.first(), models.last()]) {
-      await model.focus();
-      await expect(model).toBeInViewport({ ratio: .95 });
-      const bounds = await model.boundingBox();
-      const start = await footer.boundingBox();
-      expect(bounds && start && bounds.y + bounds.height < start.y).toBe(true);
-      await expect(model).toBeEnabled();
-    }
-    await footer.click();
-    await expect(dialog).toHaveCount(0);
-  });
+      await page.getByRole('button', { name: 'Novo', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Novo trabalho' });
+      const region = dialog.locator('.dialog-scroll');
+      const footer = dialog.getByRole('button', { name: 'Começar' });
+      await expect(footer).toBeInViewport({ ratio: 1 });
+      const models = region.locator('.model-choice');
+      for (const model of [models.first(), models.last()]) {
+        await model.focus();
+        await expect(model).toBeInViewport({ ratio: .95 });
+        const bounds = await model.boundingBox();
+        const start = await footer.boundingBox();
+        expect(bounds && start && bounds.y + bounds.height < start.y).toBe(true);
+        await expect(model).toBeEnabled();
+      }
+      await footer.click();
+      await expect(dialog).toHaveCount(0);
+    });
+  }
 }
 
 for (const [width, rows] of [[1366, 3], [1024, 2]]) {
@@ -294,3 +297,141 @@ test('the keyboard leaves room for a multiline field and its actions around mid-
   await page.getByRole('button', { name: 'Pousar' }).click();
   await expect(board).toHaveCount(0);
 });
+
+async function expectControlsFit(region: Locator) {
+  const issues = await region.evaluate(root => {
+    const issues = new Set<string>();
+    const range = document.createRange();
+    for (const control of root.querySelectorAll<HTMLElement>('button, input[type="range"], summary')) {
+      if (!control.getClientRects().length) continue;
+      const box = control.getBoundingClientRect();
+      const name = control.getAttribute('aria-label') ?? control.textContent;
+      if (box.width < 48 || box.height < 48) issues.add(`small target ${name} ${box.width}×${box.height}`);
+      const label = control.querySelector('.button-label');
+      const node = label?.firstChild;
+      if (!(node instanceof Text) || !label || getComputedStyle(label).clipPath !== 'none') continue;
+      // Page numbers are intentionally painted above the thumbnail.
+      const icon = control.matches('.page') ? undefined : control.querySelector('.icon, img, canvas')?.getBoundingClientRect();
+      const lineHeight = parseFloat(getComputedStyle(label).lineHeight);
+      for (const word of node.data.matchAll(/[^\s\p{Dash_Punctuation}]+/gu)) {
+        range.setStart(node, word.index);
+        range.setEnd(node, word.index + word[0].length);
+        const pieces = range.getClientRects();
+        if (pieces.length > 1) issues.add(`split word ${word[0]} in ${name}`);
+        for (const piece of pieces) {
+          const top = piece.top + (piece.height - lineHeight) / 2;
+          const bottom = top + lineHeight;
+          if (piece.left < box.left - 1 || piece.right > box.right + 1 || top < box.top - 1 || bottom > box.bottom + 1) {
+            issues.add(`clipped label ${name}`);
+          }
+          if (icon && piece.left < icon.right - 1 && piece.right > icon.left + 1 &&
+            top < icon.bottom - 1 && bottom > icon.top + 1) issues.add(`overlapping label ${name}`);
+        }
+      }
+    }
+    return [...issues];
+  });
+  expect.soft(issues).toEqual([]);
+}
+
+for (const [width, height] of formats) {
+  for (const [mode, preferences] of modes.slice(0, 3)) {
+    test(`active tools and dialogs fit at ${width}×${height}, ${mode}`, async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await page.goto('/');
+      await page.waitForFunction(() => Boolean(window.__garatuja));
+      await page.evaluate(async preferences => {
+        const app = window.__garatuja!.app;
+        app.configure(preferences);
+        await document.fonts.ready;
+        app.documents.editProject({ title: 'A ponte', author: 'Lia' });
+        app.documents.editText('A Lia chegou ao Funchal.');
+        await app.documents.add();
+      }, preferences);
+      const named = (name: string) => page.getByRole('button', { name, exact: true });
+      const audit = async (name: string, region: Locator) => test.step(name, async () => {
+        await expect(region).toBeVisible();
+        await expectControlsFit(region);
+      });
+      const sheet = page.locator('.sheet');
+      const tap = async (x: number, y: number) => {
+        await sheet.scrollIntoViewIfNeeded();
+        const box = (await sheet.boundingBox())!;
+        await page.mouse.click(box.x + box.width * x, box.y + box.height * y);
+      };
+      const drag = async (from: [number, number], to: [number, number]) => {
+        await sheet.scrollIntoViewIfNeeded();
+        const box = (await sheet.boundingBox())!;
+        await page.mouse.move(box.x + box.width * from[0], box.y + box.height * from[1]);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width * to[0], box.y + box.height * to[1], { steps: 4 });
+        await page.mouse.up();
+      };
+
+      await named('Legenda').click();
+      await named('Só texto').click();
+      await tap(.43, .45);
+      await page.locator('.label-field').fill('Onde passa a ribeira');
+      await named('Pronto').click();
+      await tap(.46, .45);
+      await expect(named('Duplicar legenda')).toBeVisible();
+      await audit('selected label', page.locator('.label-bar'));
+      if (width === 1024 && mode === 'normal') {
+        const name = 'final-legenda-selecionada-1024x768.png';
+        await page.screenshot({ path: process.env.GARATUJA_CAPTURE_SCREENS === '1' ? 'docs/screens/' + name : info.outputPath(name) });
+      }
+
+      await named('Mover').click();
+      await drag([.2, .2], [.55, .6]);
+      await expect(named('Duplicar recorte')).not.toHaveAttribute('aria-disabled', 'true');
+      await audit('floating cutout', page.locator('.options'));
+      await named('Pousar').click();
+
+      await named('Formas').click();
+      await named('Rodar').click();
+      await drag([.25, .3], [.52, .6]);
+      await expect(page.locator('.hint')).toContainText('Agora aponta');
+      await audit('shape awaiting rotation', page.locator('#app'));
+      await page.keyboard.press('Escape');
+
+      await named('Texto').click();
+      await tap(.5, .55);
+      await page.locator('.label-field').fill('A ponte');
+      await audit('bitmap text editor', page.locator('.label-bar'));
+      await named('Cancelar').click();
+
+      const dialog = page.locator('dialog[open]').last();
+      async function auditDialog(title: string) {
+        await audit(title, dialog);
+        await dialog.getByRole('button', { name: 'Fechar', exact: true }).first().click();
+        await expect(dialog).toHaveCount(0);
+      }
+      for (const name of ['Novo', 'Abrir', 'O meu texto', 'Ler', 'Imprimir', 'Animar', 'Misturar cor']) {
+        await named(name).click();
+        await auditDialog(name);
+      }
+      await page.getByRole('button', { name: /^Dados do trabalho/ }).click();
+      await auditDialog('Work details');
+      await named('Apresentar à turma').click();
+      await audit('Class presentation', dialog.locator('.book-reader'));
+      for (let i = 0; i < 3; i++) await page.keyboard.press('PageDown');
+      await expect(dialog.locator('.class-comment-form')).toBeVisible();
+      await audit('Class comments', dialog.locator('.class-comments'));
+      await dialog.getByRole('button', { name: 'Sair', exact: true }).click();
+      await named('Abrir').click();
+      await named('Diapositivos').click();
+      await dialog.getByRole('button', { name: /^A ponte, Lia/ }).click();
+      await named('Reproduzir seleção').click();
+      await audit('Slideshow', dialog.locator('.book-reader'));
+      await dialog.getByRole('button', { name: 'Sair', exact: true }).click();
+      await named('Definições').click();
+      await auditDialog('Settings');
+      for (const [screen, title] of [
+        ['help.show', 'Help'], ['credits.show', 'Credits'], ['teacher.gate', 'Adult gate'], ['teacher.panel', 'Teacher settings'],
+      ]) {
+        await page.evaluate(id => window.__garatuja!.app.openScreen(id), screen);
+        await auditDialog(title);
+      }
+    });
+  }
+}

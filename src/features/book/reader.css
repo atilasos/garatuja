@@ -35,7 +35,7 @@
 .book-copy, .book-cover-details {
   padding: clamp(16px, 3vw, 44px);
   overflow: auto;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .book-copy { font-size: clamp(1.2rem, 2.3vw, 1.8rem); max-height: 60dvh; }
 .book-copy p { white-space: pre-wrap; margin: 0; }

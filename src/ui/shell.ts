@@ -49,14 +49,14 @@ function actionButton(app: App, action: WorkAction) {
 }
 
 export function mountShell(app: App, root: HTMLElement) {
-  const title = h('strong', 'work-title');
-  const author = h('span', 'work-author');
+  const title = h('strong', 'work-title authored-text');
+  const author = h('span', 'work-author authored-text');
   const card = h('button', 'work-card', art(icons.open), title, author);
   card.type = 'button';
   showHelpOnFocus(app, card, { pt: 'Dá um nome ao trabalho e diz quem o fez e para quem é.',
     en: 'Name the work and say who made it and who it is for.' });
   card.addEventListener('click', () => showWorkDetails(app));
-  const className = h('small', 'class-name');
+  const className = h('small', 'class-name authored-text');
   const brand = h('div', 'brand', art(icons.pingo), h('div', '', 'Garatuja', className));
   const pages = pageStrip(app);
   const preferences = h('div', 'preferences');
@@ -150,6 +150,7 @@ export function mountShell(app: App, root: HTMLElement) {
     app.surface.element.inert = state.busy;
     className.textContent = state.settings.className;
     title.textContent = state.project.title.trim() || t(untitled);
+    title.classList.toggle('authored-text', Boolean(state.project.title.trim()));
     author.textContent = state.project.author.trim();
     author.hidden = !author.textContent;
     card.disabled = state.busy;
@@ -215,10 +216,10 @@ export function mountShell(app: App, root: HTMLElement) {
       toolsPanel.setAttribute('aria-label', t(words.tools));
       app.surface.element.setAttribute('aria-label', t(words.paper));
       const listen = button(words.listen, icons.sound, () => {
-        if (!speak(app.store.get().hint)) app.notify({
+        speak(app.store.get().hint, () => app.notify({
           pt: 'A leitura precisa de uma voz instalada neste dispositivo.',
           en: 'Reading aloud needs a voice installed on this device.',
-        });
+        }));
       });
       help.replaceChildren(art(icons.pingo), helpCopy, listen, preferences);
       refreshPreferences();
@@ -288,8 +289,7 @@ export function mountShell(app: App, root: HTMLElement) {
     if (event.defaultPrevented || document.querySelector('dialog[open]')) return;
     const key = event.key.toLowerCase();
     const shortcut = (event.ctrlKey || event.metaKey) && (key === 'z' || key === 'y');
-    if (event.target instanceof HTMLElement && event.target.matches('input, textarea, select, [contenteditable="true"]') &&
-      !(shortcut && event.target.matches('.label-field'))) return;
+    if (event.target instanceof HTMLElement && event.target.matches('input, textarea, select, [contenteditable="true"]')) return;
     if (app.store.get().busy) {
       if (shortcut) { event.preventDefault(); app.say(busyHint); }
       return;

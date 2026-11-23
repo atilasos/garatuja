@@ -1,5 +1,5 @@
 import { t } from '../../core/i18n';
-import { clamp, fontMetrics, layoutPlain, measureContext } from '../../core/labels';
+import { clamp, fontMetrics, layoutPlain, longestWordWidth, measureContext } from '../../core/labels';
 import type { State } from '../../core/store';
 import { CANVAS_H, CANVAS_W, type L10n, type Point, type Rect, type ToolContext, type WritingDraft } from '../../core/types';
 import { ensureGlyphs } from '../../fonts/load';
@@ -124,8 +124,13 @@ export class BitmapText {
     const session = this.session;
     if (!app || !session) return undefined;
     const v = values(app.store.get());
-    const x = Math.min(session.x, CANVAS_W - edge - Math.max(v.size * 2, 360));
-    const maxWidth = CANVAS_W - edge - x;
+    const ctx = measureContext();
+    fontMetrics(v.font, v.size, ctx);
+    const wordWidth = longestWordWidth(this.layer?.field.value ?? '', word => ctx.measureText(word).width);
+    const margin = wordWidth + 8 > CANVAS_W - edge * 2 ? 0 : edge;
+    const minimum = Math.min(CANVAS_W, Math.max(v.size * 2, 360, Math.ceil(wordWidth) + 8));
+    const x = Math.min(session.x, CANVAS_W - margin - minimum);
+    const maxWidth = CANVAS_W - margin - x;
     return { v, maxWidth, session: { ...session, x } };
   }
 

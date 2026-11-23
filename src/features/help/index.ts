@@ -53,7 +53,10 @@ function showHelp(app: App) {
     en: [words.hello.en, ...toolList.map(tool => `${tool.label.en}: ${tool.hint.en}`), ...workCards.map(item => `${item.label.en}: ${item.text.en}`)].join(' '),
   };
   const listen = button(words.listen, extraIcons.listen, () => {
-    if (!speak(spoken)) app.notify({ pt: 'A leitura precisa de uma voz instalada neste dispositivo.', en: 'Reading aloud needs a voice installed on this device.' });
+    speak(spoken, () => app.notify({
+      pt: 'A leitura precisa de uma voz instalada neste dispositivo.',
+      en: 'Reading aloud needs a voice installed on this device.',
+    }, undefined, listen));
   });
   listen.autofocus = true;
   const keys = h('dl', 'help-keys', ...shortcuts.flatMap(item => [

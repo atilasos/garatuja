@@ -31,12 +31,13 @@
   position: absolute; display: flex; flex-wrap: wrap; max-width: calc(100% - 8px); width: max-content; gap: 6px; padding: 6px; pointer-events: auto; cursor: default;
   background: var(--panel); border: 1px solid var(--edge); border-radius: 16px; box-shadow: 0 3px 0 var(--lift), 0 6px 16px #46352233;
 }
-.label-bar .bar-button { min-height: 48px; min-width: 48px; padding: 4px 12px 4px 8px; white-space: nowrap; }
+.label-bar .bar-button { min-height: 48px; min-width: 48px; padding: 4px 12px 4px 8px; white-space: normal; }
 .label-bar .bar-button .icon { width: 30px; height: 30px; }
 .high-contrast .label-bar { border-color: var(--edge); }
 
 .label-bar-docked { position: static; max-width: 100%; flex: none; box-shadow: none; }
-.label-bar-docked .bar-button { padding-inline: 5px; font-size: .75rem; flex: 1 1 40%; }
+.label-bar-docked .bar-button { padding: 3px; font-size: .75rem; flex: 1 1 40%; flex-direction: column; gap: 2px; }
+.label-bar-docked .bar-button .icon { width: 22px; height: 22px; }
 .label-fit-warning {
   flex-basis: 100%;
   max-width: 28ch;
