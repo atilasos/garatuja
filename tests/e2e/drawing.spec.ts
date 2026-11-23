@@ -91,6 +91,7 @@ test('lines, shapes, eraser, magic and stamp alter the bitmap through their host
   const blurred = await read(page, 900, 244);
   expect(blurred).not.toEqual(white);
   await choose(page, 'Negativo');
+  await choose(page, 'Página inteira');
   await tap(page, 100, 90);
   expect(await read(page, 1500, 1100)).toEqual([0, 0, 0, 255]);
   await choose(page, 'Carimbo');
