@@ -78,3 +78,10 @@ button.warning { background: #fff0ce; border-color: #bd8a36; color: #533810; }
 .audience-field { display: grid; gap: 6px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { border-radius: 28px; padding-inline: 16px; font-weight: 700; }
+
+.gallery-open { position: relative; min-width: 0; }
+.gallery-slide-order {
+  position: absolute; top: 10px; inset-inline-start: 10px; min-width: 2rem;
+  text-align: center; padding: 5px; border-radius: 50%; border: 2px solid var(--selected-edge);
+  background: var(--selected); color: var(--ink);
+}

@@ -23,7 +23,7 @@ export interface WorkAction {
   icon: IconSvg;
   order?: number;
   placement?: 'files' | 'work';
-  disabled?(app: App): boolean;
+  unavailable?(app: App): L10n | undefined;
   run(app: App): void | Promise<void>;
 }
 

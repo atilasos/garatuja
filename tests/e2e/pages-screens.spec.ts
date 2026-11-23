@@ -108,7 +108,7 @@ for (const width of [1366, 1024]) {
     await expect(page.getByRole('heading', { name: 'O farol' })).toBeVisible();
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
-    await expect(page.getByText(texts[1], { exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole('dialog').getByText(texts[1], { exact: true })).toBeInViewport({ ratio: 1 });
     await page.waitForFunction(() => {
       const canvas = document.querySelector('.book-illustration canvas');
       return canvas instanceof HTMLCanvasElement && canvas.getContext('2d')?.getImageData(0, 0, 1, 1).data[0] === 252;
@@ -120,7 +120,7 @@ for (const width of [1366, 1024]) {
     await expect(page.locator('.book-position')).toHaveText('Capa');
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
-    await expect(page.getByText(texts[1], { exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole('dialog').getByText(texts[1], { exact: true })).toBeInViewport({ ratio: 1 });
     await page.waitForFunction(() => {
       const canvas = document.querySelector('.book-illustration canvas');
       return canvas instanceof HTMLCanvasElement && canvas.getContext('2d')?.getImageData(0, 0, 1, 1).data[0] === 252;

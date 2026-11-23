@@ -1,3 +1,18 @@
 .dialog.writing-dialog { width: min(92vw, 750px); }
 .book-writing { min-height: min(42dvh, 360px); resize: vertical; font-weight: 400; font-size: 1.25rem; padding: 9px 13px; }
 .book-writing-warning { background: #fff0ce; border: 1px solid #bd8a36; border-radius: 10px; padding: 8px 12px; margin: 0; }
+
+.writing-strip { width: min(100%, var(--sheet-width, 100%)); justify-self: center; display: flex; gap: 4px; align-items: stretch; justify-content: center; }
+.writing-strip.collapsed { width: auto; flex: none; }
+.writing-strip button { min-height: 48px; }
+.writing-preview { min-width: 0; flex: 1; justify-content: flex-start; text-align: start; overflow: hidden; }
+.writing-preview .button-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.writing-preview.writing-invitation { color: var(--muted); }
+.writing-toggle { padding-inline: 6px; }

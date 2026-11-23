@@ -188,7 +188,7 @@ test('reads a cover and spread, navigates a presentation with the keyboard and s
   await expect(page.getByRole('heading', { name: 'O vento' })).toBeVisible();
   await expect(page.getByText('A turma', { exact: true })).toBeVisible();
   await page.keyboard.press('ArrowRight');
-  await expect(page.getByText('O vento levou o meu chapéu.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog').getByText('O vento levou o meu chapéu.', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
 
   await control(page, 'Apresentar à turma').click();
@@ -199,7 +199,7 @@ test('reads a cover and spread, navigates a presentation with the keyboard and s
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('.book-position')).toHaveText('Capa');
   await page.keyboard.press('Space');
-  await expect(page.getByText('O vento levou o meu chapéu.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog').getByText('O vento levou o meu chapéu.', { exact: true })).toBeVisible();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('heading', { name: 'O que dizem os colegas' })).toBeVisible();
   await control(page, 'Pergunto…').click();

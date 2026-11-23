@@ -8,6 +8,7 @@ export interface Settings {
   fixedClick: boolean;
   readAloud: boolean;
   uppercase: boolean;
+  textCollapsed: boolean;
   largeCursor: boolean;
   highContrast: boolean;
   leftHanded: boolean;
@@ -18,7 +19,7 @@ export interface Settings {
 }
 
 const defaults: Settings = {
-  locale: 'pt', level: 2, sound: false, fixedClick: false, readAloud: false, uppercase: false,
+  locale: 'pt', level: 2, sound: false, fixedClick: false, readAloud: false, uppercase: false, textCollapsed: false,
   largeCursor: false, highContrast: false, leftHanded: false, allowPrint: true, allowImport: true,
   className: '',
 };

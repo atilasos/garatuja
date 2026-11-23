@@ -1,6 +1,6 @@
 import { t } from '../../core/i18n';
 import type { App, Feature } from '../../ui/app';
-import { art, button, h, pressed } from '../../ui/dom';
+import { art, button, h, pressed, unavailable } from '../../ui/dom';
 import { pageIcons } from '../pages/icons';
 import { download } from '../exchange/download';
 import { encodeGif, encodeWebm, webmType } from './encode';
@@ -19,8 +19,7 @@ const speedOptions = [
 ];
 
 async function animateWork(app: App) {
-  await app.documents.save();
-  const { project } = app.store.get();
+  const project = app.documents.snapshot();
   const { pages, title } = project;
   const controller = new AbortController();
   const position = h('span', 'animation-position');
@@ -72,8 +71,10 @@ async function animateWork(app: App) {
       play.setAttribute('aria-label', t(action));
     }
     position.textContent = t({ pt: `Quadro ${player.index + 1} de ${pages.length}`, en: `Frame ${player.index + 1} of ${pages.length}` });
-    previous.setAttribute('aria-disabled', String(player.index === 0));
-    next.setAttribute('aria-disabled', String(player.index === pages.length - 1));
+    unavailable(previous, player.index === 0
+      ? { pt: 'Este já é o primeiro quadro.', en: 'This is already the first frame.' } : undefined, showNotice);
+    unavailable(next, player.index === pages.length - 1
+      ? { pt: 'Este já é o último quadro.', en: 'This is already the last frame.' } : undefined, showNotice);
     speedButtons.forEach((control, i) => pressed(control, speeds[i] === player.fps));
   }
 
@@ -123,7 +124,8 @@ export default {
     app.registerScreen('animation.play', animateWork);
     app.registerAction({
       id: 'animate', hint: { pt: 'Vê as páginas a passar como um filme.', en: 'Watch your pages play like a film.' }, label: animate, icon: pageIcons.play, order: 5,
-      disabled: app => app.store.get().project.pages.length < 2,
+      unavailable: app => app.store.get().project.pages.length < 2
+        ? { pt: 'Para animar, junta outra página.', en: 'Add another page to animate.' } : undefined,
       run: app => app.openScreen('animation.play'),
     });
   },

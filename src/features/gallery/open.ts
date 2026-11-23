@@ -2,9 +2,11 @@ import { createPage, createProject } from '../../core/document';
 import { t } from '../../core/i18n';
 import type { L10n, ProjectRecord } from '../../core/types';
 import type { App } from '../../ui/app';
-import { art, button, h, roving } from '../../ui/dom';
+import { art, button, h, pressed, roving } from '../../ui/dom';
 import { icons } from '../../ui/icons';
 import { untitled } from '../../ui/work-fields';
+import { showReader, slidesLabel } from '../book/reader';
+import { pageIcons } from '../pages/icons';
 import { extraIcons } from '../settings/icons';
 import { galleryActions, type GalleryContext } from './actions';
 import type { Trash } from './trash';
@@ -82,6 +84,7 @@ export async function openWork(app: App, trash: Trash) {
   await app.documents.save();
   const urls: string[] = [];
   const toolbar = h('div', 'gallery-toolbar');
+  const refreshToolbar = roving(toolbar, words.tools);
   const notices = h('div', 'gallery-notices');
   const grid = h('div', 'gallery');
   const status = h('p', 'gallery-notice');
@@ -90,12 +93,34 @@ export async function openWork(app: App, trash: Trash) {
   const recovery = app.saveRecovery();
   const content = h('div', 'gallery-dialog', toolbar, recovery, status, notices, grid);
   let closed = false;
-  const stopListening = trash.onChange(() => { if (!closed) void refresh(); });
+  let selecting = false;
+  let projects: ProjectRecord[] = [];
+  const selected: string[] = [];
+  const choose = button(slidesLabel, pageIcons.play, () => {
+    selecting = !selecting;
+    selected.length = 0;
+    renderToolbar();
+    renderCards();
+    choose.focus();
+  });
+  const play = button({ pt: 'Reproduzir seleção', en: 'Play selection' }, pageIcons.play, () => {
+    const ordered = selected.flatMap(id => projects.filter(project => project.id === id));
+    if (!ordered.length) {
+      context().notice({ pt: 'Escolhe os trabalhos pela ordem em que os queres mostrar.', en: 'Choose the works in the order you want to show them.' });
+      return;
+    }
+    close();
+    showReader(app, ordered);
+  }, 'primary');
+  const refreshFromStorage = () => { if (!closed) app.run(refresh); };
+  const stopListening = trash.onChange(refreshFromStorage);
+  app.storage.changes.addEventListener('message', refreshFromStorage);
   const close = app.modal({
     title: words.title, content,
     onClose() {
       closed = true;
       stopListening();
+      app.storage.changes.removeEventListener('message', refreshFromStorage);
       app.removeSaveRecovery(recovery);
       urls.forEach(url => URL.revokeObjectURL(url));
       for (const project of trash.list()) announce(app, trash, project);
@@ -115,7 +140,14 @@ export async function openWork(app: App, trash: Trash) {
   });
 
   function renderToolbar() {
-    const controls: HTMLButtonElement[] = [];
+    const controls = [choose];
+    pressed(choose, selecting);
+    if (selecting) {
+      controls.push(play);
+      toolbar.replaceChildren(...controls);
+      refreshToolbar();
+      return;
+    }
     if (app.store.get().settings.allowImport) {
       const importButton = button(words.importImage, extraIcons.importImage, () => chooseImage(app, close));
       importButton.dataset.focus = 'import';
@@ -128,7 +160,7 @@ export async function openWork(app: App, trash: Trash) {
     }
     toolbar.replaceChildren(...controls);
     toolbar.hidden = !controls.length;
-    roving(toolbar, words.tools);
+    refreshToolbar();
   }
 
   function renderNotices() {
@@ -155,6 +187,20 @@ export async function openWork(app: App, trash: Trash) {
     open.dataset.focus = 'open';
     open.setAttribute('aria-label', [name, project.author.trim(), t(pagesLabel(project.pages.length))].filter(Boolean).join(', '));
     open.addEventListener('click', () => app.run(async () => {
+      if (selecting) {
+        const index = selected.indexOf(project.id);
+        if (index < 0) selected.push(project.id);
+        else selected.splice(index, 1);
+        for (const control of grid.querySelectorAll<HTMLButtonElement>('.gallery-open')) {
+          const order = selected.indexOf(control.closest<HTMLElement>('[data-project]')?.dataset.project ?? '') + 1;
+          pressed(control, order > 0);
+          const badge = control.querySelector<HTMLElement>('.gallery-slide-order');
+          if (badge) { badge.hidden = !order; badge.textContent = String(order); }
+          control.setAttribute('aria-description', order
+            ? t({ pt: `Ordem ${order}`, en: `Position ${order}` }) : '');
+        }
+        return;
+      }
       if (open.disabled) return;
       open.disabled = true;
       try {
@@ -196,7 +242,15 @@ export async function openWork(app: App, trash: Trash) {
       no.focus();
     }
 
-    normal();
+    if (selecting) {
+      const order = selected.indexOf(project.id) + 1;
+      const badge = h('span', 'gallery-slide-order', String(order));
+      badge.hidden = !order;
+      badge.setAttribute('aria-hidden', 'true');
+      pressed(open, order > 0);
+      if (order) open.setAttribute('aria-description', t({ pt: `Ordem ${order}`, en: `Position ${order}` }));
+      open.append(badge);
+    } else normal();
     return article;
   }
 
@@ -210,13 +264,18 @@ export async function openWork(app: App, trash: Trash) {
 
   async function refresh() {
     if (closed) return;
-    const projects = (await app.storage.list())
+    projects = (await app.storage.list())
       .filter(project => !trash.has(project.id) && project.pages.length)
       .sort((a, b) => b.updatedAt - a.updatedAt);
-    const focusedProject = document.activeElement?.closest<HTMLElement>('[data-project]')?.dataset.project;
-    urls.splice(0).forEach(url => URL.revokeObjectURL(url));
+    if (closed) return;
     renderToolbar();
     renderNotices();
+    renderCards();
+  }
+
+  function renderCards() {
+    const focusedProject = document.activeElement?.closest<HTMLElement>('[data-project]')?.dataset.project;
+    urls.splice(0).forEach(url => URL.revokeObjectURL(url));
     if (!projects.length) {
       const start = button(words.newWork, icons.new, () => { close(); app.openScreen('gallery.new'); }, 'primary big-action');
       grid.replaceChildren(h('div', 'gallery-empty', art(icons.pingo), h('p', '', t(words.empty)), start));
@@ -224,7 +283,8 @@ export async function openWork(app: App, trash: Trash) {
     }
     grid.replaceChildren(...projects.map(card));
     const again = focusedProject && grid.querySelector<HTMLElement>(`[data-project="${focusedProject}"] .gallery-open`);
-    if (focusedProject && !again) (grid.querySelector<HTMLElement>('.gallery-open') ?? notices.querySelector('button'))?.focus();
+    if (again) again.focus();
+    else if (focusedProject) (grid.querySelector<HTMLElement>('.gallery-open') ?? notices.querySelector('button'))?.focus();
   }
 
   grid.setAttribute('aria-label', t(words.works));

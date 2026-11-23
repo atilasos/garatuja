@@ -46,7 +46,7 @@ button[aria-pressed="true"], button[aria-pressed="true"]:hover {
   border-color: var(--selected-edge);
   border-radius: 8px;
 }
-button:disabled { cursor: default; opacity: .58; box-shadow: none; }
+button:is(:disabled, [aria-disabled="true"]) { cursor: default; opacity: .58; box-shadow: none; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .icon { display: inline-grid; width: 30px; height: 30px; flex: none; place-items: center; }
 .icon svg { width: 100%; height: 100%; display: block; }
@@ -89,7 +89,7 @@ input:not([type="checkbox"]), select, textarea {
 .setting input { width: 25px; margin: 0; }
 .setting select { width: auto; }
 .primary { border-color: var(--selected-edge); background: var(--selected); }
-.toasts { position: fixed; bottom: 14px; right: 14px; display: grid; gap: 8px; z-index: 2; max-width: calc(100vw - 28px); }
+.toasts { position: fixed; bottom: calc(var(--target, 48px) * 2 + 18px); right: 14px; display: grid; gap: 8px; z-index: 2; max-width: calc(100vw - 28px); }
 .toast, .startup-error {
   display: flex;
   align-items: center;
@@ -101,6 +101,7 @@ input:not([type="checkbox"]), select, textarea {
   border-radius: 12px;
   box-shadow: 0 2px #9a731a44;
 }
+.save-recovery { flex-wrap: wrap; }
 .startup-error { justify-self: center; }
 
 @media print {
@@ -128,7 +129,7 @@ input:not([type="checkbox"]), select, textarea {
   overscroll-behavior: contain;
 }
 .sheet canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.sheet .onion { opacity: .25; }
+.sheet .onion { opacity: .25; mix-blend-mode: multiply; }
 .sheet.picking { cursor: copy; }
 .sheet.large-cursor {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='13' stroke='white' stroke-width='6' fill='none'/%3E%3Ccircle cx='20' cy='20' r='13' stroke='%2323578d' stroke-width='3' fill='none'/%3E%3C/svg%3E") 20 20, crosshair;
@@ -212,12 +213,18 @@ input:not([type="checkbox"]), select, textarea {
 }
 .tool-deck { display: contents; }
 .file-actions { margin-top: auto; }
-.tools button { flex-direction: column; gap: 2px; padding: 2px 0; font-size: .72rem; }
+.print-file { display: contents; }
+.tools button { flex-direction: column; gap: 2px; padding: 2px 1px; font-size: .72rem; }
+.button-label { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .tools .tool, .history-actions button { min-height: 60px; }
 .tools .tool .icon { width: 32px; height: 32px; }
 .file-actions .icon { width: 22px; height: 22px; }
 .simple-desk .tools .tool { min-height: 68px; }
-.stage { grid-area: stage; container-type: size; display: grid; place-items: center; padding: 2px; }
+.stage { grid-area: stage; position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; padding: 2px; }
+.sheet-area { min-width: 0; min-height: 0; container-type: size; display: grid; place-items: center; }
+#app.writing-visible { row-gap: 2px; }
+.writing-visible .stage { padding-block: 0; }
+.writing-visible .footer { padding-block: 0; gap: 0; }
 
 .options { grid-area: options; display: flex; flex-direction: column; padding: 2px; gap: 4px; }
 .options-fixed:empty { display: none; }
@@ -232,10 +239,10 @@ input:not([type="checkbox"]), select, textarea {
 .simple-desk .choice { min-height: 64px; }
 .choice-preview { width: min(100%, 74px); height: 26px; pointer-events: none; object-fit: contain; }
 .size-choice { padding: 1px; flex-direction: column; gap: 0; }
-.size-choice .button-label { font-size: .64rem; white-space: nowrap; }
+.size-choice .button-label { font-size: .61rem; letter-spacing: -.02em; }
 .size-choice .icon { width: 26px; height: 26px; }
 .option-toggle { width: 100%; }
-.option-categories { display: flex; gap: 4px; overflow-x: auto; padding: 3px; scrollbar-width: thin; }
+.option-categories { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; }
 .option-categories button { flex: none; font-size: .75rem; padding-inline: 7px; }
 .options-empty { margin: 8px; color: var(--muted); }
 .scroll-controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-top: auto; padding: 2px; }
@@ -252,7 +259,7 @@ input:not([type="checkbox"]), select, textarea {
   padding: 2px;
   scrollbar-width: none;
 }
-.swatch, .palette-action { flex-direction: column; padding: 2px 3px; gap: 2px; font-size: .68rem; white-space: nowrap; }
+.swatch, .palette-action { flex-direction: column; padding: 2px 3px; gap: 2px; font-size: .68rem; }
 .paint-chip {
   width: min(75%, 63px);
   height: 22px;
@@ -289,10 +296,21 @@ input:not([type="checkbox"]), select, textarea {
     grid-template-areas: 'stage' 'tools' 'options';
     align-content: start;
   }
-  .stage { container-type: inline-size; aspect-ratio: 4 / 3; }
+  .sheet-area { container-type: inline-size; aspect-ratio: 4 / 3; }
   .sheet { width: 100%; }
   .tools { flex-direction: row; align-items: center; overflow: hidden; gap: 4px; }
-  .tool-deck { display: flex; gap: 6px; min-width: 0; overflow-x: auto; padding: 2px; scrollbar-width: none; }
+  .tool-deck { display: flex; gap: 6px; min-width: 0; overflow-x: auto; padding: 2px; }
+  .scroll-cue, .options-scroll:not(:has(.stamp-panel)) {
+    scrollbar-width: thin;
+    background:
+      linear-gradient(90deg, var(--panel) 35%, transparent) left center / 18px 100% local,
+      linear-gradient(270deg, var(--panel) 35%, transparent) right center / 18px 100% local,
+      linear-gradient(90deg, var(--edge), transparent) left center / 12px 100% scroll,
+      linear-gradient(270deg, var(--edge), transparent) right center / 12px 100% scroll;
+    background-repeat: no-repeat;
+  }
+  .tool-deck { scrollbar-width: none; }
+  .tools .file-actions button { min-width: 50px; }
   .history-actions { border-inline-start: 1px solid var(--edge); padding-inline-start: 4px; }
   .tool-grid, .history-actions, .file-actions { display: flex; flex: none; margin: 0; }
   .tools button { min-width: 66px; }
@@ -305,9 +323,12 @@ input:not([type="checkbox"]), select, textarea {
   .options-scroll > .option-section { flex: none; margin: 0; }
   .options-scroll .choice-grid { display: flex; }
   .options-scroll .choice { min-width: 72px; }
-  .options-scroll:has(.stamp-panel, .move-options) { max-height: 200px; }
+  .options-scroll:has(.move-options) { max-height: 200px; }
+  .options-scroll:has(.stamp-panel) { display: block; max-height: 340px; }
+  .options-scroll .stamp-panel .choice-grid { display: grid; }
   .options-fixed { display: flex; align-items: end; overflow-x: auto; }
   .options-fixed > * { flex: none; }
+  .options-fixed .option-categories { flex: 0 1 auto; min-width: 235px; }
   .options-fixed .option-section { margin: 0; }
   .options-fixed .size-choices { width: 245px; }
   .scroll-controls { display: none; }
@@ -319,6 +340,10 @@ input:not([type="checkbox"]), select, textarea {
   .page-strip-scroller > button { display: none; }
   .help { grid-template-columns: 30px minmax(0, 1fr) auto; }
   .preferences { grid-column: 2 / -1; justify-content: flex-end; }
+  .tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .tool-deck { grid-row: 2; grid-column: 1 / -1; }
+  .history-actions { grid-column: 2; grid-row: 1; }
+  .file-actions { grid-column: 1; grid-row: 1; }
 }
 .choice-block + .choice-block { margin-top: 8px; }
 @media (orientation: portrait), (max-width: 800px) {
@@ -343,4 +368,11 @@ input:not([type="checkbox"]), select, textarea {
 @media (max-width: 1120px) {
   .option-categories button { padding-inline: 4px; }
   .option-categories { gap: 3px; }
+}
+
+@media (orientation: portrait) and (min-width: 700px) and (min-height: 1000px) {
+  .options-fixed .option-categories button { min-height: 48px; }
+  .options-fixed .option-categories { padding-block: 1px; }
+  .options-scroll .choice { min-height: 48px; }
+  .options-scroll .choice-preview { height: 22px; }
 }

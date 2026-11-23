@@ -84,3 +84,15 @@
   .class-presentation .book-cover-details, .class-presentation .book-copy { padding-inline: 6px; }
   .book-navigation button { min-width: 56px; }
 }
+
+.book-spread.book-cover { grid-template: 1fr / minmax(0, 1fr); }
+.book-cover .book-cover-details { width: min(100%, 740px); margin-inline: auto; text-align: center; }
+.book-cover-details h1 { text-wrap: balance; }
+.book-class { margin: .65em 0; font-size: .65em; }
+.slide-work { margin-bottom: .75em; font-size: .65em; }
+.slide-work h3 { margin: 0; line-height: 1.1; }
+.slide-speeds { display: flex; flex-wrap: wrap; gap: 4px; }
+.book-presentation-bar { flex-wrap: wrap; }
+
+.book-navigation > div { text-align: center; }
+.book-boundary:not(:empty) { display: block; font-size: .875rem; }

@@ -4,10 +4,10 @@ import type { State } from '../core/store';
 import type { L10n } from '../core/types';
 import { printLabel, printWork } from '../features/book/print';
 import { showWorkDetails } from '../features/gallery/save';
-import { editWriting } from '../features/book/writing';
+import { editWriting, writingStrip } from '../features/book/writing';
 import { pageStrip } from '../features/pages/strip';
 import type { App, WorkAction } from './app';
-import { art, button, h, pressed, replaceControls, roving } from './dom';
+import { art, button, h, pressed, replaceControls, roving, unavailable } from './dom';
 import { icons } from './icons';
 import { OptionsPanel } from './options';
 import { palette } from './palette';
@@ -31,7 +31,7 @@ const words = {
 
 function showHelpOnFocus(app: App, control: HTMLButtonElement, hint: L10n) {
   const show = () => {
-    if (!app.surface.inGesture) app.store.set({ hint });
+    if (!app.surface.inGesture && control.getAttribute('aria-disabled') !== 'true') app.store.set({ hint });
   };
   control.addEventListener('pointerenter', show);
   control.addEventListener('focusin', show);
@@ -60,13 +60,18 @@ export function mountShell(app: App, root: HTMLElement) {
   const preferences = h('div', 'preferences');
   const files = h('div', 'file-actions');
   const featureActions = h('div', 'feature-actions');
+  const printFiles = h('div', 'print-file');
+  const writing = writingStrip(app);
   const header = h('header', 'workbar', brand, card, pages, featureActions);
   const history = h('div', 'history-actions');
   const toolbox = h('div', 'tool-grid');
-  const toolDeck = h('div', 'tool-deck', toolbox);
+  const toolDeck = h('div', 'tool-deck scroll-cue', toolbox);
   const toolsPanel = h('aside', 'tools panel', toolDeck, history, files);
   const options = new OptionsPanel();
-  const stage = h('main', 'stage', app.surface.element);
+  const stage = h('main', 'stage', h('div', 'sheet-area', app.surface.element), writing);
+  new ResizeObserver(() => {
+    stage.style.setProperty('--sheet-width', app.surface.element.getBoundingClientRect().width + 'px');
+  }).observe(app.surface.element);
   const keyboardCursor = h('span', 'keyboard-cursor');
   keyboardCursor.hidden = true;
   app.surface.element.append(keyboardCursor);
@@ -74,11 +79,17 @@ export function mountShell(app: App, root: HTMLElement) {
   const stacked = matchMedia('(orientation: portrait), (max-width: 800px)');
   const arrangeFocus = () => {
     workspace.prepend(stacked.matches ? stage : toolsPanel);
-    (stacked.matches ? toolDeck : toolsPanel).append(files);
+    if (stacked.matches) {
+      toolsPanel.append(files);
+      toolDeck.append(printFiles);
+    } else {
+      toolsPanel.append(files);
+      files.append(printFiles);
+    }
   };
   arrangeFocus();
   stacked.addEventListener('change', arrangeFocus);
-  const colors = h('div', 'palette');
+  const colors = h('div', 'palette scroll-cue');
   const hint = h('p', 'hint');
   hint.id = 'pingo-hint';
   hint.setAttribute('role', 'status');
@@ -109,6 +120,7 @@ export function mountShell(app: App, root: HTMLElement) {
     const language = !previous || locale !== previous.settings.locale;
     const settings = language || state.settings !== previous?.settings;
     root.classList.toggle('simple-desk', level === 1);
+    root.classList.toggle('writing-visible', !state.settings.textCollapsed);
     app.surface.element.classList.toggle('large-cursor', state.settings.largeCursor);
     app.surface.element.classList.toggle('picking', state.pickingColor);
     app.surface.element.inert = state.busy;
@@ -146,18 +158,24 @@ export function mountShell(app: App, root: HTMLElement) {
       showHelpOnFocus(app, print, { pt: 'Prepara uma página ou o livro inteiro para imprimir.',
         en: 'Prepare a page or the whole book for printing.' });
       const basic = actionButtons.filter(([action]) => action.placement === 'files').map(([, control]) => control);
-      if (state.settings.allowPrint) basic.push(print);
-      replaceControls(files, basic);
+      replaceControls(printFiles, state.settings.allowPrint ? [print] : []);
+      replaceControls(files, stacked.matches ? basic : [...basic, printFiles]);
       const text = button(words.writing, icons.text, () => editWriting(app));
       text.dataset.focus = 'writing';
       showHelpOnFocus(app, text, { pt: 'Escreve o texto que esta página ilustra.', en: 'Write the text this page illustrates.' });
-      replaceControls(featureActions, [text, ...actionButtons.filter(([action]) => action.placement !== 'files').map(([, control]) => control)]);
+      replaceControls(featureActions, [text, ...actionButtons.filter(([action]) => action.placement !== 'files').map(([, control]) => control),
+        ...(state.settings.textCollapsed ? [writing] : [])]);
+      if (!state.settings.textCollapsed && writing.parentElement !== stage) stage.append(writing);
       refreshFiles();
       refreshActions();
     }
-    for (const [action, control] of actionButtons) control.disabled = state.busy || Boolean(action.disabled?.(app));
-    for (const control of [files.querySelector<HTMLButtonElement>('[data-focus="print"]'), featureActions.querySelector<HTMLButtonElement>('[data-focus="writing"]')]) {
-      if (control) control.disabled = state.busy;
+    const wait = state.busy ? { pt: 'Espera que a folha esteja pronta.', en: 'Wait until the paper is ready.' } : undefined;
+    const say = (message: L10n) => app.say(message);
+    for (const [action, control] of actionButtons) {
+      unavailable(control, wait ?? (action.unavailable?.(app)), say);
+    }
+    for (const control of [printFiles.querySelector<HTMLButtonElement>('[data-focus="print"]'), featureActions.querySelector<HTMLButtonElement>('[data-focus="writing"]')]) {
+      if (control) unavailable(control, wait, say);
     }
     refreshFiles();
     refreshActions();
@@ -185,8 +203,8 @@ export function mountShell(app: App, root: HTMLElement) {
         bar.setAttribute('aria-label', t(label));
       }
     }
-    undo.disabled = state.busy || !app.surface.canUndo;
-    redo.disabled = state.busy || !app.surface.canRedo;
+    unavailable(undo, wait ?? (!app.surface.canUndo ? { pt: 'Ainda não há nada para desfazer.', en: 'There’s nothing to undo yet.' } : undefined), say);
+    unavailable(redo, wait ?? (!app.surface.canRedo ? { pt: 'Desfaz um passo para o poderes refazer.', en: 'Undo a step before redoing it.' } : undefined), say);
     removeTabstop();
 
     if (language || level !== previous?.settings.level || state.toolId !== previous?.toolId || state.registryVersion !== previous?.registryVersion) {
@@ -200,6 +218,8 @@ export function mountShell(app: App, root: HTMLElement) {
       replaceControls(toolbox, controls);
       refreshTools();
     }
+    const activeToolButton = toolbox.querySelector<HTMLButtonElement>('[aria-pressed="true"]');
+    if (activeToolButton) activeToolButton.title = t(app.toolHint());
 
     if (language || state.toolId !== previous?.toolId || state.color !== previous.color ||
       level !== previous.settings.level || state.options !== previous.options || state.registryVersion !== previous.registryVersion) {

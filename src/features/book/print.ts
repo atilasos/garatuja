@@ -2,10 +2,10 @@ import { png, viewport } from '../../core/canvas';
 import { t } from '../../core/i18n';
 import type { App } from '../../ui/app';
 import { button, h, pressed } from '../../ui/dom';
-import { icons } from '../../ui/icons';
+import { icon, icons } from '../../ui/icons';
 import { untitled } from '../../ui/work-fields';
 import { pageIcons } from '../pages/icons';
-import { coverDetails } from './reader';
+import { coverDetails, hasCover } from './reader';
 import { writingText } from './writing';
 import './print.css';
 
@@ -14,9 +14,9 @@ type Orientation = 'portrait' | 'landscape';
 
 export async function printWork(app: App) {
   if (!app.store.get().settings.allowPrint) return;
-  await app.documents.save();
-  const { project, settings } = app.store.get();
-  const current = app.documents.page;
+  const project = app.documents.snapshot();
+  const { pageId, settings } = app.store.get();
+  const current = project.pages.find(page => page.id === pageId) ?? project.pages[0];
   const preview = h('div', 'print-work-preview');
   preview.tabIndex = 0;
   preview.setAttribute('aria-label', t({ pt: 'Pré-visualização de impressão', en: 'Print preview' }));
@@ -32,8 +32,8 @@ export async function printWork(app: App) {
 
   const pageMode = button({ pt: 'Página atual', en: 'Current page' }, icons.new, () => setBook(false));
   const bookMode = button({ pt: 'Livro inteiro', en: 'Whole book' }, pageIcons.book, () => setBook(true));
-  const portrait = button({ pt: 'Ao alto', en: 'Portrait' }, icons.new, () => setOrientation('portrait'));
-  const landscape = button({ pt: 'Ao baixo', en: 'Landscape' }, icons.new, () => setOrientation('landscape'), 'print-orientation-landscape');
+  const portrait = button({ pt: 'Ao alto', en: 'Portrait' }, icon('<rect x="13" y="5" width="22" height="38" rx="3" fill="#fff5db"/><path d="M18 15h12m-12 7h12m-12 7h8"/>'), () => setOrientation('portrait'));
+  const landscape = button({ pt: 'Ao baixo', en: 'Landscape' }, icon('<rect x="5" y="13" width="38" height="22" rx="3" fill="#fff5db"/><path d="M12 21h24m-24 6h17"/>'), () => setOrientation('landscape'));
   const print = button(printLabel, icons.print, () => {
     if (!app.store.get().settings.allowPrint || reading) return;
     const output = h('article', `print-only print-work print-work-${orientation}`,
@@ -97,10 +97,8 @@ export async function printWork(app: App) {
     preview.replaceChildren();
     preview.scrollTop = 0;
     try {
-      if (book) {
-        const image = await picture(project.pages[0]);
-        if (closed) return;
-        preview.append(h('section', 'print-work-sheet print-work-cover', coverDetails(project), image));
+      if (book && hasCover(project)) {
+        preview.append(h('section', 'print-work-sheet print-work-cover', coverDetails(project, settings.className)));
       }
       for (const page of book ? project.pages : [current]) {
         const image = await picture(page);

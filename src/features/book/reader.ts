@@ -1,10 +1,11 @@
 import { viewport } from '../../core/canvas';
 import { t } from '../../core/i18n';
-import type { ProjectRecord } from '../../core/types';
+import type { L10n, ProjectRecord } from '../../core/types';
 import type { App } from '../../ui/app';
-import { art, button, h, pressed } from '../../ui/dom';
+import { art, button, h, pressed, unavailable } from '../../ui/dom';
 import { icons } from '../../ui/icons';
 import { untitled } from '../../ui/work-fields';
+import { animationIcons } from '../animation/icons';
 import { animationFps } from '../animation/frames';
 import { Player } from '../animation/player';
 import { pageIcons } from '../pages/icons';
@@ -14,23 +15,43 @@ import './reader.css';
 export const readLabel = { pt: 'Ler', en: 'Read' };
 export const presentLabel = { pt: 'Apresentar à turma', en: 'Present to the class' };
 
-export function coverDetails(project: ProjectRecord) {
+export const slidesLabel = { pt: 'Diapositivos', en: 'Slideshow' };
+export const hasCover = (project: ProjectRecord) => project.pages.length > 1 || Boolean(project.title.trim() || project.author.trim());
+
+export function coverDetails(project: ProjectRecord, className: string) {
   return h('div', 'book-cover-details',
     h('h1', '', project.title || t(untitled)),
+    className.trim() ? h('p', 'book-class', className) : null,
     project.author ? h('p', 'book-author', project.author) : null,
     project.audience ? h('div', 'book-audience', h('strong', '', t(audienceLabel)), h('p', '', project.audience)) : null);
 }
 
-export async function showReader(app: App, presentation?: () => HTMLElement) {
+export function showReader(app: App, presentation?: (() => HTMLElement) | readonly ProjectRecord[]) {
+  const slides = presentation && typeof presentation !== 'function'
+    ? presentation.flatMap(project => project.pages.map((page, index) => ({ project, page, index }))) : undefined;
   const presenting = Boolean(presentation);
-  const title = presenting ? presentLabel : readLabel;
+  const title = slides ? slidesLabel : presenting ? presentLabel : readLabel;
+  const settings = app.store.get().settings;
+  const speeds = [
+    { label: { pt: 'Devagar', en: 'Slow' }, icon: animationIcons.snail, delay: 8000 },
+    { label: { pt: 'Normal', en: 'Normal' }, icon: animationIcons.cat, delay: 5000 },
+    { label: { pt: 'Depressa', en: 'Fast' }, icon: animationIcons.hare, delay: 2500 },
+  ];
+  let delay = speeds[1].delay;
+  let timer: number | undefined;
+  let autoplay = false;
   const display = h('div', 'book-display');
   const position = h('span', 'book-position');
+  const boundary = h('span', 'book-boundary');
+  boundary.setAttribute('role', 'status');
+  const explain = (message: L10n) => { boundary.textContent = t(message); };
   position.setAttribute('role', 'status');
   position.tabIndex = -1;
-  const feedback = presentation?.();
-  let pageIndex = -1;
-  let project: ProjectRecord | undefined = undefined;
+  const feedback = typeof presentation === 'function' ? presentation() : undefined;
+  const project = app.documents.snapshot();
+  const first = slides || !hasCover(project) ? 0 : -1;
+  const last = slides ? slides.length - 1 : project.pages.length - (feedback ? 0 : 1);
+  let pageIndex = first;
   let player: Player | undefined;
   let closed = false;
   let wasFull = false;
@@ -42,7 +63,6 @@ export async function showReader(app: App, presentation?: () => HTMLElement) {
       render();
       return;
     }
-    if (!project) return;
     const current = new Player(app.surface, project.pages, animationFps(project.fps), () => {}, error =>
       app.run(() => { throw error; }));
     player = current;
@@ -55,10 +75,24 @@ export async function showReader(app: App, presentation?: () => HTMLElement) {
   animation.hidden = true;
   const previous = button({ pt: 'Anterior', en: 'Previous' }, pageIcons.left, () => move(-1));
   const next = button({ pt: 'Seguinte', en: 'Next' }, pageIcons.right, () => move(1));
+  const automatic = button({ pt: 'Avanço automático', en: 'Auto advance' }, pageIcons.play, () => {
+    autoplay = !autoplay;
+    if (autoplay && pageIndex === last) pageIndex = first;
+    render();
+  });
+  const speedRow = h('div', 'slide-speeds', ...speeds.map(({ label, icon, delay: ms }) => {
+    const speed = button(label, icon, () => {
+      delay = ms;
+      for (const item of speedRow.querySelectorAll('button')) pressed(item, item === speed);
+      schedule();
+    });
+    pressed(speed, ms === delay);
+    return speed;
+  }));
   const closeButton = button({ pt: 'Sair', en: 'Exit' }, icons.close, () => close());
   const content = h('div', presenting ? 'book-reader class-presentation' : 'book-reader',
-    presenting ? h('header', 'book-presentation-bar', h('h2', '', t(title)), animation, closeButton) : null,
-    display, h('nav', 'book-navigation', previous, position, next));
+    presenting ? h('header', 'book-presentation-bar', h('h2', '', t(title)), slides ? automatic : animation, slides ? speedRow : null, closeButton) : null,
+    display, h('nav', 'book-navigation', previous, h('div', '', position, boundary), next));
 
   function fullscreenChanged() {
     if (document.fullscreenElement === content) wasFull = true;
@@ -67,6 +101,7 @@ export async function showReader(app: App, presentation?: () => HTMLElement) {
 
   const close = app.modal({ title, content, onClose: () => {
     closed = true;
+    window.clearTimeout(timer);
     closeAnimation();
     document.removeEventListener('fullscreenchange', fullscreenChanged);
     if (document.fullscreenElement === content) void document.exitFullscreen().catch(() => {});
@@ -85,19 +120,32 @@ export async function showReader(app: App, presentation?: () => HTMLElement) {
   }
 
   function move(delta: number) {
-    if (!project) return;
-    const index = Math.min(project.pages.length - (feedback ? 0 : 1), Math.max(-1, pageIndex + delta));
-    if (index === pageIndex && !player) return;
+    const index = Math.min(last, Math.max(first, pageIndex + delta));
+    if (index === pageIndex && !player) {
+      explain(delta < 0 ? { pt: 'Já estás no início.', en: 'You are at the beginning.' }
+        : { pt: 'Já estás no fim.', en: 'You are at the end.' });
+      return;
+    }
     pageIndex = index;
     closeAnimation();
     render();
   }
 
+  function schedule() {
+    window.clearTimeout(timer);
+    if (autoplay && !closed) timer = window.setTimeout(() => move(1), delay);
+  }
+
   function render() {
-    if (!project || closed) return;
-    const last = project.pages.length - (feedback ? 0 : 1);
-    previous.setAttribute('aria-disabled', String(pageIndex === -1 && !player));
-    next.setAttribute('aria-disabled', String(pageIndex === last && !player));
+    if (closed) return;
+    if (pageIndex === last) autoplay = false;
+    pressed(automatic, autoplay);
+    schedule();
+    boundary.textContent = '';
+    unavailable(previous, pageIndex === first && !player
+      ? { pt: 'Já estás no início.', en: 'You are at the beginning.' } : undefined, explain);
+    unavailable(next, pageIndex === last && !player
+      ? { pt: 'Já estás no fim.', en: 'You are at the end.' } : undefined, explain);
     animation.hidden = !presenting || project.pages.length < 2 || pageIndex === project.pages.length;
     const playLabel = player ? animateBack : animatePlay;
     animation.setAttribute('aria-label', t(playLabel));
@@ -113,20 +161,25 @@ export async function showReader(app: App, presentation?: () => HTMLElement) {
       position.textContent = t({ pt: 'Comentários', en: 'Comments' });
       return;
     }
-    const page = project.pages[Math.max(0, pageIndex)];
+    if (pageIndex === -1) {
+      display.replaceChildren(h('article', 'book-spread book-cover', coverDetails(project, settings.className)));
+      position.textContent = t({ pt: 'Capa', en: 'Cover' });
+      return;
+    }
+    const slide = slides?.[pageIndex];
+    const page = slide?.page ?? project.pages[pageIndex];
+    if (!page) return;
     const canvas = viewport(960, 720);
     const illustration = h('div', 'book-illustration', canvas.canvas);
-    const writing = writingText(page.text, app.store.get().settings);
-    if (pageIndex === -1) {
-      display.replaceChildren(h('article', 'book-spread book-cover', illustration, coverDetails(project)));
-      position.textContent = t({ pt: 'Capa', en: 'Cover' });
-    } else {
-      display.replaceChildren(h('article', 'book-spread', illustration, h('div', 'book-copy', h('p', '', writing))));
-      position.textContent = t({
-        pt: `Página ${pageIndex + 1} de ${project.pages.length}`,
-        en: `Page ${pageIndex + 1} of ${project.pages.length}`,
-      });
-    }
+    const writing = writingText(page.text, settings);
+    display.replaceChildren(h('article', 'book-spread', illustration,
+      h('div', 'book-copy',
+        slide ? h('header', 'slide-work', h('h3', '', slide.project.title || t(untitled)),
+          h('p', '', slide.project.author)) : null,
+        h('p', '', writing))));
+    const index = (slide?.index ?? pageIndex) + 1;
+    const count = slide?.project.pages.length ?? project.pages.length;
+    position.textContent = t({ pt: `Página ${index} de ${count}`, en: `Page ${index} of ${count}` });
     app.run(() => app.surface.compositePage(page, canvas));
   }
 
@@ -161,7 +214,5 @@ export async function showReader(app: App, presentation?: () => HTMLElement) {
     if (Math.abs(dx) >= 52 && Math.abs(dx) > Math.abs(touch.clientY - start.y) * 1.4) move(dx > 0 ? -1 : 1);
   });
   display.addEventListener('touchcancel', () => { swipeStart = undefined; });
-  await app.documents.save();
-  project = app.store.get().project;
   render();
 }
