@@ -16,7 +16,7 @@ export default {
       const wash = ctx.createRadialGradient(x, y, reach * .15, x, y, reach);
       wash.addColorStop(0, rgba(color, .04));
       wash.addColorStop(.7, rgba(color, .035));
-      wash.addColorStop(.93, rgba(color, .05));
+      wash.addColorStop(.93, rgba(color, .042));
       wash.addColorStop(1, rgba(color, 0));
       ctx.fillStyle = wash;
       ctx.beginPath();

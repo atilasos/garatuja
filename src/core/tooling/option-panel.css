@@ -1,0 +1,12 @@
+/* A long, grouped list of brushes scrolls underneath; the size choices stay in view. */
+.options-scroll:has(.choice-group) > .option-section:has(> .size-choices) {
+  position: sticky;
+  top: -4px;
+  z-index: 2;
+  padding: 4px 0 8px;
+  background: var(--panel);
+  box-shadow: 0 7px 6px -7px var(--lift);
+}
+
+/* Scrolling a choice into view must not leave it hidden under the pinned sizes. */
+.options-scroll:has(.choice-group) { scroll-padding-top: 150px; }

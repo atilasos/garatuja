@@ -20,6 +20,11 @@ const names: Record<ShapeId, L10n> = {
 };
 const simple: ReadonlySet<ShapeId> = new Set(['square', 'rectangle', 'circle', 'ellipse', 'triangle', 'star5', 'heart']);
 
+const hint: L10n = {
+  pt: 'Escolhe uma forma e arrasta para lhe dar tamanho. Com «Rodar», depois aponta para onde ela deve olhar.',
+  en: 'Pick a shape and drag to size it. With “Rotate”, then point where it should face.',
+};
+
 const rotateHint: L10n = {
   pt: 'Agora aponta para onde a forma deve olhar e toca para a pôr aqui.',
   en: 'Now point where the shape should face and tap to place it.',
@@ -31,6 +36,7 @@ type Style = 'solid' | 'outline' | 'both';
 let start: PaintPointer | undefined;
 let placed: { shape: ShapeId; box: Box; heading: Heading } | undefined;
 let angle = 0;
+let turning = false;
 
 const widths = [3, 6, 10, 16, 24];
 
@@ -122,26 +128,17 @@ function place(c: ToolContext, shape: ShapeId, box: Box, heading: Heading, turn:
     w: bounds.w + c.opt<number>('width') * 2, h: bounds.h + c.opt<number>('width') * 2 }));
   c.commit();
   c.sound('shape');
+  if (turning) {
+    turning = false;
+    c.say(hint);
+  }
 }
 
 export default {
   id: 'shapes', label: { pt: 'Formas', en: 'Shapes' }, icon: icons.shapes, order: 40, level: 1, usesColor: true,
-  hint: {
-    pt: 'Escolhe uma forma e arrasta para lhe dar tamanho. Com «Rodar», depois aponta para onde ela deve olhar.',
-    en: 'Pick a shape and drag to size it. With “Rotate”, then point where it should face.',
-  },
+  hint,
   manualCommit: true,
   options: [{
-    kind: 'choice', id: 'style', label: { pt: 'Preenchimento', en: 'Style' }, default: 'solid',
-    items: [
-      { value: 'solid', label: { pt: 'Cheia', en: 'Filled' }, icon: drawingIcons.styleFilled },
-      { value: 'outline', label: { pt: 'Contorno', en: 'Outline' }, icon: drawingIcons.styleOutline },
-      { value: 'both', label: { pt: 'Cheia e contorno', en: 'Filled and outline' }, icon: drawingIcons.styleBoth },
-    ],
-  }, { kind: 'size', id: 'width', label: { pt: 'Espessura do contorno', en: 'Outline thickness' }, steps: widths, default: 10 },
-  { kind: 'toggle', id: 'center', label: { pt: 'Do centro', en: 'From the center' }, icon: drawingIcons.fromCenter, default: false },
-  { kind: 'toggle', id: 'turn', label: { pt: 'Rodar', en: 'Rotate' }, icon: drawingIcons.rotate, default: false },
-  {
     kind: 'choice', id: 'shape', label: { pt: 'Forma', en: 'Shape' }, default: 'rectangle',
     items: shapeIds.map(shape => ({
       value: shape, label: names[shape], level: simple.has(shape) ? 1 : 2,
@@ -156,7 +153,16 @@ export default {
         ctx.fill();
       },
     })),
-  }],
+  }, {
+    kind: 'choice', id: 'style', label: { pt: 'Preenchimento', en: 'Style' }, default: 'solid',
+    items: [
+      { value: 'solid', label: { pt: 'Cheia', en: 'Filled' }, icon: drawingIcons.styleFilled },
+      { value: 'outline', label: { pt: 'Contorno', en: 'Outline' }, icon: drawingIcons.styleOutline },
+      { value: 'both', label: { pt: 'Cheia e contorno', en: 'Filled and outline' }, icon: drawingIcons.styleBoth },
+    ],
+  }, { kind: 'size', id: 'width', label: { pt: 'Espessura do contorno', en: 'Outline thickness' }, steps: widths, default: 10 },
+  { kind: 'toggle', id: 'center', label: { pt: 'Do centro', en: 'From the center' }, icon: drawingIcons.fromCenter, default: false },
+  { kind: 'toggle', id: 'turn', label: { pt: 'Rodar', en: 'Rotate' }, icon: drawingIcons.rotate, default: false }],
   down(p, c) {
     if (placed) {
       show(p, c);
@@ -185,6 +191,7 @@ export default {
       // Show it upright until the pointer moves; the release point is just a corner of the box.
       c.clearOverlay();
       paint(c, target.shape, target.box, target.heading, 0, true);
+      turning = true;
       c.say(rotateHint);
       return;
     }
@@ -194,5 +201,5 @@ export default {
     if (placed) show(p, c);
     else showCrossCursor(c, p);
   },
-  cancel() { start = undefined; placed = undefined; angle = 0; },
+  cancel() { start = undefined; placed = undefined; angle = 0; turning = false; },
 } satisfies Tool;

@@ -8,8 +8,8 @@ import type { L10n, PaintPointer, Point, Tool, ToolContext } from '../core/types
 import { icons } from '../ui/icons';
 
 const names: Record<FillMode, L10n> = {
-  solid: { pt: 'Cor lisa', en: 'Solid' }, linear: { pt: 'Degradê a direito', en: 'Straight fade' },
-  radial: { pt: 'Degradê redondo', en: 'Round fade' }, stripes: { pt: 'Riscas', en: 'Stripes' },
+  solid: { pt: 'Cor lisa', en: 'Solid' }, linear: { pt: 'Degradé reto', en: 'Straight fade' },
+  radial: { pt: 'Degradé redondo', en: 'Round fade' }, stripes: { pt: 'Riscas', en: 'Stripes' },
   dots: { pt: 'Bolas', en: 'Dots' }, checks: { pt: 'Xadrez', en: 'Checks' },
   waves: { pt: 'Ondas', en: 'Waves' }, bricks: { pt: 'Tijolos', en: 'Bricks' },
 };
@@ -77,7 +77,7 @@ function start(p: PaintPointer, c: ToolContext) {
 export default {
   id: 'fill', label: { pt: 'Encher', en: 'Fill' }, icon: icons.fill, order: 50, level: 1, usesColor: true,
   hint: {
-    pt: 'Toca numa zona para a encher. Nos degradês, arrasta para dizer para onde vai.',
+    pt: 'Toca numa zona para a encher. Nos degradés, arrasta para dizer para onde vai.',
     en: 'Tap an area to fill it. For fades, drag to say which way they go.',
   },
   options: [{

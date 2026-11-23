@@ -1,4 +1,5 @@
 import { flushLayers } from './brush-kit';
+import './option-panel.css';
 import { clampRect, interpolateDabs, seededRandom, strokeBounds, unionRect } from '../draw';
 import { brushes } from '../registry';
 import type { BrushDef, ChoiceItem, L10n, OptionSpec, PaintPointer, Point, Rect, ToolContext } from '../types';

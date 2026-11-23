@@ -75,12 +75,29 @@ export function patternPainter(kind: PatternKind, ink: Rgb, paper: Rgb, scale = 
     }
     case 'dots': {
       const cell = 38 * scale;
+      const half = cell / 2;
+      const reach = cell * .29;
+      const inner = (reach - .5) ** 2;
+      const outer = (reach + .5) ** 2;
+      // Painters are called row by row, so work out what depends only on the row once per row.
+      let lastY = NaN;
+      let shift = 0;
+      let dy2 = 0;
       return (x, y, out) => {
-        const row = Math.floor(y / cell);
-        const px = x - (row % 2 ? cell / 2 : 0);
-        const dx = (((px % cell) + cell) % cell) - cell / 2;
-        const dy = (y - row * cell) - cell / 2;
-        blend(out, Math.min(1, Math.max(0, cell * .29 - Math.sqrt(dx * dx + dy * dy) + .5)));
+        if (y !== lastY) {
+          lastY = y;
+          const row = Math.floor(y / cell);
+          shift = row % 2 ? half : 0;
+          const dy = y - row * cell - half;
+          dy2 = dy * dy;
+        }
+        const shifted = x - shift;
+        const dx = shifted - cell * Math.floor(shifted / cell) - half;
+        const d2 = dx * dx + dy2;
+        // Only the one-pixel soft edge needs a square root.
+        if (d2 <= inner) blend(out, 1);
+        else if (d2 >= outer) blend(out, 0);
+        else blend(out, Math.min(1, Math.max(0, reach - Math.sqrt(d2) + .5)));
       };
     }
     case 'checks': {

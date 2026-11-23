@@ -91,7 +91,7 @@ const brushes = ['Redondo', 'Quadrado', 'Marcador', 'Caligrafia', 'Caneta', 'Fit
   'Setas', 'Pegadas', 'Folhas', 'Relva', 'Pelo'];
 const shapes = ['Quadrado', 'Retângulo', 'Círculo', 'Elipse', 'Triângulo', 'Estrela', 'Coração', 'Losango', 'Pentágono',
   'Hexágono', 'Octógono', 'Estrela de 6 pontas', 'Seta'];
-const fills = ['Cor lisa', 'Degradê a direito', 'Degradê redondo', 'Riscas', 'Bolas', 'Xadrez', 'Ondas', 'Tijolos'];
+const fills = ['Cor lisa', 'Degradé reto', 'Degradé redondo', 'Riscas', 'Bolas', 'Xadrez', 'Ondas', 'Tijolos'];
 const colors = ['Azul', 'Vermelho', 'Verde', 'Roxo', 'Laranja', 'Turquesa'];
 
 test.describe('brushes', () => {
@@ -336,7 +336,7 @@ test.describe('fill', () => {
     for (const name of fills) {
       await choose(page, name);
       await choose(page, 'Azul');
-      if (name.startsWith('Degradê')) await drag(page, [[450, 350], [950, 750]]);
+      if (name.startsWith('Degradé')) await drag(page, [[450, 350], [950, 750]]);
       else await tap(page, 700, 550);
       expect(await pixel(page, 700, 550), `${name} left the middle white`).not.toEqual([255, 255, 255, 255]);
       expect(await pixel(page, 200, 200), `${name} spilled outside`).toEqual([255, 255, 255, 255]);
@@ -349,7 +349,7 @@ test.describe('fill', () => {
   test('a gradient follows the drag direction', async ({ page }) => {
     await ready(page);
     await choose(page, 'Encher');
-    await choose(page, 'Degradê a direito');
+    await choose(page, 'Degradé reto');
     await choose(page, 'Azul');
     await drag(page, [[100, 100], [1500, 100]]);
     const left = await pixel(page, 200, 600);
@@ -357,7 +357,7 @@ test.describe('fill', () => {
     expect(left[0]).toBeLessThan(right[0]);
     expect(left).toEqual(await pixel(page, 200, 100));
     await choose(page, 'Desfazer');
-    await choose(page, 'Degradê redondo');
+    await choose(page, 'Degradé redondo');
     await drag(page, [[800, 600], [1000, 600]]);
     expect((await pixel(page, 800, 600))[0]).toBeLessThan((await pixel(page, 1300, 600))[0]);
     expect(Math.abs((await pixel(page, 800, 600))[0] - (await pixel(page, 800, 610))[0])).toBeLessThan(12);
@@ -437,6 +437,7 @@ test.describe('eraser', () => {
 
 test.describe('screenshots', () => {
   test.skip(!capture, 'screenshot capture is opt-in');
+  test.setTimeout(120_000);
 
   test('a sheet with every brush', async ({ page }) => {
     await ready(page);
@@ -448,6 +449,8 @@ test.describe('screenshots', () => {
     await label(page, brushes.map((name, i) => [name, 40 + (i % 4) * 395, 28 + Math.floor(i / 4) * 195]));
     await saveSheet(page, 'docs/screens/batch-a-brushes.png');
     await choose(page, 'Néon');
+    await choose(page, 'Grande');
+    await hover(page, 800, 640);
     await page.screenshot({ path: 'docs/screens/batch-a-ui.png' });
   });
 
@@ -475,6 +478,9 @@ test.describe('screenshots', () => {
     await label(page, [...shapes.map((name, i): [string, number, number] => [name, 60 + (i % 5) * 310, 56 + Math.floor(i / 5) * 380]),
       ['Rodar', 1130, 800]]);
     await saveSheet(page, 'docs/screens/batch-a-shapes.png');
+    await choose(page, 'Estrela');
+    await hover(page, 800, 640);
+    await page.screenshot({ path: 'docs/screens/batch-a-ui-shapes.png' });
   });
 
   test('a sheet with every fill', async ({ page }) => {
@@ -495,10 +501,12 @@ test.describe('screenshots', () => {
       await choose(page, name);
       await choose(page, colors[index % colors.length]);
       const [x, y] = cells[index];
-      if (name.startsWith('Degradê')) await drag(page, [[x - 90, y - 90], [x + 90, y + 130]]);
+      if (name.startsWith('Degradé')) await drag(page, [[x - 90, y - 90], [x + 90, y + 130]]);
       else await tap(page, x, y);
     }
     await label(page, fills.map((name, i) => [name, 50 + (i % 4) * 385, 48 + Math.floor(i / 4) * 560]));
     await saveSheet(page, 'docs/screens/batch-a-fills.png');
+    await choose(page, 'Degradé redondo');
+    await page.screenshot({ path: 'docs/screens/batch-a-ui-fill.png' });
   });
 });
