@@ -21,6 +21,7 @@ const byOrder = (a: { id: string; order: number }, b: { id: string; order: numbe
 
 export const tools = new Registry(Object.values(import.meta.glob<Tool>('../tools/*.ts', { eager: true, import: 'default' })), byOrder);
 export const brushes = new Registry(Object.values(import.meta.glob<BrushDef>('../brushes/*.ts', { eager: true, import: 'default' })), byOrder);
-export const magic = new Registry(Object.values(import.meta.glob<MagicEffect>('../magic/*.ts', { eager: true, import: 'default' })), byOrder);
+// Files and folders whose names start with "_" are shared helpers, not plug-ins.
+export const magic = new Registry(Object.values(import.meta.glob<MagicEffect>(['../magic/*.ts', '!../magic/_*.ts'], { eager: true, import: 'default' })), byOrder);
 export const stamps = new Registry(Object.values(import.meta.glob<StampDef>('../stamps/*.ts', { eager: true, import: 'default' })));
 export const starters = new Registry(Object.values(import.meta.glob<StarterDef>('../starters/*.ts', { eager: true, import: 'default' })));

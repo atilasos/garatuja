@@ -1,0 +1,8 @@
+/* The whole-page switch belongs only to effects that can brush and fill the page. */
+.option-section:has(> [data-focus="whole"]) {
+  display: none;
+}
+
+.option-section.magic-whole-on:has(> [data-focus="whole"]) {
+  display: block;
+}
