@@ -3,12 +3,15 @@ import { showCrossCursor } from '../core/tooling/brush-stroke';
 import {
   defaultGradient, drawFillSample, fillModes, fillPainter, gradientModes, type FillMode, type Gradient,
 } from '../core/tooling/fill-styles';
-import { rgbToHex } from '../core/draw';
+import { clampRect, hexToRgb, rgbToHex, strokeBounds } from '../core/draw';
 import { viewport } from '../core/canvas';
 import type { L10n, PaintPointer, Point, Tool, ToolContext } from '../core/types';
 import { icons } from '../ui/icons';
 
-const names: Record<FillMode, L10n> = {
+type RegionMode = FillMode | 'brush' | 'erase';
+const modes: RegionMode[] = [...fillModes, 'brush', 'erase'];
+const names: Record<RegionMode, L10n> = {
+  brush: { pt: 'Pincel', en: 'Brush' }, erase: { pt: 'Apagar zona', en: 'Erase area' },
   solid: { pt: 'Cor lisa', en: 'Solid' }, linear: { pt: 'Degradé reto', en: 'Straight fade' },
   radial: { pt: 'Degradé redondo', en: 'Round fade' }, stripes: { pt: 'Riscas', en: 'Stripes' },
   dots: { pt: 'Bolas', en: 'Dots' }, checks: { pt: 'Xadrez', en: 'Checks' },
@@ -20,6 +23,50 @@ const TOLERANCE = 32;
 /** A fade waits for the drag that gives it a direction, so the flooded region is kept meanwhile. */
 interface Pending { region: Region; source: ImageData; guide?: Uint8ClampedArray; start: Point; mode: 'linear' | 'radial' }
 let pending: Pending | undefined;
+let brushRegion: Region | undefined;
+const brushRadius = 52;
+
+function paintWithin(c: ToolContext, region: Region, from: Point, to: Point) {
+  const { x, y, w, h } = clampRect(strokeBounds(from, to, brushRadius + 1), c.width, c.height);
+  if (!w || !h) return;
+  const area = c.ctx.getImageData(x, y, w, h);
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const span = dx * dx + dy * dy || 1;
+  const { r, g, b } = hexToRgb(c.color);
+  for (let row = 0; row < h; row++) {
+    for (let col = 0; col < w; col++) {
+      if (!region.mask[(y + row) * c.width + x + col]) continue;
+      const px = x + col + .5 - from.x;
+      const py = y + row + .5 - from.y;
+      const along = Math.min(1, Math.max(0, (px * dx + py * dy) / span));
+      const distance = Math.hypot(px - dx * along, py - dy * along);
+      const opacity = Math.min(1, Math.max(0, brushRadius + .5 - distance));
+      if (!opacity) continue;
+      const i = (row * w + col) * 4;
+      area.data[i] += (r - area.data[i]) * opacity;
+      area.data[i + 1] += (g - area.data[i + 1]) * opacity;
+      area.data[i + 2] += (b - area.data[i + 2]) * opacity;
+    }
+  }
+  c.ctx.putImageData(area, x, y);
+  c.markDirty({ x, y, w, h });
+}
+
+function eraseRegion(c: ToolContext, source: ImageData, region: Region, guide?: Uint8ClampedArray) {
+  const paper = c.paper.getContext('2d')?.getImageData(0, 0, c.width, c.height).data;
+  if (!paper) return;
+  const result = paintRegion(source, region, (x, y, out) => {
+    const i = (y * c.width + x) * 4;
+    out.r = paper[i]; out.g = paper[i + 1]; out.b = paper[i + 2];
+  }, { foreground: guide, fringe: true });
+  if (!result) return;
+  const { x, y, w, h } = result.dirty;
+  source.data.set(result.data);
+  c.ctx.putImageData(source, 0, 0, x, y, w, h);
+  c.markDirty(result.dirty);
+  c.sound('fill');
+}
 
 function gradientFor(p: Pending, to: Point): Gradient {
   const dragged = Math.hypot(to.x - p.start.x, to.y - p.start.y) >= 8;
@@ -73,9 +120,10 @@ function uniform(data: Uint8ClampedArray) {
 
 function start(p: PaintPointer, c: ToolContext) {
   pending = undefined;
+  brushRegion = undefined;
   const source = c.ctx.getImageData(0, 0, c.width, c.height);
   const guide = c.foreground?.getContext('2d')?.getImageData(0, 0, c.width, c.height).data;
-  const mode = c.opt<FillMode>('mode');
+  const mode = c.opt<RegionMode>('mode');
   // A flat sheet has no boundary to discover or antialiased fringe to rebuild.
   if (mode === 'solid' && !guide && uniform(source.data)) {
     c.ctx.save();
@@ -90,8 +138,13 @@ function start(p: PaintPointer, c: ToolContext) {
   }
   const region = floodRegion(source, p, TOLERANCE, guide);
   if (!region) return;
-  if (gradientModes.has(mode)) {
-    pending = { region, source, guide, start: { x: p.x, y: p.y }, mode: mode as 'linear' | 'radial' };
+  if (mode === 'brush') {
+    brushRegion = region;
+    paintWithin(c, region, p, p);
+    c.sound('fill');
+  } else if (mode === 'erase') eraseRegion(c, source, region, guide);
+  else if (mode === 'linear' || mode === 'radial') {
+    pending = { region, source, guide, start: { x: p.x, y: p.y }, mode };
     preview(c, pending, p);
   } else apply(c, source, region, mode, undefined, guide);
 }
@@ -104,15 +157,23 @@ export default {
   },
   options: [{
     kind: 'choice', id: 'mode', label: { pt: 'Enchimento', en: 'Fill style' }, default: 'solid',
-    items: fillModes.map(mode => ({
+    items: modes.map(mode => mode === 'brush' || mode === 'erase' ? {
+      value: mode, label: names[mode], icon: mode === 'brush' ? icons.paint : icons.eraser, level: 1,
+      hint: mode === 'brush' ? { pt: 'Arrasta para pintar sem sair da zona onde tocaste.', en: 'Drag to paint inside the area you touched.' }
+        : { pt: 'Toca numa zona para voltar a ver o papel.', en: 'Tap an area to bring back the paper.' },
+    } : ({
       value: mode, label: names[mode], level: mode === 'solid' || mode === 'stripes' || mode === 'dots' ? 1 : 2,
       preview: (ctx, w, h, color) => drawFillSample(ctx, w, h, mode, color),
     })),
   }],
-  tapOnly: c => !gradientModes.has(c.opt<FillMode>('mode')),
+  tapOnly: c => c.opt<RegionMode>('mode') !== 'brush' && !gradientModes.has(c.opt<FillMode>('mode')),
   down(p, c) { c.clearOverlay(); start(p, c); },
-  move(p, _previous, c) { if (pending) preview(c, pending, p); },
+  move(p, previous, c) {
+    if (brushRegion) paintWithin(c, brushRegion, previous, p);
+    else if (pending) preview(c, pending, p);
+  },
   up(p, c) {
+    brushRegion = undefined;
     const current = pending;
     pending = undefined;
     if (!current) return;
@@ -120,5 +181,5 @@ export default {
     apply(c, current.source, current.region, current.mode, gradientFor(current, p), current.guide);
   },
   hover(p, c) { showCrossCursor(c, p, 14); },
-  cancel() { pending = undefined; },
+  cancel() { pending = undefined; brushRegion = undefined; },
 } satisfies Tool;
