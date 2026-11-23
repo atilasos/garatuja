@@ -80,6 +80,17 @@ export class Storage {
     });
   }
 
+  saveWorks(projects: readonly ProjectRecord[]): Promise<void> {
+    const transaction = this.db.transaction('projects', 'readwrite', { durability: 'strict' });
+    const store = transaction.objectStore('projects');
+    for (const project of projects) store.add(project);
+    transaction.commit();
+    return new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onabort = () => reject(transaction.error);
+    });
+  }
+
   remove(id: string): Promise<void> {
     const transaction = this.db.transaction('projects', 'readwrite');
     transaction.objectStore('projects').delete(id);

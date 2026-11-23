@@ -5,7 +5,7 @@ export const maxFileBytes = 160 * 1024 * 1024;
 const maxImageBytes = 8 * 1024 * 1024;
 const signature = [137, 80, 78, 71, 13, 10, 26, 10];
 const format = 'garatuja';
-const version = 1;
+const version = 2;
 
 async function base64(blob: Blob) {
   const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -14,9 +14,8 @@ async function base64(blob: Blob) {
   return btoa(chunks.join(''));
 }
 
-export async function serializeWork(project: ProjectRecord, progress?: (done: number) => void) {
-  const { title, author, audience, fps, comments, pages } = project;
-  if (!pages.length || pages.length > maxPages) throw new Error('Unsupported page count');
+export async function serializeWorks(projects: readonly ProjectRecord[]) {
+  if (!projects.length) throw new Error('No work to export');
   const assets: string[] = [];
   const blobs = new Map<Blob, number>();
   const indexes = new Map<string, number>();
@@ -38,14 +37,17 @@ export async function serializeWork(project: ProjectRecord, progress?: (done: nu
     return index;
   }
 
-  const records = [];
-  for (const [i, page] of pages.entries()) {
-    const { text, labels, bitmap, paper, foreground, thumb } = page;
-    records.push({ text, labels, bitmap: await asset(bitmap), paper: await asset(paper),
-      foreground: foreground && await asset(foreground), thumb: await asset(thumb) });
-    progress?.(i + 1);
+  const works = [];
+  for (const { title, author, audience, fps, comments, pages } of projects) {
+    if (!pages.length || pages.length > maxPages) throw new Error('Unsupported page count');
+    const records = [];
+    for (const { text, labels, bitmap, paper, foreground, thumb } of pages) {
+      records.push({ text, labels, bitmap: await asset(bitmap), paper: await asset(paper),
+        foreground: foreground && await asset(foreground), thumb: await asset(thumb) });
+    }
+    works.push({ title, author, audience, fps, comments, pages: records });
   }
-  const file = new Blob([JSON.stringify({ format, version, title, author, audience, fps, comments, pages: records, assets })],
+  const file = new Blob([JSON.stringify({ format, version, works, assets })],
     { type: 'application/json' });
   if (file.size > maxFileBytes) throw new Error('The file is too large');
   return file;
@@ -115,15 +117,16 @@ function decodePng(value: unknown): Png {
   return { blob: new Blob([bytes], { type: 'image/png' }), width: header.getUint32(16), height: header.getUint32(20) };
 }
 
-export async function deserializeWork(file: Blob, verifyImage?: (image: Blob) => Promise<void>): Promise<ProjectRecord> {
+export async function deserializeWorks(file: Blob, verifyImage?: (image: Blob) => Promise<void>): Promise<ProjectRecord[]> {
   requireValue(file.size > 0 && file.size <= maxFileBytes);
   const parsed: unknown = JSON.parse(await file.text());
-  const { format: fileFormat, version: fileVersion, title, author, audience, fps, comments, pages, assets } = record(parsed);
-  requireValue(fileFormat === format && fileVersion === version);
-  const records = array(pages);
-  requireValue(records.length > 0 && records.length <= maxPages);
-  const images = array(assets);
-  requireValue(images.length > 0 && images.length <= maxPages * 4);
+  const archive = record(parsed);
+  requireValue(archive.format === format && (archive.version === 1 || archive.version === version));
+  const works = (archive.version === 1 ? [archive] : array(archive.works)).map(record);
+  requireValue(works.length > 0);
+  const images = array(archive.assets);
+  const pageCount = works.reduce((total, work) => total + array(work.pages).length, 0);
+  requireValue(images.length > 0 && images.length <= pageCount * 4);
   const decoded = new Map<number, Png>();
   function png(value: unknown, thumb = false) {
     const index = finite(value);
@@ -133,17 +136,21 @@ export async function deserializeWork(file: Blob, verifyImage?: (image: Blob) =>
     decoded.set(index, image);
     return image.blob;
   }
-  const importedPages: PageRecord[] = records.map(value => {
-    const { text, labels, bitmap, paper, foreground, thumb } = record(value);
-    return { id: crypto.randomUUID(), text: str(text), labels: array(labels).map(label), bitmap: png(bitmap),
-      paper: png(paper), foreground: foreground === undefined ? undefined : png(foreground), thumb: png(thumb, true) };
+  const projects = works.map(({ title, author, audience, fps, comments, pages }) => {
+    const records = array(pages);
+    requireValue(records.length > 0 && records.length <= maxPages);
+    const importedPages: PageRecord[] = records.map(value => {
+      const { text, labels, bitmap, paper, foreground, thumb } = record(value);
+      return { id: crypto.randomUUID(), text: str(text), labels: array(labels).map(label), bitmap: png(bitmap),
+        paper: png(paper), foreground: foreground === undefined ? undefined : png(foreground), thumb: png(thumb, true) };
+    });
+    const speed = finite(fps);
+    requireValue(speed > 0 && speed <= 60);
+    const now = Date.now();
+    return { id: crypto.randomUUID(), title: str(title), author: str(author), audience: str(audience),
+      fps: speed, comments: array(comments).map(comment), pages: importedPages, createdAt: now, updatedAt: now };
   });
   requireValue(decoded.size === images.length);
-  const speed = finite(fps);
-  requireValue(speed > 0 && speed <= 60);
-  const now = Date.now();
-  const project = { id: crypto.randomUUID(), title: str(title), author: str(author), audience: str(audience),
-    fps: speed, comments: array(comments).map(comment), pages: importedPages, createdAt: now, updatedAt: now };
   if (verifyImage) for (const { blob } of decoded.values()) await verifyImage(blob);
-  return project;
+  return projects;
 }

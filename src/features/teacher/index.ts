@@ -7,7 +7,9 @@ import { art, button, h, pressed, roving } from '../../ui/dom';
 import { icons } from '../../ui/icons';
 import { extraIcons } from '../settings/icons';
 import './teacher.css';
-import { backupFile, clearPreferences, download, formatBytes } from './data';
+import { serializeWorks } from '../exchange/format';
+import { download } from '../exchange/download';
+import { clearPreferences, formatBytes } from './data';
 import { checkAnswer, makeChallenge } from './gate';
 
 const words = {
@@ -59,7 +61,7 @@ const flags: { key: Flag; label: L10n; icon: string }[] = [
   { key: 'readAloud', label: { pt: 'Leitura em voz alta', en: 'Read aloud' }, icon: extraIcons.listen },
   { key: 'uppercase', label: { pt: 'Só maiúsculas', en: 'Capital letters only' }, icon: extraIcons.uppercase },
   { key: 'allowPrint', label: { pt: 'Permitir imprimir', en: 'Allow printing' }, icon: icons.print },
-  { key: 'allowImport', label: { pt: 'Permitir importar imagens', en: 'Allow importing pictures' }, icon: extraIcons.importImage },
+  { key: 'allowImport', label: { pt: 'Permitir importar ficheiros', en: 'Allow importing files' }, icon: extraIcons.importImage },
   { key: 'fixedClick', label: { pt: 'Clique fixo', en: 'Click to start and stop' }, icon: extraIcons.cursor },
   { key: 'largeCursor', label: { pt: 'Cursor grande', en: 'Large cursor' }, icon: extraIcons.cursor },
   { key: 'highContrast', label: { pt: 'Alto contraste', en: 'High contrast' }, icon: extraIcons.contrast },
@@ -161,8 +163,9 @@ async function panel(app: App) {
     exportButton.disabled = true;
     try {
       await app.documents.save();
-      const file = await backupFile(await app.storage.list());
-      download(file.name, file.blob);
+      const file = await serializeWorks(await app.storage.list());
+      const day = new Date().toISOString().slice(0, 10);
+      download(file, 'garatuja-todos-os-trabalhos-' + day, 'garatuja');
       app.notify(words.exported);
     } finally {
       exportButton.disabled = false;

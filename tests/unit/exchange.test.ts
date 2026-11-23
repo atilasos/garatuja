@@ -1,7 +1,7 @@
 import { crc32, deflateSync } from 'node:zlib';
 import { expect, test } from 'vitest';
 import type { ProjectRecord } from '../../src/core/types';
-import { deserializeWork, serializeWork } from '../../src/features/exchange/format';
+import { deserializeWorks, serializeWorks } from '../../src/features/exchange/format';
 
 function chunk(type: string, contents: Uint8Array) {
   const name = Buffer.from(type);
@@ -36,8 +36,8 @@ function work(): ProjectRecord {
 
 test('round-trips Unicode, drawings and qualitative comments with new IDs and shared assets', async () => {
   const original = work();
-  const file = await serializeWork(original);
-  const imported = await deserializeWork(file);
+  const file = await serializeWorks([original]);
+  const [imported] = await deserializeWorks(file);
   expect(imported.id).not.toBe(original.id);
   expect(imported.pages.map(page => page.id)).not.toEqual(original.pages.map(page => page.id));
   expect(imported.pages.map(page => page.text)).toEqual(['Olá, avó!', 'Olá, avó!']);
@@ -51,10 +51,10 @@ test('round-trips Unicode, drawings and qualitative comments with new IDs and sh
 });
 
 test('rejects malformed JSON, missing pages, out-of-range assets and wrong PNG dimensions', async () => {
-  await expect(deserializeWork(new Blob(['{']))).rejects.toThrow();
-  await expect(deserializeWork(new Blob(['{"format":"garatuja","version":1,"pages":[]}']))).rejects.toThrow();
-  const file = await serializeWork(work());
+  await expect(deserializeWorks(new Blob(['{']))).rejects.toThrow();
+  await expect(deserializeWorks(new Blob(['{"format":"garatuja","version":1,"pages":[]}']))).rejects.toThrow();
+  const file = await serializeWorks([work()]);
   const json = await file.text();
-  await expect(deserializeWork(new Blob([json.replace('"bitmap":0', '"bitmap":999')]))).rejects.toThrow();
-  await expect(deserializeWork(new Blob([json.replace('"thumb":1', '"thumb":0')]))).rejects.toThrow();
+  await expect(deserializeWorks(new Blob([json.replace('"bitmap":0', '"bitmap":999')]))).rejects.toThrow();
+  await expect(deserializeWorks(new Blob([json.replace('"thumb":1', '"thumb":0')]))).rejects.toThrow();
 });

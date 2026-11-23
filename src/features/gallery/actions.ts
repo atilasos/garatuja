@@ -19,6 +19,11 @@ export interface GalleryContext {
   project?: ProjectRecord;
   /** Re-read the list of works from storage and redraw the gallery. */
   refresh(): Promise<void>;
+  /** Local feedback remains visible inside the dialog. */
+  notice(message: L10n, warning?: boolean): void;
+  /** Attach a file picker for the lifetime of this gallery. */
+  attach(input: HTMLInputElement): void;
+  isOpen(): boolean;
   /** Close the gallery dialog. */
   close(): void;
 }

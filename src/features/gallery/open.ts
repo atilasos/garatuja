@@ -49,6 +49,7 @@ export function deletedMessage(project: ProjectRecord): L10n {
 }
 
 export function chooseImage(app: App, done: () => void) {
+  if (!app.store.get().settings.allowImport) return;
   const input = h('input', 'visually-hidden');
   input.type = 'file';
   input.accept = 'image/*';
@@ -56,7 +57,7 @@ export function chooseImage(app: App, done: () => void) {
   input.addEventListener('change', () => app.run(async () => {
     const file = input.files?.[0];
     input.remove();
-    if (!file) return;
+    if (!file || !app.store.get().settings.allowImport) return;
     let image: ImageBitmap;
     try {
       image = await createImageBitmap(file);
@@ -83,7 +84,10 @@ export async function openWork(app: App, trash: Trash) {
   const toolbar = h('div', 'gallery-toolbar');
   const notices = h('div', 'gallery-notices');
   const grid = h('div', 'gallery');
-  const content = h('div', 'gallery-dialog', toolbar, notices, grid);
+  const status = h('p', 'gallery-notice');
+  status.hidden = true;
+  status.setAttribute('role', 'status');
+  const content = h('div', 'gallery-dialog', toolbar, status, notices, grid);
   let closed = false;
   const stopListening = trash.onChange(() => { if (!closed) void refresh(); });
   const close = app.modal({
@@ -96,7 +100,17 @@ export async function openWork(app: App, trash: Trash) {
     },
   });
   content.closest('dialog')?.classList.add('dialog-wide');
-  const context = (project?: ProjectRecord): GalleryContext => ({ project, refresh, close });
+  const context = (project?: ProjectRecord): GalleryContext => ({
+    project, refresh, close,
+    attach: input => { content.append(input); },
+    isOpen: () => !closed,
+    notice(message, warning) {
+      status.hidden = false;
+      status.classList.toggle('pingo-note', !warning);
+      status.classList.toggle('gallery-notice', Boolean(warning));
+      status.textContent = t(message);
+    },
+  });
 
   function renderToolbar() {
     const controls: HTMLButtonElement[] = [];
@@ -198,6 +212,7 @@ export async function openWork(app: App, trash: Trash) {
       .filter(project => !trash.has(project.id) && project.pages.length)
       .sort((a, b) => b.updatedAt - a.updatedAt);
     const focusedProject = document.activeElement?.closest<HTMLElement>('[data-project]')?.dataset.project;
+    urls.splice(0).forEach(url => URL.revokeObjectURL(url));
     renderToolbar();
     renderNotices();
     if (!projects.length) {
