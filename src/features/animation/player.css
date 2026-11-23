@@ -1,0 +1,29 @@
+.dialog.animation-dialog { width: min(94vw, 900px); max-height: 96dvh; }
+.animation-screen { display: grid; gap: 8px; }
+.animation-screen > canvas {
+  display: block;
+  width: min(100%, 65dvh);
+  height: auto;
+  margin: 0 auto;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--edge);
+}
+.animation-tools, .animation-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.animation-settings { justify-content: space-between; }
+.animation-tools [aria-disabled="true"] { opacity: .58; }
+.animation-position { min-width: 7.5rem; font-weight: 700; }
+.animation-progress { display: flex; align-items: center; gap: 12px; }
+.animation-progress:has(> progress[hidden]) { display: none; }
+.animation-warning {
+  background: #fff0ce;
+  color: #533810;
+  border: 1px solid #bd8a36;
+  border-radius: 10px;
+  margin: 0;
+  padding: 8px 12px;
+}
