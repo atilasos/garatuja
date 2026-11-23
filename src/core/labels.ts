@@ -106,11 +106,11 @@ export function contrastWithWhite(color: string): number {
   return 1.05 / (luminance(hexToRgb(color)) + .05);
 }
 
-/** Darken a colour until it can be read on white (yellow text on a white bubble would vanish). */
-export function legibleInk(color: string): string {
+/** Darken a colour until it reaches `minimum` contrast on white (yellow text on a white bubble would vanish). */
+export function legibleInk(color: string, minimum = 4.5): string {
   if (!/^#[\da-f]{6}$/i.test(color)) return color;
   let rgb = hexToRgb(color);
-  for (let i = 0; i < 16 && contrastWithWhite(rgbToHex(rgb)) < 4.5; i++) {
+  for (let i = 0; i < 16 && contrastWithWhite(rgbToHex(rgb)) < minimum; i++) {
     rgb = { r: rgb.r + (ink.r - rgb.r) * .22, g: rgb.g + (ink.g - rgb.g) * .22, b: rgb.b + (ink.b - rgb.b) * .22 };
   }
   return rgbToHex(rgb);
@@ -518,6 +518,8 @@ export interface DrawOptions {
 }
 
 function drawText(ctx: Path, label: LabelObject, layout: LabelLayout, color: string) {
+  // The halo has to contrast with the letters: white around dark text, dark around light text.
+  const light = /^#[\da-f]{6}$/i.test(color) && luminance(hexToRgb(color)) > .5;
   ctx.font = layout.font;
   ctx.textAlign = layout.align;
   ctx.textBaseline = 'alphabetic';
@@ -527,7 +529,7 @@ function drawText(ctx: Path, label: LabelObject, layout: LabelLayout, color: str
   layout.lines.forEach((line, i) => {
     const y = layout.textBox.y + i * layout.lineHeight + layout.baseline;
     if (halo) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, .9)';
+      ctx.strokeStyle = light ? 'rgba(53, 43, 35, .7)' : 'rgba(255, 255, 255, .9)';
       ctx.lineWidth = Math.max(4, label.size / 7);
       ctx.strokeText(line, x, y);
     }
@@ -538,7 +540,8 @@ function drawText(ctx: Path, label: LabelObject, layout: LabelLayout, color: str
 
 export function drawLabel(ctx: CanvasRenderingContext2D, label: LabelObject, layout: LabelLayout, options: DrawOptions = {}) {
   const { bounds, variant, lineWidth } = layout;
-  const stroke = label.color;
+  // Outlines and arrows must show on white and on the picture: very light colours are deepened a little.
+  const stroke = legibleInk(label.color, 3);
   ctx.save();
   if (variant === 'callout') {
     const arrow = label.target && arrowGeometry(bounds, label.target, lineWidth);

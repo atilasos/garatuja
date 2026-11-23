@@ -214,6 +214,7 @@ describe('kinds, numbers and colours', () => {
   it('darkens colours that cannot be read on white and leaves good ones alone', () => {
     expect(contrastWithWhite('#ffca49')).toBeLessThan(2);
     expect(contrastWithWhite(legibleInk('#ffca49'))).toBeGreaterThanOrEqual(4.5);
+    expect(contrastWithWhite(legibleInk('#ffca49', 3))).toBeGreaterThanOrEqual(3);
     expect(legibleInk('#292a33')).toBe('#292a33');
     expect(onColor('#292a33')).toBe('#ffffff');
     expect(onColor('#f8e99b')).toBe('#292a33');

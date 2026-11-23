@@ -510,3 +510,67 @@ test('a label can be created from the keyboard alone', async ({ page }) => {
   expect(label.text).toBe('teclado');
   await expect(page.getByRole('button', { name: /Legenda com seta: teclado/ })).toBeFocused();
 });
+
+test('tapping elsewhere finishes the label being typed and starts the next one', async ({ page }) => {
+  await ready(page);
+  await choose(page, 'Legenda');
+  await choose(page, 'Legenda com seta');
+  await tap(page, 500, 300);
+  await page.keyboard.type('primeira');
+  await tap(page, 1000, 800);
+  const field = page.getByRole('textbox', { name: 'Escreve aqui' });
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue('');
+  await page.keyboard.type('segunda');
+  await choose(page, 'Pronto');
+  expect((await labelsOf(page)).map(label => label.text)).toEqual(['primeira', 'segunda']);
+  await choose(page, 'Desfazer');
+  expect((await labelsOf(page)).map(label => label.text)).toEqual(['primeira']);
+  await choose(page, 'Desfazer');
+  expect(await labelsOf(page)).toHaveLength(0);
+  // A tap that is abandoned leaves no empty label and no undo step behind.
+  await tap(page, 700, 700);
+  await choose(page, 'Cancelar');
+  expect(await labelsOf(page)).toHaveLength(0);
+  await expect(page.getByRole('button', { name: 'Desfazer' })).toBeDisabled();
+});
+
+test.describe('touch', () => {
+  test.use({ hasTouch: true });
+
+  test('creates, drags and re-aims a balloon with a finger', async ({ page, context }) => {
+    await ready(page);
+    await choose(page, 'Legenda');
+    await choose(page, 'Balão de fala');
+    const spot = await paperLocation(page, 700, 400);
+    await page.touchscreen.tap(spot.x, spot.y);
+    await expect(page.getByRole('textbox', { name: 'Escreve aqui' })).toBeFocused();
+    await page.keyboard.type('Olá!');
+    await page.getByRole('button', { name: 'Pronto', exact: true }).tap();
+    const [label] = await labelsOf(page);
+    expect(label.text).toBe('Olá!');
+
+    const cdp = await context.newCDPSession(page);
+    const touch = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...from, id: 1 }] });
+      for (let i = 1; i <= 6; i++) {
+        const point = { x: from.x + (to.x - from.x) * i / 6, y: from.y + (to.y - from.y) * i / 6, id: 1 };
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] });
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    };
+    const body = await centre(page.getByRole('button', { name: /Balão de fala: Olá/ }));
+    await touch(body, { x: body.x + 70, y: body.y + 40 });
+    const moved = (await labelsOf(page))[0];
+    expect(moved.x).toBeGreaterThan(label.x + 100);
+
+    const grip = await centre(page.locator('.label-handle'));
+    const box = await page.locator('.label-handle').boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(44);
+    const to = await paperLocation(page, 300, 900);
+    await touch(grip, to);
+    const aimed = (await labelsOf(page))[0];
+    expect(aimed.target?.x).toBeCloseTo(300, -1);
+    expect(aimed.x).toBe(moved.x);
+  });
+});
