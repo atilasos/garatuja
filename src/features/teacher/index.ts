@@ -1,5 +1,7 @@
 import { getLocale, t } from '../../core/i18n';
-import type { Settings } from '../../core/store';
+import { configurableTools, type Settings } from '../../core/store';
+import { tools } from '../../core/registry';
+import { keyboardIcon, keyboardLabel, keyboardLayoutField, writingInput } from '../../ui/writing-input';
 import type { L10n } from '../../core/types';
 import type { App, Feature } from '../../ui/app';
 import { art, button, h, pressed, roving } from '../../ui/dom';
@@ -7,10 +9,10 @@ import { icons } from '../../ui/icons';
 import { untitled } from '../../ui/work-fields';
 import { extraIcons } from '../settings/icons';
 import './teacher.css';
-import { serializeWorks } from '../exchange/format';
+import { archiveVolumes } from '../exchange/format';
 import { download } from '../exchange/download';
 import { clearPreferences, formatBytes } from './data';
-import { checkAnswer, checkPin, makeChallenge, readPin, setPin, validPin } from './gate';
+import { checkAnswer, checkPin, makeChallenge, readPin, removePin, setPin, validPin } from './gate';
 
 const words = {
   gateTitle: { pt: 'Área do adulto', en: 'Adult area' },
@@ -23,6 +25,9 @@ const words = {
     pt: 'Podes proteger esta área com um PIN de quatro algarismos, guardado neste dispositivo. Se te esqueceres, apaga os dados deste site no navegador. Isso também apaga os trabalhos e as definições.',
     en: 'You can protect this area with a four-digit PIN stored on this device. If you forget it, clear this site’s data in the browser. This also deletes works and settings.',
   },
+  removePin: { pt: 'Remover PIN', en: 'Remove PIN' },
+  pinRemoved: { pt: 'PIN removido.', en: 'PIN removed.' },
+  tools: { pt: 'Ferramentas disponíveis', en: 'Available tools' },
   pinSaved: { pt: 'PIN guardado neste dispositivo.', en: 'PIN saved on this device.' },
   pinInvalid: { pt: 'Escreve quatro algarismos.', en: 'Enter four digits.' },
   erase: { pt: 'Escreve APAGAR', en: 'Type DELETE' },
@@ -73,6 +78,7 @@ const flags: { key: Flag; label: L10n; icon: string }[] = [
   { key: 'uppercase', label: { pt: 'Só maiúsculas', en: 'Capital letters only' }, icon: extraIcons.uppercase },
   { key: 'allowPrint', label: { pt: 'Permitir imprimir', en: 'Allow printing' }, icon: icons.print },
   { key: 'allowImport', label: { pt: 'Permitir importar ficheiros', en: 'Allow importing files' }, icon: extraIcons.importImage },
+  { key: 'screenKeyboard', label: keyboardLabel, icon: keyboardIcon },
   { key: 'fixedClick', label: { pt: 'Clique fixo', en: 'Click to start and stop' }, icon: extraIcons.fixedClick },
   { key: 'largeCursor', label: { pt: 'Cursor grande', en: 'Large cursor' }, icon: extraIcons.cursor },
   { key: 'highContrast', label: { pt: 'Alto contraste', en: 'High contrast' }, icon: extraIcons.contrast },
@@ -134,7 +140,7 @@ async function panel(app: App) {
     const row = h('div', 'segmented');
     const render = () => {
       row.replaceChildren(...items.map(item => {
-        const control = button(item.label, undefined, () => { set(item.value); render(); row.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus(); });
+        const control = button(item.label, item.value === 1 || item.value === 'pt' ? icons.level : extraIcons.full, () => { set(item.value); render(); row.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus(); });
         pressed(control, item.value === current());
         return control;
       }));
@@ -159,10 +165,20 @@ async function panel(app: App) {
     return h('label', 'setting', h('span', 'setting-name', art(flag.icon), t(flag.label)), box);
   });
 
+  const toolToggles = configurableTools.flatMap(id => {
+    const tool = tools.get(id);
+    if (!tool) return [];
+    const box = h('input');
+    box.type = 'checkbox';
+    box.checked = !settings().disabledTools[id];
+    box.addEventListener('change', () => app.configure({ disabledTools: { [id]: !box.checked } }));
+    return [h('label', 'setting', h('span', 'setting-name', art(tool.icon), t(tool.label)), box)];
+  });
+
   const className = h('input');
   className.value = settings().className;
   className.maxLength = 60;
-  className.addEventListener('input', () => app.configure({ className: className.value }));
+  writingInput(className, settings, value => app.configure({ className: value }));
 
   const persistStatus = h('p', 'storage-line');
   const persistButton = button(words.persist, extraIcons.storage, () => app.run(async () => {
@@ -176,24 +192,51 @@ async function panel(app: App) {
     persistButton.hidden = Boolean(persisted) || !navigator.storage?.persist;
   }
 
+  const exportStatus = h('p', 'storage-line');
+  exportStatus.setAttribute('role', 'status');
+  exportStatus.hidden = true;
+  const downloads = h('div', 'dialog-actions start');
   const exportButton = button(words.exportAll, extraIcons.download, () => app.run(async () => {
     exportButton.disabled = true;
     try {
-      const projects = await app.storage.list();
+      exportStatus.hidden = false;
+      downloads.replaceChildren();
+      const projects = (await app.storage.list()).filter(project => !app.isTrashed(project.id));
+      for (const recovery of app.documents.recoveryProjects) {
+        const index = projects.findIndex(project => project.id === recovery.id);
+        if (index >= 0) projects.splice(index, 1, recovery);
+        else projects.push(recovery);
+      }
       const local = app.documents.snapshot();
       const saved = projects.find(project => project.id === local.id);
-      if (!saved) projects.unshift(local);
-      else if (app.documents.hasUnsavedChanges) {
+      if (!saved && app.documents.hasWork && !app.isTrashed(local.id)) projects.unshift(local);
+      else if (saved && app.documents.hasUnsavedChanges) {
         if (saved.updatedAt <= local.updatedAt) projects.splice(projects.indexOf(saved), 1, local);
         else {
           const name = local.title.trim() || t(untitled);
           projects.unshift({ ...local, id: crypto.randomUUID(), title: t({ pt: `${name} (cópia)`, en: `${name} (copy)` }) });
         }
       }
-      const file = await serializeWorks(projects);
-      const day = new Date().toISOString().slice(0, 10);
-      download(file, 'garatuja-todos-os-trabalhos-' + day, 'garatuja');
-      app.notify(words.exported);
+      if (!projects.length) {
+        exportStatus.textContent = t({ pt: 'Ainda não há trabalhos para exportar.', en: 'There are no works to export yet.' });
+        return;
+      }
+      const progress = (count: number) => {
+        exportStatus.textContent = t({ pt: `A preparar trabalhos (${count}/${projects.length})`, en: `Preparing works (${count}/${projects.length})` });
+      };
+      progress(0);
+      const files = await archiveVolumes(projects, progress);
+      const name = 'garatuja-todos-os-trabalhos-' + new Date().toISOString().slice(0, 10);
+      if (files.length === 1) {
+        download(files[0], name, 'garatuja');
+        exportStatus.textContent = t(words.exported);
+        app.confirm(words.exported);
+        return;
+      }
+      exportStatus.textContent = t({ pt: `${files.length} volumes prontos. Guarda e importa cada um.`, en: `${files.length} volumes ready. Save and import each one.` });
+      files.forEach((file, index) => downloads.append(button(
+        { pt: `Guardar volume ${index + 1}`, en: `Save volume ${index + 1}` }, extraIcons.download,
+        () => download(file, `${name}-${index + 1}`, 'garatuja'))));
     } finally {
       exportButton.disabled = false;
     }
@@ -215,10 +258,22 @@ async function panel(app: App) {
     await setPin(pin.value);
     pin.value = '';
     pinStatus.textContent = t(words.pinSaved);
-    pinButton.setAttribute('aria-label', t(words.changePin));
-    const label = pinButton.querySelector('.button-label');
-    if (label) label.textContent = t(words.changePin);
+    updatePinButtons();
   }));
+  const remove = button(words.removePin, extraIcons.trash, () => app.run(() => {
+    removePin();
+    pinStatus.textContent = t(words.pinRemoved);
+    updatePinButtons();
+    pinButton.focus();
+  }));
+  function updatePinButtons() {
+    const labelText = t(readPin() ? words.changePin : words.setPin);
+    remove.hidden = !readPin();
+    pinButton.setAttribute('aria-label', labelText);
+    const label = pinButton.querySelector('.button-label');
+    if (label) label.textContent = labelText;
+  }
+  updatePinButtons();
 
   const danger = h('div', 'danger-zone');
   const clearStart = () => {
@@ -229,10 +284,10 @@ async function panel(app: App) {
         const confirmation = h('input');
         confirmation.autocomplete = 'off';
         const erase = button(words.confirmFinal, extraIcons.trash, () => {
-          if (confirmation.value === t(words.eraseWord)) app.run(() => clearEverything(app));
+          if (confirmation.value.toUpperCase() === t(words.eraseWord)) app.run(() => clearEverything(app));
         }, 'warning');
         erase.disabled = true;
-        confirmation.addEventListener('input', () => { erase.disabled = confirmation.value !== t(words.eraseWord); });
+        confirmation.addEventListener('input', () => { erase.disabled = confirmation.value.toUpperCase() !== t(words.eraseWord); });
         danger.replaceChildren(h('p', '', h('strong', '', t(words.confirm2))),
           h('label', 'work-field', h('span', '', t(words.erase)), confirmation), h('div', 'dialog-actions', no, erase));
         confirmation.focus();
@@ -249,10 +304,11 @@ async function panel(app: App) {
   const content = h('div', 'teacher-panel',
     h('p', 'privacy-note', art(extraIcons.adult), h('span', '', t(words.privacy))),
     section(words.interface, level, language),
-    section(words.pin, h('p', '', t(words.pinHelp)), h('label', 'work-field', h('span', '', t(words.pin)), pin), pinButton, pinStatus),
-    section(words.options, h('div', 'teacher-grid', ...toggles)),
+    section(words.pin, h('p', '', t(words.pinHelp)), h('label', 'work-field', h('span', '', t(words.pin)), pin), pinButton, remove, pinStatus),
+    section(words.options, h('div', 'teacher-grid', ...toggles), keyboardLayoutField(app)),
+    section(words.tools, h('div', 'teacher-grid', ...toolToggles)),
     section(words.className, h('label', 'work-field', h('span', '', t(words.classHint)), className)),
-    section(words.data, used, persistStatus, h('div', 'dialog-actions start', persistButton, exportButton), danger));
+    section(words.data, used, persistStatus, h('div', 'dialog-actions start', persistButton, exportButton), exportStatus, downloads, danger));
   className.setAttribute('aria-label', t(words.className));
   const close = app.modal({ title: words.title, content });
   content.closest('dialog')?.classList.add('dialog-wide');

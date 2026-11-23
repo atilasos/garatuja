@@ -47,6 +47,8 @@ export function checkAnswer(input: string, answer: number) {
 const pinKey = 'garatuja.adultPin';
 export const validPin = (pin: string) => /^[0-9]{4}$/.test(pin);
 
+export function removePin() { localStorage.removeItem(pinKey); }
+
 export function readPin() {
   return localStorage.getItem(pinKey);
 }

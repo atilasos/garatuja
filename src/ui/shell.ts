@@ -1,6 +1,6 @@
 import { t, speak } from '../core/i18n';
 import { tools } from '../core/registry';
-import type { State } from '../core/store';
+import { toolAllowed, type State } from '../core/store';
 import type { L10n } from '../core/types';
 import { printLabel, printWork } from '../features/book/print';
 import { showWorkDetails } from '../features/gallery/save';
@@ -89,7 +89,13 @@ export function mountShell(app: App, root: HTMLElement) {
   };
   arrangeFocus();
   stacked.addEventListener('change', arrangeFocus);
-  const colors = h('div', 'palette scroll-cue');
+  const colors = h('div', 'palette');
+  colors.addEventListener('wheel', event => {
+    if (event.ctrlKey || event.deltaX || colors.scrollWidth <= colors.clientWidth) return;
+    const left = colors.scrollLeft;
+    colors.scrollLeft += event.deltaY * (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1);
+    if (colors.scrollLeft !== left) event.preventDefault();
+  }, { passive: false });
   const hint = h('p', 'hint');
   hint.id = 'pingo-hint';
   hint.setAttribute('role', 'status');
@@ -207,8 +213,8 @@ export function mountShell(app: App, root: HTMLElement) {
     unavailable(redo, wait ?? (!app.surface.canRedo ? { pt: 'Desfaz um passo para o poderes refazer.', en: 'Undo a step before redoing it.' } : undefined), say);
     removeTabstop();
 
-    if (language || level !== previous?.settings.level || state.toolId !== previous?.toolId || state.registryVersion !== previous?.registryVersion) {
-      const controls = tools.all().filter(tool => tool.level <= level).map(tool => {
+    if (language || level !== previous?.settings.level || JSON.stringify(state.settings.disabledTools) !== JSON.stringify(previous?.settings.disabledTools) || state.toolId !== previous?.toolId || state.registryVersion !== previous?.registryVersion) {
+      const controls = tools.all().filter(tool => toolAllowed(state.settings, tool)).map(tool => {
         const element = button(tool.label, tool.icon, () => app.selectTool(tool), 'tool');
         element.dataset.focus = tool.id;
         element.dataset.tool = tool.id;

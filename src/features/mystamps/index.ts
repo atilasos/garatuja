@@ -73,7 +73,7 @@ export default {
         const stamp = await app.storage.createStamp(id, picture);
         register(stamp);
         app.refresh();
-        app.notify({ pt: 'Guardado em Os meus carimbos.', en: 'Saved in My stamps.' });
+        app.confirm({ pt: 'Guardado em Os meus carimbos.', en: 'Saved in My stamps.' });
       });
     });
   },

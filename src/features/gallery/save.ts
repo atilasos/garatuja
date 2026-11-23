@@ -4,6 +4,7 @@ import type { App } from '../../ui/app';
 import { art, button, h, pressed, roving } from '../../ui/dom';
 import { icons } from '../../ui/icons';
 import { authorLabel, titleLabel } from '../../ui/work-fields';
+import { uppercaseValue, writingInput } from '../../ui/writing-input';
 import { extraIcons } from '../settings/icons';
 
 const words = {
@@ -30,21 +31,22 @@ export const audienceSuggestions: L10n[] = [
   { pt: 'O livro da turma', en: 'The class book' },
 ];
 
-function field(label: L10n, placeholder: L10n, value: string, change: (value: string) => void) {
+function field(app: App, label: L10n, placeholder: L10n, value: string, change: (value: string) => void) {
   const input = h('input');
-  input.value = value;
+  const settings = () => app.store.get().settings;
+  input.value = uppercaseValue(value, settings());
   input.placeholder = t(placeholder);
-  input.addEventListener('input', () => change(input.value));
+  writingInput(input, settings, change);
   return { input, element: h('label', 'work-field', h('span', '', t(label)), input) };
 }
 
 /** "Para quem é?" with suggestion chips and free text. */
 export function audienceField(app: App) {
-  const audience = field(words.audience, words.audiencePlaceholder, app.store.get().project.audience,
+  const audience = field(app, words.audience, words.audiencePlaceholder, app.store.get().project.audience,
     value => { app.documents.editProject({ audience: value }); sync(); });
   const chips = audienceSuggestions.map(suggestion => {
-    const chip = button(suggestion, undefined, () => {
-      audience.input.value = t(suggestion);
+    const chip = button(suggestion, icons.text, () => {
+      audience.input.value = uppercaseValue(t(suggestion), app.store.get().settings);
       app.documents.editProject({ audience: audience.input.value });
       sync();
     }, 'chip');
@@ -53,7 +55,7 @@ export function audienceField(app: App) {
   });
   const row = h('div', 'chips', ...chips.map(([chip]) => chip));
   function sync() {
-    for (const [chip, suggestion] of chips) pressed(chip, audience.input.value.trim() === t(suggestion));
+    for (const [chip, suggestion] of chips) pressed(chip, audience.input.value.trim() === uppercaseValue(t(suggestion), app.store.get().settings));
   }
   sync();
   roving(row, words.audience);
@@ -66,6 +68,9 @@ export async function saveWork(app: App) {
   if (!await app.documents.save()) return;
   app.sound('save');
   app.say(words.saved);
+  app.confirm(app.documents.page.writingDraft
+    ? { pt: 'Rascunho guardado no dispositivo.', en: 'Draft saved on this device.' }
+    : words.heading);
   const { project } = app.store.get();
   const missing = !project.title.trim() || !project.author.trim() || !project.audience.trim();
   if (!missing || invited.has(project.id)) return;
@@ -75,19 +80,20 @@ export async function saveWork(app: App) {
 
 export function showWorkDetails(app: App, saved = false) {
   const { project } = app.store.get();
-  const title = field(titleLabel, words.titlePlaceholder, project.title, value => app.documents.editProject({ title: value }));
-  const author = field(authorLabel, words.authorPlaceholder, project.author, value => app.documents.editProject({ author: value }));
+  const title = field(app, titleLabel, words.titlePlaceholder, project.title, value => app.documents.editProject({ title: value }));
+  const author = field(app, authorLabel, words.authorPlaceholder, project.author, value => app.documents.editProject({ author: value }));
   const audience = audienceField(app);
   const first = [title.input, author.input, audience.input].find(input => !input.value.trim()) ?? title.input;
   first.autofocus = true;
   const done = button(words.ready, extraIcons.check, () => app.run(async () => {
-    await app.documents.save();
+    app.documents.editProject({ title: title.input.value, author: author.input.value, audience: audience.input.value });
+    await app.documents.save(false);
     close();
   }), 'primary');
   const later = button(words.later, icons.close, () => close());
   const close = app.modal({
     title: saved ? words.heading : { pt: 'Dados do trabalho', en: 'Work details' },
-    onClose: () => { void app.documents.save(); },
+    onClose: () => { void app.documents.save(false); },
     content: h('div', 'dialog-stack',
       saved ? h('p', 'pingo-note', art(icons.pingo), h('span', '', t(words.invite))) : null,
       title.element, author.element, audience.element,

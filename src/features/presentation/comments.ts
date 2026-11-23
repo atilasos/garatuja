@@ -5,6 +5,7 @@ import { art, button, h, pressed } from '../../ui/dom';
 import { icons } from '../../ui/icons';
 import { pageIcons } from '../pages/icons';
 import { presentationIcons } from './icons';
+import { writingInput } from '../../ui/writing-input';
 import './comments.css';
 
 type Comment = ProjectRecord['comments'][number];
@@ -25,6 +26,8 @@ export function commentsPanel(app: App) {
   name.required = true;
   const text = h('textarea');
   text.required = true;
+  writingInput(name, () => app.store.get().settings);
+  writingInput(text, () => app.store.get().settings);
   text.setAttribute('autocorrect', 'off');
   const switches = kinds.map(choice => button(choice.label, choice.icon, () => {
     kind = choice.kind;

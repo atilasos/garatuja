@@ -3,13 +3,14 @@ import type { Settings } from '../../core/store';
 import type { App } from '../../ui/app';
 import { button, h, replaceControls, unavailable } from '../../ui/dom';
 import { icons } from '../../ui/icons';
+import { writingInput, uppercaseValue } from '../../ui/writing-input';
 import './writing.css';
 
 export const audienceLabel = { pt: 'Para quem é?', en: 'Who is it for?' };
 export const textLabel = { pt: 'O meu texto', en: 'My text' };
 
 export function writingText(value: string, settings: Settings) {
-  return settings.uppercase ? value.toLocaleUpperCase(settings.locale === 'pt' ? 'pt-PT' : 'en') : value;
+  return uppercaseValue(value, settings);
 }
 
 export function editWriting(app: App) {
@@ -25,14 +26,7 @@ export function editWriting(app: App) {
     notice.hidden = false;
     notice.textContent = t(message);
   };
-  text.addEventListener('input', () => {
-    const value = writingText(text.value, settings);
-    if (value !== text.value) {
-      const start = writingText(text.value.slice(0, text.selectionStart), settings).length;
-      const end = writingText(text.value.slice(0, text.selectionEnd), settings).length;
-      text.value = value;
-      text.setSelectionRange(start, end);
-    }
+  writingInput(text, () => app.store.get().settings, value => {
     app.documents.editText(value);
     notice.hidden = true;
     unavailable(listen, value.trim() ? undefined : listenReason, explain);
@@ -55,7 +49,8 @@ export function editWriting(app: App) {
     content: h('div', 'dialog-stack', h('label', 'work-field', h('span', '', t(textLabel)), text),
       settings.readAloud ? listen : null, notice),
     onClose: () => {
-      void app.documents.save();
+      app.documents.editText(uppercaseValue(text.value, app.store.get().settings));
+      void app.documents.save(false);
       if (settings.readAloud && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     },
   });
@@ -83,7 +78,7 @@ export function writingStrip(app: App) {
       () => editWriting(app), 'writing-preview');
     preview.id = 'page-writing-preview';
     preview.dataset.focus = 'writing-preview';
-    preview.setAttribute('aria-label', t(labels.edit));
+    preview.setAttribute('aria-label', t(labels.edit) + (value.trim() ? '. ' + value : ''));
     preview.title = value || t(invitation);
     preview.classList.toggle('writing-invitation', !value.trim());
     preview.hidden = collapsed;

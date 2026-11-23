@@ -187,8 +187,10 @@ test('PIN stays hashed across reload and typed confirmation clears stamps, pendi
   await teacher.getByRole('button', { name: 'Apagar todos os dados do dispositivo' }).click();
   await teacher.getByRole('button', { name: 'Continuar' }).click();
   const erase = teacher.getByRole('button', { name: 'Sim, apagar tudo' });
-  await teacher.getByLabel('Escreve APAGAR').fill('apagar');
+  await teacher.getByLabel('Escreve APAGAR').fill('apaga');
   await expect(erase).toBeDisabled();
+  await teacher.getByLabel('Escreve APAGAR').fill('apagar');
+  await expect(erase).toBeEnabled();
   await teacher.getByLabel('Escreve APAGAR').fill('APAGAR');
   await page.evaluate(() => sessionStorage.removeItem('revokedImageUrl'));
   const reload = page.waitForEvent('load');

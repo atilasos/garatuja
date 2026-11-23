@@ -7,6 +7,7 @@ import { Surface } from './core/surface';
 import { App, type Feature } from './ui/app';
 import { button, h } from './ui/dom';
 import { icons } from './ui/icons';
+import { mountWritingKeyboard } from './ui/writing-input';
 import { mountShell } from './ui/shell';
 
 declare global {
@@ -32,6 +33,7 @@ async function start(target: HTMLElement) {
   const surface = new Surface();
   await surface.load(page);
   const app = new App(surface, storage, project, page.id, settings, Boolean(recent));
+  mountWritingKeyboard(app);
   const features = Object.values(import.meta.glob<Feature>('./features/*/index.ts', { eager: true, import: 'default' }));
   for (const feature of features) feature.mount(app);
   mountShell(app, target);

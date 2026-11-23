@@ -6,6 +6,7 @@ import { button, h, pressed, roving } from '../../ui/dom';
 import { icons } from '../../ui/icons';
 import { palette } from '../../ui/palette';
 import { holdButton } from '../teacher/hold';
+import { keyboardIcon, keyboardLabel, keyboardLayoutField } from '../../ui/writing-input';
 import './a11y.css';
 import { extraIcons } from './icons';
 
@@ -27,7 +28,7 @@ const words = {
   mixed: { pt: 'Cor misturada', en: 'Mixed color' },
 } satisfies Record<string, L10n>;
 
-type Toggle = { key: 'sound' | 'readAloud' | 'leftHanded' | 'largeCursor' | 'uppercase' | 'highContrast' | 'fixedClick'; label: L10n; on: string; off?: string };
+type Toggle = { key: 'sound' | 'readAloud' | 'leftHanded' | 'largeCursor' | 'uppercase' | 'highContrast' | 'fixedClick' | 'screenKeyboard'; label: L10n; on: string; off?: string };
 
 const toggles: Toggle[] = [
   { key: 'sound', label: words.sound, on: icons.sound, off: icons.mute },
@@ -36,6 +37,7 @@ const toggles: Toggle[] = [
   { key: 'largeCursor', label: words.cursor, on: extraIcons.cursor },
   { key: 'uppercase', label: { pt: 'Só maiúsculas', en: 'Capital letters only' }, on: extraIcons.uppercase },
   { key: 'highContrast', label: { pt: 'Alto contraste', en: 'High contrast' }, on: extraIcons.contrast },
+  { key: 'screenKeyboard', label: keyboardLabel, on: keyboardIcon },
   { key: 'fixedClick', label: { pt: 'Clique fixo', en: 'Click to start and stop' }, on: extraIcons.fixedClick },
 
 ];
@@ -76,7 +78,7 @@ function childSettings(app: App) {
   const adult = holdButton(instruction, words.adult, extraIcons.adult, () => { close(); app.openScreen('teacher.gate'); });
   const close = app.modal({
     title: words.title,
-    content: h('div', 'dialog-stack', grid, h('div', 'dialog-actions spread', help, credits, adult), instruction),
+    content: h('div', 'dialog-stack', grid, keyboardLayoutField(app), h('div', 'dialog-actions spread', help, credits, adult), instruction),
   });
 }
 
