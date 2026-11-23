@@ -179,14 +179,18 @@ export class Storage {
       }
       const current = await get(project.id);
       // A normal autosave may have finished after the exit draft was staged.
-      saved = current?.writeId === id ? current : recovery ? await get(id) : undefined;
+      const previousCopy = current?.writeId === id ? undefined : await get(id);
+      saved = current?.writeId === id ? current
+        : recovery || previousCopy?.writeId === id ? previousCopy : undefined;
       if (!saved) {
         const parent = previous ? current?.writeId === previous ? current : await get(previous) : undefined;
         const sameWriter = parent !== undefined && parent.writeId === previous;
         const base = sameWriter ? parent : current;
         const published = base?.updatedAt === expectedAt || sameWriter;
         const updatedAt = Math.max(Date.now(), (base?.updatedAt ?? 0) + 1);
-        const targetId = published ? base?.id ?? project.id : id;
+        // An exit draft can already have been saved and edited by another tab.
+        // Preserve that copy if its original writer returns from the page cache.
+        const targetId = published ? base?.id ?? project.id : previousCopy ? crypto.randomUUID() : id;
         saved = { ...project, id: targetId, updatedAt, writeId: id,
           title: published && targetId === project.id ? project.title : copyTitle,
           createdAt: published ? base?.createdAt ?? project.createdAt : updatedAt };
