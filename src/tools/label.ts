@@ -59,12 +59,12 @@ export default {
     const hit = c.labels.at(p);
     if (hit) {
       editor.select(hit.id);
-      drag = { mode: 'move', id: hit.id, origin: structuredClone(hit), start: p, moved: false };
+      drag = { mode: 'move', id: hit.id, origin: structuredClone(hit), start: { x: p.x, y: p.y }, moved: false };
       return;
     }
     // Empty paper: a tap starts a new label (and lets go of the selected one).
     editor.select(undefined);
-    drag = { mode: 'create', start: p, type: c.opt<LabelType>('type'), moved: false };
+    drag = { mode: 'create', start: { x: p.x, y: p.y }, type: c.opt<LabelType>('type'), moved: false };
   },
   move(p, _previous, c) {
     if (!drag) return;
@@ -90,7 +90,7 @@ export default {
     if (finished.mode === 'create') {
       // Start typing once this gesture is closed, so creating a label stays a single undo step.
       queueMicrotask(() => {
-        if (finished.moved) labelEditor.startNew(finished.type, p, finished.start);
+        if (finished.moved) labelEditor.startNew(finished.type, { x: p.x, y: p.y }, finished.start);
         else labelEditor.startNew(finished.type, finished.start);
       });
     } else if (finished.mode === 'move' && !finished.moved) {

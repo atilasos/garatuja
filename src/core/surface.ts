@@ -94,7 +94,12 @@ export class Surface {
 
   composite(target: CanvasRenderingContext2D) {
     const { width, height } = target.canvas;
-    for (const layer of [this.ctx, this.foreground, this.labels]) target.drawImage(layer.canvas, 0, 0, width, height);
+    for (const layer of [this.ctx, this.foreground]) target.drawImage(layer.canvas, 0, 0, width, height);
+    // Labels are vectors: draw them again at the target's own resolution so print and export stay sharp.
+    target.save();
+    target.scale(width / CANVAS_W, height / CANVAS_H);
+    this.labelRenderer.draw(target, this.labelObjects);
+    target.restore();
   }
 
   colorAt(p: Point): string {
