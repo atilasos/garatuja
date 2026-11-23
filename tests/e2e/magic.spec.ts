@@ -53,7 +53,7 @@ test('magic selector groups effects, previews them, and undoes a whole page', as
   expect(await read(page, 1400, 420)).toEqual(white);
 
   await choose(page, 'Magia');
-  await expect(page.locator('h4.choice-group')).toHaveText(['Pintar', 'Cor', 'Distorcer', 'Padrões', 'Página inteira']);
+  await expect(page.locator('h4.choice-group')).toHaveText(['Pincéis mágicos', 'Cor', 'Distorcer', 'Padrões', 'Página inteira']);
   for (const name of ['Mínimo', 'Pequeno', 'Médio', 'Grande', 'Máximo']) {
     await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
   }

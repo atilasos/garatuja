@@ -8,10 +8,18 @@ export function choices(spec: Extract<OptionSpec, { kind: 'choice' }>, level: 1 
   return (typeof spec.items === 'function' ? spec.items() : spec.items).filter(choice => (choice.level ?? 1) <= level);
 }
 
+const categoryIcons: Record<string, string> = {
+  Básicos: icons.solid, Texturas: icons.outline, Efeitos: icons.magic, Trilhos: icons.lines,
+  'Pincéis mágicos': icons.paint, Cor: icons.custom, Distorcer: icons.mirror,
+  Padrões: icons.shapes, 'Página inteira': icons.wholeSheet,
+};
+
 const sizeNames: L10n[] = [
   { pt: 'Mínimo', en: 'Smallest' }, { pt: 'Pequeno', en: 'Small' }, { pt: 'Médio', en: 'Medium' },
   { pt: 'Grande', en: 'Large' }, { pt: 'Máximo', en: 'Largest' },
 ];
+
+export type CustomOptions = HTMLElement | { fixed: HTMLElement[]; scroll: HTMLElement };
 
 export type OptionSetter = (id: string, value: string | boolean | number) => void;
 
@@ -62,7 +70,7 @@ export class OptionsPanel {
     this.list.addEventListener('scroll', () => this.updateScroll());
   }
 
-  update(tool: Tool, state: State, set: OptionSetter, say: (hint: L10n) => void, value: (spec: OptionSpec) => string | number | boolean, custom?: HTMLElement) {
+  update(tool: Tool, state: State, set: OptionSetter, say: (hint: L10n) => void, value: (spec: OptionSpec) => string | number | boolean, custom?: CustomOptions) {
     const top = tool === this.tool ? this.list.scrollTop : 0;
     const left = tool === this.tool ? this.list.scrollLeft : 0;
     this.tool = tool;
@@ -75,7 +83,11 @@ export class OptionsPanel {
     this.controls.setAttribute('aria-label', t({ pt: 'Percorrer opções', en: 'Scroll through options' }));
     const fixed: HTMLElement[] = [];
     const sections: HTMLElement[] = [];
-    if (custom) sections.push(custom);
+    if (custom instanceof HTMLElement) sections.push(custom);
+    else if (custom) {
+      fixed.push(...custom.fixed);
+      sections.push(custom.scroll);
+    }
     for (const spec of custom ? [] : tool.options ?? []) {
       const current = value(spec);
       const label = h('h3', 'option-title', t(spec.label));
@@ -113,13 +125,15 @@ export class OptionsPanel {
           })));
           const block = h('div', 'choice-block', group.label ? h('h4', 'option-title choice-group', t(group.label)) : null, row);
           if (group.label) {
-            const tab = button(group.label, undefined, () => {
+            const tab = button(group.label, categoryIcons[group.label.pt] ?? icons.level, () => {
+              for (const category of categories.querySelectorAll('button')) pressed(category, category === tab);
               if (this.list.scrollWidth > this.list.clientWidth) {
                 this.list.scrollLeft += block.getBoundingClientRect().left - this.list.getBoundingClientRect().left - 4;
               } else {
                 this.list.scrollTop += block.getBoundingClientRect().top - this.list.getBoundingClientRect().top - 4;
               }
             });
+            pressed(tab, group.items.some(item => item.value === current));
             tab.dataset.focus = spec.id + ':category:' + group.label.pt;
             tab.setAttribute('aria-label', t({ pt: 'Categoria: ' + group.label.pt, en: 'Category: ' + group.label.en }));
             categories.append(tab);

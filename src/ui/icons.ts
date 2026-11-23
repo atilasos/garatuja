@@ -15,6 +15,7 @@ export const icons = {
   stamp: icon('<path fill="#ef846f" d="M13 28h22l6 6v7H7v-7Z"/><path fill="#91c9e4" d="M18 28v-5q-3-3-3-8a9 9 0 1118 0q0 5-3 8v5Z"/><path d="M8 35h32"/>'),
   undo: icon('<path fill="#91c9e4" d="M7 20 19 8v8h9a13 13 0 010 26H15v-7h13a6 6 0 000-12h-9v9Z"/>'),
   redo: icon('<path fill="#91c9e4" d="M41 20 29 8v8h-9a13 13 0 000 26h13v-7H20a6 6 0 010-12h9v9Z"/>'),
+  wholeSheet: icon('<rect x="7" y="9" width="34" height="30" rx="3" fill="#9cdbc4"/><path d="M19 15h-6v6m16-6h6v6M13 27v6h6m16-6v6h-6"/>'),
   new: icon('<path fill="#fff5db" d="M10 5h19l9 9v29H10Z"/><path d="M29 5v10h9m-14 6v14m-7-7h14"/>'),
   open: icon('<path fill="#f4ba73" d="M5 36V11h15l5 5h17v20Z"/><path fill="#fff5db" d="M5 38l7-16h32l-7 16Z"/>'),
   save: icon('<path fill="#9cdbc4" d="M8 6h28l5 5v31H8Z"/><path fill="#fff5db" d="M16 6v12h16V6m-16 36V27h16v15"/><path d="M27 9v5"/>'),

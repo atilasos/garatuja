@@ -100,9 +100,9 @@ function transforms(app: App) {
   slider.addEventListener('input', () => { output.textContent = slider.value + '°'; });
   slider.addEventListener('change', () => change(slider.valueAsNumber));
   return h('div', 'stamp-transforms',
-    h('h3', 'option-title', t(sizeLabel)), sizeRow, toggles,
-    h('h3', 'option-title stamp-angle-title', t(angleLabel), output),
-    h('div', 'stamp-toggle-row', left, right), slider);
+    h('h3', 'option-title', t(sizeLabel)), sizeRow,
+    h('div', 'stamp-actions', ...toggles.children, left, right),
+    h('div', 'stamp-angle', h('h3', 'option-title stamp-angle-title', t(angleLabel), output), slider));
 }
 
 export function stampPanel(remove: (id: string) => void) {
@@ -149,7 +149,7 @@ export function stampPanel(remove: (id: string) => void) {
         }, label.pt === key));
       }
       roving(list, categoriesLabel);
-      return h('div', 'stamp-panel', header, list);
+      return { fixed: [transforms(app), header], scroll: h('div', 'stamp-panel', list) };
     }
     const list = h('div', 'choice-grid stamp-gallery');
     const pick = (stamp: StampDef) => app.setOption('stamp', stamp.id);
@@ -165,7 +165,7 @@ export function stampPanel(remove: (id: string) => void) {
     }
     roving(list, stampsLabel);
 
-    const panel = h('div', 'stamp-panel', header, h('h3', 'stamp-category-name', t(category.label)));
+    const panel = h('div', 'stamp-panel', h('h3', 'stamp-category-name', t(category.label)));
     if (category.items.length) panel.append(list);
     else panel.append(h('p', 'stamp-empty', t(app.store.get().settings.level === 1 ? {
       pt: 'Ainda não tens carimbos teus. Nas Categorias podes escolher outros carimbos.',
@@ -179,7 +179,6 @@ export function stampPanel(remove: (id: string) => void) {
       erase.dataset.focus = 'stamp-delete';
       panel.append(erase);
     }
-    panel.append(transforms(app));
-    return panel;
+    return { fixed: [transforms(app), header], scroll: panel };
   };
 }

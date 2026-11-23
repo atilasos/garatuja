@@ -12,7 +12,7 @@ import { readEditor, Store, type Settings } from '../core/store';
 import type { Surface } from '../core/surface';
 import type { IconSvg, L10n, OptionSpec, ProjectRecord, SoundId, Tool } from '../core/types';
 import { openModal, type ModalOptions } from './modal';
-import { choices } from './options';
+import { choices, type CustomOptions } from './options';
 import { palette } from './palette';
 import { Toasts, type ToastAction } from './toast';
 
@@ -55,7 +55,7 @@ export class App {
   finishDrawingText = () => true;
   private readonly sounds = new Sounds();
   private readonly actions = new Map<string, WorkAction>();
-  private readonly optionPanels = new Map<string, (app: App) => HTMLElement>();
+  private readonly optionPanels = new Map<string, (app: App) => CustomOptions>();
   private readonly screens = new Map<string, Screen>();
 
   constructor(readonly surface: Surface, readonly storage: Storage, project: ProjectRecord, pageId: string, settings: Settings, persisted: boolean) {
@@ -134,7 +134,7 @@ export class App {
     return tool;
   }
 
-  registerOptions(toolId: string, render: (app: App) => HTMLElement) {
+  registerOptions(toolId: string, render: (app: App) => CustomOptions) {
     this.optionPanels.set(toolId, render);
   }
 

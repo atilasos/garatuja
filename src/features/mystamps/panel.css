@@ -15,10 +15,61 @@
 .stamp-sizes { display: grid; grid-template-columns: repeat(5, minmax(48px, 1fr)); gap: 1px; }
 .stamp-sizes .stamp-size { min-height: max(52px, var(--target)); padding: 0; flex-direction: column; gap: 0; }
 .stamp-size .icon { width: 28px; height: 28px; }
-.stamp-size .button-label { font-size: .61rem; letter-spacing: -.02em; }
-.stamp-toggle-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.stamp-toggle-row .stamp-transform { padding: 3px; gap: 3px; line-height: 1.1; font-size: .75rem; }
+.stamp-size .button-label { font-size: .58rem; letter-spacing: -.02em; }
 .stamp-transform .icon { width: 23px; height: 23px; }
 .stamp-angle-title { display: flex; justify-content: space-between; }
 .stamp-angle-value { font-variant-numeric: tabular-nums; }
 .stamp-angle-slider { width: 100%; min-height: 48px; margin: 0; accent-color: #23578d; }
+
+.stamp-transforms {
+  border-top: 0;
+  padding: 2px 3px;
+  gap: 4px;
+}
+.stamp-sizes .stamp-size { min-height: var(--target); }
+.stamp-angle-title { min-height: 0; }
+.stamp-library-header { padding-inline: 3px; }
+
+.stamp-actions { display: grid; grid-template-columns: repeat(2, minmax(48px, 1fr)); gap: 4px; }
+.stamp-actions .stamp-transform { flex-direction: column; font-size: .75rem; line-height: 1.1; padding: 2px; gap: 2px; }
+@media (orientation: portrait), (max-width: 800px) {
+  .stamp-actions { grid-template-columns: repeat(4, minmax(48px, 1fr)); }
+  .stamp-actions .stamp-transform { font-size: .66rem; }
+}
+
+@media (max-width: 540px) {
+  .stamp-actions .stamp-transform { font-size: .62rem; }
+}
+
+@media (orientation: portrait), (max-width: 800px) {
+  .options-fixed:has(.stamp-transforms) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: center;
+  }
+  .options-fixed .stamp-transforms { display: contents; }
+  .options-fixed .stamp-sizes { grid-column: 1; grid-row: 1; }
+  .options-fixed .stamp-library-header { grid-row: 1; grid-column: 2; }
+  .options-fixed .stamp-actions { grid-row: 2; grid-column: 1; }
+  .options-fixed .stamp-angle { grid-row: 2; grid-column: 2; }
+  .options-fixed .stamp-transforms .option-title { display: none; }
+  .options-fixed .stamp-angle-slider { min-width: 90px; }
+  .stamp-categories-button { padding-inline: 5px; }
+  .options-scroll .stamp-category-name { display: none; }
+  .options-scroll .stamp-gallery .stamp-tile { min-height: 56px; }
+  .stamp-thumbnail { height: 27px; }
+}
+@media (orientation: portrait) and (min-width: 700px) {
+  .options-fixed:has(.stamp-transforms) { grid-template-columns: 245px minmax(0, 1fr) 95px auto; }
+  .options-fixed .stamp-actions { grid-row: 1; grid-column: 2; }
+  .options-fixed .stamp-angle { grid-row: 1; grid-column: 3; }
+  .options-fixed .stamp-library-header { grid-row: 1; grid-column: 4; }
+  .options-fixed:has(.stamp-transforms):not(:has(.stamp-actions)) { grid-template-columns: 245px auto; }
+}
+@media (max-width: 540px) {
+  .options-fixed:has(.stamp-transforms) { grid-template-columns: minmax(0, 1fr) 88px; }
+  .stamp-categories-button { flex-direction: column; font-size: .7rem; padding-inline: 2px; gap: 2px; }
+  .stamp-categories-button .icon { width: 21px; height: 21px; }
+  .options-fixed .stamp-angle-slider { min-width: 0; }
+  .options-scroll .stamp-gallery { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+}

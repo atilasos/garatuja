@@ -5,7 +5,7 @@ import type { L10n, MagicCategory, MagicEffect, Tool } from '../core/types';
 import { icons } from '../ui/icons';
 
 const groups: Record<MagicCategory, L10n> = {
-  pintar: { pt: 'Pintar', en: 'Paint' },
+  pintar: { pt: 'Pincéis mágicos', en: 'Magic brushes' },
   cor: { pt: 'Cor', en: 'Color' },
   distorcer: { pt: 'Distorcer', en: 'Distort' },
   padroes: { pt: 'Padrões', en: 'Patterns' },
@@ -31,7 +31,7 @@ export default {
         }));
     },
   }, brushSizes, {
-    kind: 'toggle', id: 'whole', label: { pt: 'Em toda a folha', en: 'Apply to whole sheet' }, icon: icons.new, default: false,
+    kind: 'toggle', id: 'whole', label: { pt: 'Em toda a folha', en: 'Apply to whole sheet' }, icon: icons.wholeSheet, default: false,
     fixed: true,
     visible(option) {
       const effect = magic.get(String(option('effect')));
