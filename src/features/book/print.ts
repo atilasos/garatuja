@@ -1,4 +1,4 @@
-import { viewport } from '../../core/canvas';
+import { png, viewport } from '../../core/canvas';
 import { t } from '../../core/i18n';
 import type { App } from '../../ui/app';
 import { button, h, pressed } from '../../ui/dom';
@@ -78,12 +78,7 @@ export async function printWork(app: App) {
     if (!url) {
       await app.surface.compositePage(page, canvas);
       if (closed) return;
-      const blob = await new Promise<Blob>((resolve, reject) => canvas.canvas.toBlob(value => {
-        if (value) resolve(value);
-        else reject(new Error('A print preview could not be encoded'));
-      }));
-      if (closed) return;
-      url = URL.createObjectURL(blob);
+      url = URL.createObjectURL(png(canvas.canvas));
       urls.set(page.id, url);
     }
     const image = h('img');
