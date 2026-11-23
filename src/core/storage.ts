@@ -69,21 +69,43 @@ export class Storage {
     return this.editStamps(store => { store.put(stamp); });
   }
 
-  removeStamp(id: string): Promise<void> {
-    return this.editStamps(store => { store.delete(id); });
+  createStamp(id: string, picture: Blob): Promise<StoredStamp> {
+    return this.editStamps(async (store, workspace) => {
+      const existing = await result<StoredStamp | undefined>(store.get(id));
+      if (existing) return existing;
+      const last = await result<number | undefined>(workspace.get('last-stamp-number'));
+      const number = (last ?? (await result<StoredStamp[]>(store.getAll()))
+        .reduce((greatest, stamp) => Math.max(greatest, stamp.number), 0)) + 1;
+      const stamp = { id, picture, number };
+      store.add(stamp);
+      workspace.put(number, 'last-stamp-number');
+      return stamp;
+    });
   }
 
-  private async editStamps(edit: (store: IDBObjectStore) => void): Promise<void> {
+  removeStamp(id: string): Promise<void> {
+    return this.editStamps(async (store, workspace) => {
+      const stamp = await result<StoredStamp | undefined>(store.get(id));
+      if (!stamp) return;
+      const last = await result<number | undefined>(workspace.get('last-stamp-number'));
+      if ((last ?? 0) < stamp.number) workspace.put(stamp.number, 'last-stamp-number');
+      store.delete(id);
+    });
+  }
+
+  private async editStamps<T>(edit: (store: IDBObjectStore, workspace: IDBObjectStore) => T | Promise<T>): Promise<T> {
     const transaction = this.db.transaction(['stamps', 'workspace'], 'readwrite', { durability: 'strict' });
     const done = complete(transaction);
     try {
       await this.requireEpoch(transaction);
-      edit(transaction.objectStore('stamps'));
+      const updated = await edit(transaction.objectStore('stamps'), transaction.objectStore('workspace'));
+      await done;
+      this.changes.postMessage({ kind: 'stamps' });
+      return updated;
     } catch (error) {
       await this.abort(transaction, done);
       throw error;
     }
-    await done;
   }
 
   private async requireEpoch(transaction: IDBTransaction) {
@@ -237,12 +259,21 @@ export class Storage {
     await done;
   }
 
-  remove(id: string): Promise<void> {
-    const transaction = this.db.transaction('projects', 'readwrite');
-    transaction.objectStore('projects').delete(id);
-    return new Promise((resolve, reject) => {
-      transaction.oncomplete = () => resolve();
-      transaction.onabort = () => reject(transaction.error);
-    });
+  async remove(id: string, expectedAt?: number): Promise<boolean> {
+    const transaction = this.db.transaction(['projects', 'workspace'], 'readwrite');
+    const done = complete(transaction);
+    try {
+      await this.requireEpoch(transaction);
+      const projects = transaction.objectStore('projects');
+      const project = await result<StoredProject | undefined>(projects.get(id));
+      const unchanged = !project || expectedAt === undefined || project.updatedAt === expectedAt;
+      if (unchanged && project) projects.delete(id);
+      await done;
+      if (unchanged && project) this.changes.postMessage(id);
+      return unchanged;
+    } catch (error) {
+      await this.abort(transaction, done);
+      throw error;
+    }
   }
 }

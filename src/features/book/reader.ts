@@ -135,7 +135,19 @@ export function showReader(app: App, presentation?: (() => HTMLElement) | readon
     player = undefined;
   }
 
+  function scrollWriting(delta: number) {
+    if (player) return false;
+    const copy = display.querySelector<HTMLElement>('.book-copy, .book-cover-details');
+    if (!copy) return false;
+    const limit = copy.scrollHeight - copy.clientHeight;
+    if (limit <= 1 || (delta > 0 ? copy.scrollTop >= limit - 1 : copy.scrollTop <= 1)) return false;
+    copy.scrollTop += delta * Math.max(1, copy.clientHeight - 40);
+    schedule();
+    return true;
+  }
+
   function move(delta: number) {
+    if (scrollWriting(delta)) return;
     const index = Math.min(last, Math.max(first, pageIndex + delta));
     if (index === pageIndex && !player) {
       explain(delta < 0 ? { pt: 'Já estás no início.', en: 'You are at the beginning.' }

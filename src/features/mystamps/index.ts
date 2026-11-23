@@ -12,10 +12,8 @@ export default {
     app.onClearData(() => {
       for (const entry of registered.values()) entry.unregister();
     });
-    let nextNumber = 1;
     const register = (stamp: StoredStamp) => {
       if (registered.has(stamp.id)) return;
-      nextNumber = Math.max(nextNumber, stamp.number + 1);
       const src = URL.createObjectURL(stamp.picture);
       const remove = stamps.add({
         id: stamp.id, src, category: personal,
@@ -28,15 +26,20 @@ export default {
         registered.delete(stamp.id);
       } });
     };
-    let load: Promise<void> | undefined;
-    const ready = () => load ??= app.storage.listStamps().then(items => {
+    let revision = 0;
+    const sync = async () => {
+      const request = ++revision;
+      const items = await app.storage.listStamps();
+      if (request !== revision) return;
+      const ids = new Set(items.map(stamp => stamp.id));
+      for (const [id, entry] of registered) if (!ids.has(id)) entry.unregister();
       for (const stamp of items.sort((a, b) => a.number - b.number)) register(stamp);
       app.refresh();
-    }).catch(error => {
-      load = undefined;
-      throw error;
+    };
+    app.storage.changes.addEventListener('message', event => {
+      if (event.data?.kind === 'stamps') app.run(sync);
     });
-    app.run(ready);
+    app.run(sync);
 
     app.registerOptions('stamp', stampPanel(id => {
       const entry = registered.get(id);
@@ -66,12 +69,8 @@ export default {
     }));
     registerMovePanel(app, picture => {
       const id = 'personal-' + crypto.randomUUID();
-      let number: number | undefined;
       app.run(async () => {
-        await ready();
-        number ??= nextNumber++;
-        const stamp = { id, picture, number };
-        await app.storage.saveStamp(stamp);
+        const stamp = await app.storage.createStamp(id, picture);
         register(stamp);
         app.refresh();
         app.notify({ pt: 'Guardado em Os meus carimbos.', en: 'Saved in My stamps.' });
