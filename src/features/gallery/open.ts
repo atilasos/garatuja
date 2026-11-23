@@ -66,7 +66,7 @@ export function chooseImage(app: App, done: () => void) {
       return;
     }
     try {
-      await app.documents.open(projectFromImage(image));
+      if (!await app.documents.open(projectFromImage(image))) return;
     } finally {
       image.close();
     }
@@ -87,7 +87,8 @@ export async function openWork(app: App, trash: Trash) {
   const status = h('p', 'gallery-notice');
   status.hidden = true;
   status.setAttribute('role', 'status');
-  const content = h('div', 'gallery-dialog', toolbar, status, notices, grid);
+  const recovery = app.saveRecovery();
+  const content = h('div', 'gallery-dialog', toolbar, recovery, status, notices, grid);
   let closed = false;
   const stopListening = trash.onChange(() => { if (!closed) void refresh(); });
   const close = app.modal({
@@ -95,6 +96,7 @@ export async function openWork(app: App, trash: Trash) {
     onClose() {
       closed = true;
       stopListening();
+      app.removeSaveRecovery(recovery);
       urls.forEach(url => URL.revokeObjectURL(url));
       for (const project of trash.list()) announce(app, trash, project);
     },
@@ -157,7 +159,7 @@ export async function openWork(app: App, trash: Trash) {
       open.disabled = true;
       try {
         const fresh = await app.storage.get(project.id) ?? project;
-        await app.documents.open(fresh);
+        if (!await app.documents.open(fresh, undefined, true)) return;
         close();
         app.say(words.opened);
       } finally {
@@ -201,7 +203,7 @@ export async function openWork(app: App, trash: Trash) {
   async function removeWork(project: ProjectRecord) {
     if (app.store.get().project.id === project.id) {
       // Leave the work being deleted: start on a fresh sheet instead.
-      await app.documents.open(createProject(createPage()));
+      if (await app.documents.save()) await app.documents.open(createProject(createPage()));
     }
     trash.put(project);
   }

@@ -63,7 +63,7 @@ export function audienceField(app: App) {
 const invited = new Set<string>();
 
 export async function saveWork(app: App) {
-  await app.documents.save();
+  if (!await app.documents.save()) return;
   app.sound('save');
   app.say(words.saved);
   const { project } = app.store.get();
@@ -80,10 +80,14 @@ export function showWorkDetails(app: App, saved = false) {
   const audience = audienceField(app);
   const first = [title.input, author.input, audience.input].find(input => !input.value.trim()) ?? title.input;
   first.autofocus = true;
-  const done = button(words.ready, extraIcons.check, () => close(), 'primary');
+  const done = button(words.ready, extraIcons.check, () => app.run(async () => {
+    await app.documents.save();
+    close();
+  }), 'primary');
   const later = button(words.later, icons.close, () => close());
   const close = app.modal({
     title: saved ? words.heading : { pt: 'Dados do trabalho', en: 'Work details' },
+    onClose: () => { void app.documents.save(); },
     content: h('div', 'dialog-stack',
       saved ? h('p', 'pingo-note', art(icons.pingo), h('span', '', t(words.invite))) : null,
       title.element, author.element, audience.element,

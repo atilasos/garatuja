@@ -269,10 +269,10 @@ test('upgrades the original database while retaining workspace records', async (
   }));
   await ready(page);
   const workspaceMarker = await page.evaluate(() => new Promise<unknown>((resolve, reject) => {
-    const request = indexedDB.open('garatuja', 2);
+    const request = indexedDB.open('garatuja', 3);
     request.onsuccess = () => {
       const db = request.result;
-      const record = db.transaction(['workspace', 'stamps']).objectStore('workspace').get('test-marker');
+      const record = db.transaction(['workspace', 'stamps', 'drafts']).objectStore('workspace').get('test-marker');
       record.onsuccess = () => { db.close(); resolve(record.result); };
       record.onerror = () => { db.close(); reject(record.error); };
     };

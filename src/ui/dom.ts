@@ -75,3 +75,34 @@ export function replaceControls(parent: HTMLElement, children: Node[]) {
     parent.querySelector<HTMLElement>('button:not(:disabled)')?.focus({ preventScroll: true });
   }
 }
+
+const unavailableReasons = new WeakMap<HTMLButtonElement, { reason?: L10n }>();
+
+/** Keep unavailable choices discoverable by mouse, touch and keyboard. */
+export function unavailable(control: HTMLButtonElement, reason?: L10n, say?: (reason: L10n) => void) {
+  let entry = unavailableReasons.get(control);
+  if (!entry) {
+    const state: { reason?: L10n } = {};
+    unavailableReasons.set(control, state);
+    entry = state;
+    const explain = () => { if (state.reason) say?.(state.reason); };
+    control.addEventListener('pointerenter', explain);
+    control.addEventListener('focus', explain);
+    control.addEventListener('click', event => {
+      if (!state.reason) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      explain();
+    }, true);
+  }
+  entry.reason = reason;
+  if (reason) {
+    control.setAttribute('aria-disabled', 'true');
+    control.setAttribute('aria-description', t(reason));
+    control.title = t(reason);
+  } else {
+    control.removeAttribute('aria-disabled');
+    control.removeAttribute('aria-description');
+    control.removeAttribute('title');
+  }
+}

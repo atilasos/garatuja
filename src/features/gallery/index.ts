@@ -19,6 +19,7 @@ export default {
   id: 'gallery',
   mount(app) {
     const trash = new Trash(app.storage);
+    app.onClearData(() => trash.discard());
     app.registerScreen('gallery.new', newWork);
     app.registerScreen('gallery.open', app => openWork(app, trash));
     app.registerAction({ id: 'new', hint: { pt: 'Começa um trabalho com papel e modelo à tua escolha.', en: 'Start a work with your choice of paper and template.' }, label: { pt: 'Novo', en: 'New' }, icon: icons.new,

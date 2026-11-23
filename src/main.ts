@@ -25,15 +25,20 @@ async function start(target: HTMLElement) {
   const settings = readSettings();
   setLocale(settings.locale);
   const storage = await Storage.open();
+  const recoveredCopy = await storage.recover();
   const recent = await storage.recent();
   const project = recent?.project ?? createProject(createPage());
   const page = project.pages.find(page => page.id === recent?.pageId) ?? project.pages[0];
   const surface = new Surface();
   await surface.load(page);
-  const app = new App(surface, storage, project, page.id, settings);
+  const app = new App(surface, storage, project, page.id, settings, Boolean(recent));
   const features = Object.values(import.meta.glob<Feature>('./features/*/index.ts', { eager: true, import: 'default' }));
   for (const feature of features) feature.mount(app);
   mountShell(app, target);
+  if (recoveredCopy) app.notify({
+    pt: 'Recuperei as tuas alterações numa cópia do trabalho.',
+    en: 'I recovered your changes in a copy of the work.',
+  });
   if (!recent) app.run(() => app.documents.save());
   if (import.meta.env.MODE === 'test') {
     window.__garatuja = { app, pixel: (x, y) => Array.from(surface.ctx.getImageData(x, y, 1, 1).data) };

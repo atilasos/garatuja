@@ -1,9 +1,10 @@
+import { t } from './i18n';
 import { png, viewport } from './canvas';
 import type { PointerInput } from './pointer';
-import type { Storage } from './storage';
+import type { Draft, Storage } from './storage';
 import type { Store } from './store';
 import type { Surface } from './surface';
-import { CANVAS_H, CANVAS_W, type PageRecord, type ProjectRecord, type StarterDef } from './types';
+import { CANVAS_H, CANVAS_W, type L10n, type PageRecord, type ProjectRecord, type StarterDef } from './types';
 
 export function createPage(color = '#ffffff', starter?: StarterDef): PageRecord {
   const paper = viewport(CANVAS_W, CANVAS_H, true);
@@ -29,16 +30,35 @@ export function createProject(page: PageRecord): ProjectRecord {
 export class Documents {
   private revision = 0;
   private pixelsChanged = false;
-  private pending = false;
+  private pending: boolean;
+  private savedAt?: number;
   private timer?: number;
-  private writing?: { revision: number; result: Promise<void> };
+  private writing?: Promise<boolean>;
+  private inFlight?: Draft;
+  private prepared?: { revision: number; draft: Draft };
+  private stopped = false;
+  private remoteId?: string;
+  private reloadTimer?: number;
+  beforeSwitch = () => true;
 
   constructor(private store: Store, private surface: Surface, private storage: Storage,
-    private input: PointerInput, private onError: (error: unknown) => void) {
+    private input: PointerInput, persisted: boolean, private onSave: (ok: boolean) => void,
+    private onConflict: (message: L10n) => void) {
+    this.pending = !persisted;
+    this.savedAt = persisted ? store.get().project.updatedAt : undefined;
     surface.onChange = () => this.schedule(true);
-    window.addEventListener('pagehide', this.flushOnHide);
+    storage.changes.addEventListener('message', event => {
+      if (event.data === this.store.get().project.id) {
+        this.remoteId = event.data;
+        void this.reloadRemote();
+      }
+    });
+    store.subscribe((state, previous) => {
+      if (!state.busy && previous.busy && this.remoteId) void this.reloadRemote();
+    });
+    window.addEventListener('pagehide', this.stageOnExit);
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') this.flushOnHide();
+      if (document.visibilityState === 'hidden') void this.save();
     });
   }
 
@@ -49,36 +69,59 @@ export class Documents {
 
   editProject(patch: Partial<Pick<ProjectRecord, 'title' | 'author' | 'audience' | 'fps' | 'comments'>>) {
     const { project, busy } = this.store.get();
-    if (busy) return;
+    if (busy || Object.entries(patch).every(([key, value]) => Object.is(Reflect.get(project, key), value))) return;
     this.store.set({ project: { ...project, ...patch } });
     this.schedule();
   }
 
   editText(text: string) {
     const { project, pageId, busy } = this.store.get();
-    if (busy) return;
+    if (busy || this.page.text === text) return;
     this.store.set({ project: { ...project, pages: project.pages.map(page => page.id === pageId ? { ...page, text } : page) } });
     this.schedule();
   }
 
-  async save(force = true) {
-    window.clearTimeout(this.timer);
-    if (this.writing?.revision === this.revision) return this.writing.result;
-    if (!this.pending && !force) return;
+  get hasUnsavedChanges() { return this.pending; }
+
+  snapshot(): ProjectRecord {
     const { project, pageId } = this.store.get();
-    const revision = this.revision;
-    const page = this.pixelsChanged ? this.surface.capture(this.page) : this.page;
-    const result = this.persist(project, page, pageId, revision).finally(() => {
-      if (this.writing?.revision === revision) this.writing = undefined;
-    });
-    this.writing = { revision, result };
-    return result;
+    if (!this.pixelsChanged) return project;
+    const page = this.surface.capture(this.page);
+    return { ...project, pages: project.pages.map(current => current.id === pageId ? page : current) };
   }
 
-  async open(project: ProjectRecord, pageId = project.pages[0]?.id) {
+  stopSaving() {
+    this.stopped = true;
+    window.clearTimeout(this.timer);
+    window.clearTimeout(this.reloadTimer);
+  }
+
+  resumeSaving() {
+    this.stopped = false;
+    if (this.pending) this.scheduleSave();
+  }
+
+  async save(): Promise<boolean> {
+    window.clearTimeout(this.timer);
+    if (this.stopped) return false;
+    if (this.writing && !await this.writing) return false;
+    if (this.stopped) return false;
+    if (!this.pending) return true;
+    // A waiter may have started saving another edit while this one was suspended.
+    if (this.writing) return this.save();
+    this.writing = this.persist().finally(() => {
+      this.writing = undefined;
+      this.inFlight = undefined;
+      if (this.remoteId) void this.reloadRemote();
+    });
+    const ok = await this.writing;
+    return ok && (!this.pending || await this.save());
+  }
+
+  async open(project: ProjectRecord, pageId = project.pages[0]?.id, persisted = false) {
     const page = project.pages.find(page => page.id === pageId) ?? project.pages[0];
     if (!page) throw new Error('A project needs at least one page');
-    await this.switchPage(() => ({ project, page }));
+    return this.switchPage(() => ({ project, page }), persisted);
   }
 
   async select(pageId: string) {
@@ -107,19 +150,68 @@ export class Documents {
   }
 
   private async switchPage(select: (project: ProjectRecord) =>
-    { project: ProjectRecord; page: PageRecord } | undefined | Promise<{ project: ProjectRecord; page: PageRecord } | undefined>) {
-    if (this.store.get().busy) return;
+    { project: ProjectRecord; page: PageRecord } | undefined | Promise<{ project: ProjectRecord; page: PageRecord } | undefined>,
+    opening?: boolean) {
+    if (this.store.get().busy || !this.beforeSwitch()) return false;
     this.input.cancel();
     this.store.set({ busy: true });
     try {
-      await this.save(false);
+      if (!await this.save()) return false;
       const current = this.store.get().project;
-      const target = await select(current);
-      if (!target) return;
-      if (target.project.id !== current.id || target.page !== this.page) await this.surface.load(target.page);
+      let target = await select(current);
+      if (!target) return false;
+      if (opening === true && target.project.id === current.id && target.project.updatedAt < current.updatedAt) {
+        // Opening the gallery may have captured the card before the last autosave.
+        return true;
+      }
+      const previousPage = this.page;
+      if (opening && target.project.id === current.id && target.project.updatedAt === current.updatedAt) {
+        target = { project: current, page: current.pages.find(page => page.id === target?.page.id) ?? previousPage };
+      }
+      if (target.page !== previousPage) await this.surface.load(target.page);
+      if (opening !== undefined && target.project !== current) {
+        this.surface.discardHistory();
+        this.savedAt = opening ? target.project.updatedAt : undefined;
+      } else {
+        const kept = new Set(target.project.pages.map(page => page.id));
+        for (const page of current.pages) if (!kept.has(page.id)) this.surface.discardHistory(page.id);
+      }
       this.store.set({ project: target.project, pageId: target.page.id });
-      this.schedule();
-      await this.save(false);
+      if (opening === false || (opening === undefined && target.project !== current)) {
+        this.schedule();
+        await this.save();
+      } else if (opening !== undefined || previousPage.id !== target.page.id) {
+        await this.storage.remember(target.project.id, target.page.id).catch(() => {});
+      }
+      return true;
+    } finally {
+      this.store.set({ busy: false });
+    }
+  }
+
+  private async reloadRemote() {
+    const id = this.remoteId;
+    const { project, pageId, busy } = this.store.get();
+    if (!id || this.stopped || busy || this.writing) return;
+    if (this.surface.inGesture || document.querySelector('dialog[open]')) {
+      window.clearTimeout(this.reloadTimer);
+      this.reloadTimer = window.setTimeout(() => { void this.reloadRemote(); }, 350);
+      return;
+    }
+    this.remoteId = undefined;
+    if (this.pending || id !== project.id || !this.beforeSwitch()) return;
+    if (this.pending) return;
+    this.store.set({ busy: true });
+    try {
+      const fresh = await this.storage.get(id);
+      if (!fresh || fresh.updatedAt === this.savedAt) return;
+      const page = fresh.pages.find(page => page.id === pageId) ?? fresh.pages[0];
+      await this.surface.load(page);
+      this.surface.discardHistory();
+      this.savedAt = fresh.updatedAt;
+      this.store.set({ project: fresh, pageId: page.id });
+    } catch (error) {
+      console.error(error);
     } finally {
       this.store.set({ busy: false });
     }
@@ -130,30 +222,69 @@ export class Documents {
     this.pending = true;
     this.pixelsChanged ||= pixels;
     window.clearTimeout(this.timer);
-    this.scheduleSave();
-    if (pixels) this.store.set({});
+    if (pixels) {
+      this.store.set({});
+      void this.save();
+    } else this.scheduleSave();
   }
 
   private scheduleSave() {
     this.timer = window.setTimeout(() => {
       if (this.surface.inGesture) this.scheduleSave();
-      else void this.save(false).catch(this.onError);
+      else void this.save();
     }, 350);
   }
 
-  private persist(project: ProjectRecord, page: PageRecord, pageId: string, revision: number) {
-    const updated = { ...project, pages: project.pages.map(current => current.id === pageId ? page : current), updatedAt: Date.now() };
-    const write = this.storage.save(updated, pageId);
-    return write.then(() => {
-      if (revision !== this.revision) return;
-      this.pixelsChanged = false;
-      this.pending = false;
-      this.store.set({ project: updated });
-    });
+  private draft(previous?: string): Draft {
+    if (this.prepared?.revision === this.revision) return this.prepared.draft;
+    const project = this.snapshot();
+    const name = project.title.trim() || t({ pt: 'Sem título', en: 'Untitled' });
+    const draft: Draft = {
+      id: crypto.randomUUID(), project, pageId: this.page.id, expectedAt: this.savedAt, previous, time: Date.now(),
+      copyTitle: t({ pt: `${name} (cópia)`, en: `${name} (copy)` }),
+    };
+    this.prepared = { revision: this.revision, draft };
+    return draft;
   }
 
-  private flushOnHide = () => {
-    // save() starts the transaction synchronously before the browser freezes the tab.
-    void this.save(false).catch(this.onError);
+  private async persist() {
+    const revision = this.revision;
+    try {
+      const draft = this.draft();
+      const { project } = draft;
+      this.inFlight = draft;
+      const saved = await this.storage.write(draft);
+      if (this.stopped) return false;
+      this.savedAt = saved.updatedAt;
+      const conflict = saved.id !== project.id;
+      if (revision === this.revision) {
+        this.prepared = undefined;
+        this.pixelsChanged = false;
+        this.pending = false;
+        this.store.set({ project: saved });
+      } else {
+        const current = this.store.get().project;
+        this.store.set({ project: { ...current, id: saved.id, createdAt: saved.createdAt, updatedAt: saved.updatedAt,
+          title: conflict && current.title === project.title ? saved.title : current.title } });
+      }
+      this.onSave(true);
+      if (conflict) this.onConflict({ pt: 'Outro separador guardou alterações. Guardei o teu trabalho como cópia.',
+        en: 'Another tab saved changes. I saved your work as a copy.' });
+      return true;
+    } catch (error) {
+      console.error(error);
+      this.onSave(false);
+      return false;
+    }
+  }
+
+  private stageOnExit = () => {
+    if (!this.pending || this.stopped) return;
+    try {
+      const draft = this.draft(this.inFlight?.id);
+      void this.storage.stage(draft).catch(error => console.error(error));
+    } catch (error) {
+      console.error(error);
+    }
   };
 }

@@ -49,7 +49,7 @@ function chooseArchive(app: App, gallery: GalleryContext) {
     try {
       await app.storage.saveWorks(projects);
       if (!gallery.isOpen()) return;
-      await app.documents.open(projects[0]);
+      if (!await app.documents.open(projects[0], undefined, true)) { await gallery.refresh(); return; }
       gallery.close();
       const count = projects.length;
       const notice: L10n = count === 1 ? { pt: 'Importaste um trabalho.', en: 'You imported one work.' }

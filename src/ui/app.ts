@@ -1,5 +1,9 @@
+import { download } from '../features/exchange/download';
+import { serializeWorks } from '../features/exchange/format';
+import { button, h } from './dom';
+import { icons } from './icons';
 import { Documents } from '../core/document';
-import { setLocale, speak } from '../core/i18n';
+import { setLocale, speak, t } from '../core/i18n';
 import { PointerInput } from '../core/pointer';
 import { tools } from '../core/registry';
 import { Sounds } from '../core/sound';
@@ -35,8 +39,8 @@ const failed: L10n = {
   en: 'I couldn’t finish that action. You can try again.',
 };
 const saveFailed: L10n = {
-  pt: 'O trabalho ainda está na folha. Tenta guardá-lo de novo.',
-  en: 'Your work is still on the paper. Try saving it again.',
+  pt: 'Não consegui guardar. O teu desenho continua aqui.',
+  en: 'I couldn’t save. Your drawing is still here.',
 };
 const retry = { pt: 'Tentar de novo', en: 'Try again' };
 
@@ -45,12 +49,16 @@ export class App {
   readonly documents: Documents;
   readonly toasts = new Toasts();
   readonly input: PointerInput;
+  private readonly recovery = new Set<HTMLElement>();
+  private readonly discardDeviceData = new Set<() => void>();
+  private saveFailed = false;
+  finishDrawingText = () => true;
   private readonly sounds = new Sounds();
   private readonly actions = new Map<string, WorkAction>();
   private readonly optionPanels = new Map<string, (app: App) => HTMLElement>();
   private readonly screens = new Map<string, Screen>();
 
-  constructor(readonly surface: Surface, readonly storage: Storage, project: ProjectRecord, pageId: string, settings: Settings) {
+  constructor(readonly surface: Surface, readonly storage: Storage, project: ProjectRecord, pageId: string, settings: Settings, persisted: boolean) {
     const fallback = tools.get('paint');
     if (!fallback) throw new Error('The paint tool is required');
     const editor = readEditor({ toolId: fallback.id, color: palette[0].color, options: {} });
@@ -58,6 +66,7 @@ export class App {
     const tool = savedTool && savedTool.level <= settings.level ? savedTool : fallback;
     this.store = new Store({ ...editor, project, pageId, toolId: tool.id, hint: tool.hint, settings,
       busy: false, pickingColor: false, registryVersion: 0 });
+    if (tool.optionHint) this.store.set({ hint: this.toolHint(tool) });
     this.store.subscribe((state, previous) => {
       const { toolId, color, options } = state;
       if (toolId === previous.toolId && color === previous.color && options === previous.options) return;
@@ -70,10 +79,53 @@ export class App {
     this.sounds.enabled = settings.sound;
     setLocale(settings.locale);
     this.input = new PointerInput(surface, this.bind(tool), () => this.store.get().settings.fixedClick);
-    this.documents = new Documents(this.store, surface, storage, this.input, error => {
-      console.error(error);
-      this.notify(saveFailed, { label: retry, run: () => this.run(() => this.documents.save()) });
+    this.documents = new Documents(this.store, surface, storage, this.input, persisted, ok => {
+      this.saveFailed = !ok;
+      for (const notice of this.recovery) notice.hidden = ok;
+    }, message => this.notify(message));
+    this.toasts.element.append(this.saveRecovery());
+    storage.changes.addEventListener('message', event => {
+      if (event.data !== null) return;
+      this.documents.stopSaving();
+      this.releaseDeviceData();
+      location.reload();
     });
+  }
+
+  saveRecovery() {
+    const notice = h('div', 'toast save-recovery', h('span', 'toast-message', t(saveFailed)),
+      button(retry, icons.undo, () => this.run(() => this.documents.save())),
+      button({ pt: 'Guardar num ficheiro', en: 'Save to a file' }, icons.save, () => this.run(async () => {
+        const project = this.documents.snapshot();
+        download(await serializeWorks([project]), project.title, 'garatuja');
+      })));
+    notice.setAttribute('role', 'status');
+    notice.hidden = !this.saveFailed;
+    this.recovery.add(notice);
+    return notice;
+  }
+
+  removeSaveRecovery(notice: HTMLElement) {
+    this.recovery.delete(notice);
+  }
+
+  onClearData(discard: () => void) {
+    this.discardDeviceData.add(discard);
+  }
+
+  async clearData() {
+    this.documents.stopSaving();
+    try {
+      await this.storage.clear();
+    } catch (error) {
+      this.documents.resumeSaving();
+      throw error;
+    }
+    this.releaseDeviceData();
+  }
+
+  private releaseDeviceData() {
+    for (const discard of this.discardDeviceData) discard();
   }
 
   get tool() {
@@ -128,15 +180,25 @@ export class App {
     const spec = this.tool.options?.find(candidate => candidate.id === id);
     const scope = spec?.kind === 'choice' && spec.shared ? '@' + spec.shared : toolId;
     this.input.changeAppearance(() => this.store.set({ options: { ...options, [scope]: { ...options[scope], [id]: value } } }));
+    if (this.tool.optionHint) this.say(this.toolHint());
     this.sounds.play('tap');
   }
 
+  toolHint(tool = this.tool) {
+    return tool.optionHint?.(id => {
+      const spec = tool.options?.find(option => option.id === id);
+      return spec ? this.option(tool, spec) : '';
+    }) ?? tool.hint;
+  }
+
   selectTool(tool: Tool) {
+    if (tool.id !== this.tool.id && !this.finishDrawingText()) return;
     this.cancelPicker();
-    this.store.set({ toolId: tool.id, hint: tool.hint });
+    const hint = this.toolHint(tool);
+    this.store.set({ toolId: tool.id, hint });
     this.input.select(this.bind(tool));
     this.sounds.play('tap');
-    if (this.store.get().settings.readAloud) speak({ pt: `${tool.label.pt}. ${tool.hint.pt}`, en: `${tool.label.en}. ${tool.hint.en}` });
+    if (this.store.get().settings.readAloud) speak({ pt: `${tool.label.pt}. ${hint.pt}`, en: `${tool.label.en}. ${hint.en}` });
   }
 
   setColor(color: string) {
@@ -152,7 +214,7 @@ export class App {
 
   cancelPicker() {
     this.input.pickColor = undefined;
-    if (this.store.get().pickingColor) this.store.set({ pickingColor: false, hint: this.tool.hint });
+    if (this.store.get().pickingColor) this.store.set({ pickingColor: false, hint: this.toolHint() });
   }
 
   configure(patch: Partial<Settings>) {
@@ -191,7 +253,7 @@ export class App {
     this.say({ pt: 'Voltaste a pôr o que tinhas tirado.', en: 'You put back what you had undone.' });
   }
 
-  run(action: () => void | Promise<void>) {
+  run(action: () => unknown) {
     const report = (error: unknown) => {
       console.error(error);
       this.notify(failed, { label: retry, run: () => this.run(action) });

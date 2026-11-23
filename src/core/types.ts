@@ -79,7 +79,7 @@ export interface ChoiceItem {
 export type OptionSpec =
   | { kind: 'choice'; id: string; label: L10n; items: ChoiceItem[] | (() => ChoiceItem[]); default: string; shared?: string }
   | { kind: 'size'; id: string; label: L10n; steps: number[]; default: number }
-  | { kind: 'toggle'; id: string; label: L10n; icon: IconSvg; default: boolean };
+  | { kind: 'toggle'; id: string; label: L10n; icon: IconSvg; default: boolean; fixed?: boolean; visible?: (option: (id: string) => string | number | boolean) => boolean };
 
 /* ------------------------------------------------------------------ */
 /* Vector objects that stay editable above the bitmap (labels)         */
@@ -170,6 +170,7 @@ export interface Tool {
   usesColor: boolean;
   options?: OptionSpec[];
   manualCommit?: boolean;
+  optionHint?(option: (id: string) => string | number | boolean): L10n;
   onSelect?(c: ToolContext): void;
   onDeselect?(c: ToolContext): void;
   down(p: PaintPointer, c: ToolContext): void;

@@ -83,7 +83,7 @@ export function newWork(app: App) {
       lastColor = color;
       lastStarter = chosen;
       const page = createPage(color, starters.get(chosen));
-      await app.documents.open(createProject(page));
+      if (!await app.documents.open(createProject(page))) return;
       close();
       app.say(words.done);
     } finally {
@@ -92,13 +92,14 @@ export function newWork(app: App) {
   }), 'primary big-action');
   create.dataset.focus = 'create';
 
-  const content = h('div', 'new-work',
+  const recovery = app.saveRecovery();
+  const content = h('div', 'new-work', recovery,
     h('p', 'pingo-note', art(icons.pingo), h('span', '', t(words.kept))),
     h('section', 'new-step', h('h3', 'step-title', t(words.paper)), colorRow),
     h('section', 'new-step', h('h3', 'step-title', t(words.model)), ...groups),
     h('div', 'dialog-actions sticky-actions', create));
   roving(colorRow, words.paper);
-  const close = app.modal({ title: words.title, content });
+  const close = app.modal({ title: words.title, content, onClose: () => app.removeSaveRecovery(recovery) });
   content.closest('dialog')?.classList.add('dialog-wide');
   paintThumbs();
   modelControls.find(([, id]) => id === chosen)?.[0].scrollIntoView({ block: 'nearest' });

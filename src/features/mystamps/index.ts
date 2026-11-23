@@ -9,6 +9,9 @@ export default {
   id: 'mystamps',
   mount(app) {
     const registered = new Map<string, { stamp: StoredStamp; unregister: () => void; removing: boolean }>();
+    app.onClearData(() => {
+      for (const entry of registered.values()) entry.unregister();
+    });
     let nextNumber = 1;
     const register = (stamp: StoredStamp) => {
       if (registered.has(stamp.id)) return;

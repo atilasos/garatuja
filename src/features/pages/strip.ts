@@ -3,7 +3,7 @@ import { t } from '../../core/i18n';
 import type { State } from '../../core/store';
 import type { PageRecord } from '../../core/types';
 import type { App } from '../../ui/app';
-import { button, h, pressed, replaceControls, roving } from '../../ui/dom';
+import { art, button, h, pressed, replaceControls, roving, unavailable } from '../../ui/dom';
 import { icons } from '../../ui/icons';
 import { pageIcons } from './icons';
 import { duplicatePage, maxPages, movePage, removePage, restorePage } from './operations';
@@ -37,6 +37,10 @@ export function pageStrip(app: App) {
   const focusControls = roving(controls, actionLabel);
   const focusActions = roving(actions, controlsLabel);
   const thumbs = new Map<string, { blob: Blob; url: string }>();
+  app.onClearData(() => {
+    for (const thumb of thumbs.values()) URL.revokeObjectURL(thumb.url);
+    thumbs.clear();
+  });
   let dragged = '';
   let onion = false;
   let showNext = false;
@@ -54,9 +58,11 @@ export function pageStrip(app: App) {
   function scrollState() {
     const overflow = strip.scrollWidth > scroller.clientWidth + 1;
     left.hidden = right.hidden = !overflow;
-    left.disabled = app.store.get().busy || !overflow || strip.scrollLeft <= 1;
-    right.disabled = app.store.get().busy || !overflow ||
-      strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1;
+    const say = (message: typeof full) => app.say(message);
+    unavailable(left, strip.scrollLeft <= 1
+      ? { pt: 'Já estás no início das páginas.', en: 'You are at the start of the pages.' } : undefined, say);
+    unavailable(right, strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1
+      ? { pt: 'Já estás no fim das páginas.', en: 'You are at the end of the pages.' } : undefined, say);
   }
 
   function scroll(direction: number) {
@@ -129,7 +135,15 @@ export function pageStrip(app: App) {
             if (app.store.get().busy) { undo.run(); return; }
             await app.documents.editPages(pages => restorePage(pages, page, before, after), page.id);
           } else {
-            await app.storage.save({ ...saved, updatedAt: Date.now(), pages: restorePage(saved.pages, page, before, after) });
+            const title = saved.title.trim() || t({ pt: 'Sem título', en: 'Untitled' });
+            const restored = await app.storage.write({
+              id: crypto.randomUUID(), project: { ...saved, pages: restorePage(saved.pages, page, before, after) },
+              expectedAt: saved.updatedAt, time: Date.now(), copyTitle: t({ pt: `${title} (cópia)`, en: `${title} (copy)` }),
+            });
+            if (restored.id !== saved.id) app.notify({
+              pt: 'Outro separador guardou alterações. Recuperei a página numa cópia do trabalho.',
+              en: 'Another tab saved changes. I restored the page in a copy of the work.',
+            });
           }
         }),
       };
@@ -210,7 +224,10 @@ export function pageStrip(app: App) {
         const image = h('img');
         image.alt = '';
         image.draggable = false;
-        item.prepend(image);
+        const hasText = h('span', 'page-text-mark', art(icons.text));
+        hasText.title = t({ pt: 'Tem texto', en: 'Has text' });
+        hasText.setAttribute('aria-hidden', 'true');
+        item.prepend(image, hasText);
         item.draggable = true;
         item.addEventListener('dragstart', event => {
           if (app.store.get().busy || !event.dataTransfer) { event.preventDefault(); return; }
@@ -255,6 +272,9 @@ export function pageStrip(app: App) {
         }
         const image = items[i].querySelector('img');
         if (image && image.src !== thumb.url) image.src = thumb.url;
+        const mark = items[i].querySelector<HTMLElement>('.page-text-mark');
+        if (mark) mark.hidden = !page.text.trim();
+        items[i].setAttribute('aria-description', page.text.trim() ? t({ pt: 'Tem texto', en: 'Has text' }) : '');
         pressed(items[i], page.id === state.pageId);
         items[i].setAttribute('aria-disabled', String(state.busy));
       }
@@ -264,15 +284,18 @@ export function pageStrip(app: App) {
         if (current) strip.scrollLeft = current.offsetLeft - Math.max(0, (strip.clientWidth - current.offsetWidth) / 2);
       }
       focusPages();
-      add.disabled = duplicate.disabled = pages.length >= maxPages;
-      earlier.disabled = index < 1;
-      later.disabled = index >= pages.length - 1;
-      remove.disabled = pages.length < 2;
+      const say = (message: typeof full) => app.say(message);
+      unavailable(add, pages.length >= maxPages ? full : undefined, say);
+      unavailable(duplicate, pages.length >= maxPages ? full : undefined, say);
+      unavailable(earlier, index < 1 ? { pt: 'Esta já é a primeira página.', en: 'This is already the first page.' } : undefined, say);
+      unavailable(later, index >= pages.length - 1 ? { pt: 'Esta já é a última página.', en: 'This is already the last page.' } : undefined, say);
+      unavailable(remove, pages.length < 2 ? { pt: 'O trabalho precisa de uma página.', en: 'The work needs one page.' } : undefined, say);
       focusActions();
       focusControls();
       scrollState();
     }
-    if (order || language || selection) updateGhost(state);
+    if (order || language || selection ||
+      (onion && (pages[index - 1] !== prior[index - 1] || (showNext && pages[index + 1] !== prior[index + 1])))) updateGhost(state);
   }
 
   render(app.store.get());

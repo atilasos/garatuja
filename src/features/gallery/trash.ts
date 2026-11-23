@@ -69,5 +69,9 @@ export class Trash {
     return Promise.all([...this.pending.keys()].map(id => this.commit(id)));
   }
 
+  discard() {
+    for (const id of this.pending.keys()) this.restore(id);
+  }
+
   private changed() { for (const listener of this.listeners) listener(); }
 }
