@@ -4,7 +4,7 @@ import type { L10n } from '../../core/types';
 import type { App, Feature } from '../../ui/app';
 import { button, h, pressed, roving } from '../../ui/dom';
 import { icons } from '../../ui/icons';
-import { palette } from '../../ui/palette';
+import { colorName } from '../../ui/palette';
 import { holdButton } from '../teacher/hold';
 import { keyboardIcon, keyboardLabel, keyboardLayoutField } from '../../ui/writing-input';
 import './a11y.css';
@@ -25,7 +25,6 @@ const words = {
     pt: 'Não encontrei uma voz em português neste dispositivo, por isso a leitura fica em silêncio.',
     en: 'No voice for this language is installed on this device, so reading stays silent.',
   },
-  mixed: { pt: 'Cor misturada', en: 'Mixed color' },
 } satisfies Record<string, L10n>;
 
 type Toggle = { key: 'sound' | 'readAloud' | 'leftHanded' | 'largeCursor' | 'uppercase' | 'highContrast' | 'fixedClick' | 'screenKeyboard'; label: L10n; on: string; off?: string };
@@ -108,7 +107,7 @@ export default {
         if (state.settings.locale !== previous.settings.locale) warned = false;
       }
       if (state.color !== previous.color && state.settings.readAloud) {
-        speak(palette.find(item => item.color === state.color)?.label ?? words.mixed);
+        speak(colorName(state.color));
       }
     });
   },

@@ -83,7 +83,6 @@ export class OptionsPanel {
     this.up.querySelector('.button-label')!.textContent = t({ pt: 'Subir', en: 'Scroll up' });
     this.down.querySelector('.button-label')!.textContent = t({ pt: 'Descer', en: 'Scroll down' });
     this.element.setAttribute('aria-label', t({ pt: 'Opções', en: 'Options' }));
-    this.controls.setAttribute('aria-label', t({ pt: 'Percorrer opções', en: 'Scroll through options' }));
     const fixed: HTMLElement[] = [];
     const sections: HTMLElement[] = [];
     if (custom instanceof HTMLElement) sections.push(custom);

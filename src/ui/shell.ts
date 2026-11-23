@@ -10,9 +10,10 @@ import type { App, WorkAction } from './app';
 import { art, button, h, pressed, replaceControls, roving, unavailable } from './dom';
 import { icons } from './icons';
 import { OptionsPanel } from './options';
-import { palette } from './palette';
+import { colorName, palette } from './palette';
 import { revealInStrip, scrollCue } from './scroll-cue';
-import { mixColor, untitled } from './work-fields';
+import { untitled } from './work-fields';
+import { mixColor } from './color-mixer';
 
 const words = {
   tools: { pt: 'Ferramentas', en: 'Tools' },
@@ -231,7 +232,7 @@ export function mountShell(app: App, root: HTMLElement) {
     if (activeToolButton) activeToolButton.title = t(app.toolHint());
 
     if (language || state.toolId !== previous?.toolId || state.color !== previous.color ||
-      level !== previous.settings.level || state.options !== previous.options || state.registryVersion !== previous.registryVersion) {
+      level !== previous.settings.level || state.settings.disabledTools !== previous.settings.disabledTools || state.options !== previous.options || state.registryVersion !== previous.registryVersion) {
       options.update(app.tool, state, (id, value) => app.setOption(id, value), hint => { if (!app.surface.inGesture) app.say(hint); }, spec => app.option(app.tool, spec), app.renderOptions());
     }
 
@@ -251,7 +252,7 @@ export function mountShell(app: App, root: HTMLElement) {
       pressed(mix, !paletteColor);
       picker.dataset.focus = 'picker';
       mix.dataset.focus = 'mix';
-      showHelpOnFocus(app, mix, { pt: 'Escolhe uma cor para juntar à paleta.', en: 'Choose a color to add to the palette.' });
+      showHelpOnFocus(app, mix, paletteColor ? { pt: 'Escolhe uma cor para juntar à paleta.', en: 'Choose a color to add to the palette.' } : colorName(state.color));
       if (!paletteColor) mix.style.setProperty('--custom-color', state.color);
       replaceControls(colors, [...swatches, picker, mix]);
       refreshColors();

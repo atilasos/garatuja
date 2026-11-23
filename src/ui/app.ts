@@ -13,7 +13,7 @@ import type { Surface } from '../core/surface';
 import type { IconSvg, L10n, OptionSpec, ProjectRecord, SoundId, Tool } from '../core/types';
 import { openModal, type ModalOptions } from './modal';
 import { choices, type CustomOptions } from './options';
-import { palette } from './palette';
+import { colorName, palette } from './palette';
 import { Toasts, type ToastAction } from './toast';
 
 export interface WorkAction {
@@ -221,7 +221,7 @@ export class App {
 
   setColor(color: string) {
     this.cancelPicker();
-    this.input.changeAppearance(() => this.store.set({ color }));
+    this.input.changeAppearance(() => this.store.set({ color, hint: colorName(color) }));
   }
 
   togglePicker() {
@@ -255,6 +255,7 @@ export class App {
     setLocale(settings.locale);
     this.sounds.enabled = settings.sound;
     this.store.set({ settings });
+    if (previous.locale !== settings.locale) this.toasts.refreshLocale();
     if (!toolAllowed(settings, this.tool)) this.chooseTool('paint');
   }
 

@@ -1,3 +1,4 @@
+import { hexToRgb } from '../core/draw';
 import type { L10n } from '../core/types';
 
 export const palette: { color: string; label: L10n }[] = [
@@ -20,3 +21,16 @@ export const palette: { color: string; label: L10n }[] = [
   { color: '#a35474', label: { pt: 'Amora', en: 'Berry' } },
   { color: '#8e5845', label: { pt: 'Castanho', en: 'Brown' } },
 ];
+
+/** Name an arbitrary ink color by the closest named swatch. */
+export function colorName(color: string): L10n {
+  const ink = hexToRgb(color);
+  let closest = palette[0];
+  let distance = Infinity;
+  for (const item of palette) {
+    const swatch = hexToRgb(item.color);
+    const delta = (ink.r - swatch.r) ** 2 + (ink.g - swatch.g) ** 2 + (ink.b - swatch.b) ** 2;
+    if (delta < distance) { closest = item; distance = delta; }
+  }
+  return closest.label;
+}

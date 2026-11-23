@@ -75,7 +75,6 @@ input:not([type="checkbox"]), select, textarea {
 .dialog-head h2 { margin: 0; font-size: 1.3rem; }
 .dialog-stack { display: grid; gap: 10px; }
 .dialog-stack .work-field > span { font-size: .88rem; }
-.color-input { min-width: 110px; cursor: pointer; }
 .setting {
   display: flex;
   justify-content: space-between;
