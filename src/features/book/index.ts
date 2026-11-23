@@ -6,7 +6,7 @@ export default {
   id: 'book',
   mount(app) {
     app.registerScreen('book.read', app => showReader(app));
-    app.registerAction({ id: 'read', label: readLabel, icon: pageIcons.book, order: 10,
+    app.registerAction({ id: 'read', hint: { pt: 'Lê as páginas e vê os desenhos como num livro.', en: 'Read the pages and see the drawings as a book.' }, label: readLabel, icon: pageIcons.book, order: 10,
       run: app => app.openScreen('book.read') });
   },
 } satisfies Feature;

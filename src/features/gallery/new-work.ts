@@ -13,7 +13,7 @@ const words = {
     pt: 'O trabalho que está na folha fica guardado na galeria. Nada se perde.',
     en: 'The work on the paper stays saved in the gallery. Nothing is lost.',
   },
-  paper: { pt: 'Cor do papel', en: 'Paper colour' },
+  paper: { pt: 'Cor do papel', en: 'Paper color' },
   model: { pt: 'Modelo', en: 'Template' },
   create: { pt: 'Começar', en: 'Start' },
   done: {
@@ -94,8 +94,8 @@ export function newWork(app: App) {
 
   const content = h('div', 'new-work',
     h('p', 'pingo-note', art(icons.pingo), h('span', '', t(words.kept))),
-    h('section', 'new-step', h('h3', 'step-title', h('span', 'step-number', '1'), t(words.paper)), colorRow),
-    h('section', 'new-step', h('h3', 'step-title', h('span', 'step-number', '2'), t(words.model)), ...groups),
+    h('section', 'new-step', h('h3', 'step-title', t(words.paper)), colorRow),
+    h('section', 'new-step', h('h3', 'step-title', t(words.model)), ...groups),
     h('div', 'dialog-actions sticky-actions', create));
   roving(colorRow, words.paper);
   const close = app.modal({ title: words.title, content });

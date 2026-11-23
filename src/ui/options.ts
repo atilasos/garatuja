@@ -44,26 +44,33 @@ function groups(items: ChoiceItem[]) {
 
 export class OptionsPanel {
   readonly element = h('aside', 'options panel');
-  private readonly title = h('h2', 'panel-title');
+  private readonly fixed = h('div', 'options-fixed');
   private readonly list = h('div', 'options-scroll');
   private readonly controls = h('div', 'scroll-controls');
   private readonly up = button({ pt: 'Subir', en: 'Scroll up' }, icons.up, () => this.scroll(-1));
   private readonly down = button({ pt: 'Descer', en: 'Scroll down' }, icons.down, () => this.scroll(1));
+  private readonly refreshScroll = roving(this.controls, { pt: 'Percorrer opções', en: 'Scroll through options' });
   private readonly observer = new ResizeObserver(() => this.updateScroll());
   private tool?: Tool;
 
   constructor() {
     this.controls.append(this.up, this.down);
-    this.element.append(this.title, this.list, this.controls);
+    this.element.append(this.fixed, this.list, this.controls);
     this.observer.observe(this.list);
     this.list.addEventListener('scroll', () => this.updateScroll());
   }
 
-  update(tool: Tool, state: State, set: OptionSetter, value: (spec: OptionSpec) => string | number | boolean, custom?: HTMLElement) {
+  update(tool: Tool, state: State, set: OptionSetter, say: (hint: L10n) => void, value: (spec: OptionSpec) => string | number | boolean, custom?: HTMLElement) {
     const top = tool === this.tool ? this.list.scrollTop : 0;
+    const left = tool === this.tool ? this.list.scrollLeft : 0;
     this.tool = tool;
-    this.title.textContent = t({ pt: 'Opções', en: 'Options' });
-    this.element.setAttribute('aria-label', this.title.textContent);
+    this.up.setAttribute('aria-label', t({ pt: 'Subir', en: 'Scroll up' }));
+    this.down.setAttribute('aria-label', t({ pt: 'Descer', en: 'Scroll down' }));
+    this.up.querySelector('.button-label')!.textContent = t({ pt: 'Subir', en: 'Scroll up' });
+    this.down.querySelector('.button-label')!.textContent = t({ pt: 'Descer', en: 'Scroll down' });
+    this.element.setAttribute('aria-label', t({ pt: 'Opções', en: 'Options' }));
+    this.controls.setAttribute('aria-label', t({ pt: 'Percorrer opções', en: 'Scroll through options' }));
+    const fixed: HTMLElement[] = [];
     const sections: HTMLElement[] = [];
     if (custom) sections.push(custom);
     for (const spec of custom ? [] : tool.options ?? []) {
@@ -81,7 +88,7 @@ export class OptionsPanel {
           pressed(item, current === step);
           row.append(item);
         });
-        sections.push(h('section', 'option-section', label, row));
+        fixed.push(h('section', 'option-section', label, row));
         roving(row, spec.label);
       } else if (spec.kind === 'toggle') {
         const option = button(spec.label, spec.icon, () => set(spec.id, !current), 'option-toggle');
@@ -90,18 +97,45 @@ export class OptionsPanel {
         sections.push(h('section', 'option-section toggle-section', option));
       } else {
         const section = h('section', 'option-section', label);
+        const categories = h('div', 'option-categories');
+        const categoryLabel = { pt: 'Categorias', en: 'Categories' };
         for (const group of groups(choices(spec, state.settings.level))) {
-          const row = h('div', 'choice-grid', ...group.items.map(item => choiceButton(item, spec, state.color, item.value === current, set)));
-          if (group.label) section.append(h('h4', 'choice-group', t(group.label)));
-          section.append(row);
+          const row = h('div', 'choice-grid', ...group.items.map(item => choiceButton(item, spec, state.color, item.value === current, (id, value) => {
+            set(id, value);
+            if (item.hint) say(item.hint);
+          })));
+          const block = h('div', 'choice-block', group.label ? h('h4', 'option-title choice-group', t(group.label)) : null, row);
+          if (group.label) {
+            const tab = button(group.label, undefined, () => {
+              if (this.list.scrollWidth > this.list.clientWidth) {
+                this.list.scrollLeft += block.getBoundingClientRect().left - this.list.getBoundingClientRect().left - 4;
+              } else {
+                this.list.scrollTop += block.getBoundingClientRect().top - this.list.getBoundingClientRect().top - 4;
+              }
+            });
+            tab.dataset.focus = spec.id + ':category:' + group.label.pt;
+            tab.setAttribute('aria-label', t({ pt: 'Categoria: ' + group.label.pt, en: 'Category: ' + group.label.en }));
+            categories.append(tab);
+          }
+          section.append(block);
           roving(row, group.label ?? spec.label);
+        }
+        if (categories.childElementCount > 1) {
+          fixed.push(categories);
+          roving(categories, categoryLabel);
         }
         sections.push(section);
       }
     }
-    if (!sections.length) sections.push(h('p', 'options-empty', t({ pt: 'Escolhe uma cor na paleta.', en: 'Pick a color from the palette.' })));
+    if (!sections.length && !fixed.length) sections.push(h('p', 'options-empty', t({ pt: 'Escolhe uma cor na paleta.', en: 'Pick a color from the palette.' })));
+    const categoryOffsets = [...this.fixed.querySelectorAll('.option-categories')].map(row => row.scrollLeft);
+    replaceControls(this.fixed, fixed);
+    if (top || left || categoryOffsets.length) {
+      this.fixed.querySelectorAll('.option-categories').forEach((row, i) => { row.scrollLeft = categoryOffsets[i] ?? 0; });
+    }
     replaceControls(this.list, sections);
     this.list.scrollTop = top;
+    this.list.scrollLeft = left;
     this.updateScroll();
   }
 
@@ -114,5 +148,6 @@ export class OptionsPanel {
     this.controls.hidden = this.list.scrollHeight <= available + 1;
     this.up.disabled = this.list.scrollTop < 1;
     this.down.disabled = this.list.scrollTop + this.list.clientHeight >= this.list.scrollHeight - 1;
+    this.refreshScroll();
   }
 }

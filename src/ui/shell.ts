@@ -3,6 +3,7 @@ import { tools } from '../core/registry';
 import type { State } from '../core/store';
 import type { L10n } from '../core/types';
 import { printLabel, printWork } from '../features/book/print';
+import { showWorkDetails } from '../features/gallery/save';
 import { editWriting } from '../features/book/writing';
 import { pageStrip } from '../features/pages/strip';
 import type { App, WorkAction } from './app';
@@ -10,7 +11,7 @@ import { art, button, h, pressed, replaceControls, roving } from './dom';
 import { icons } from './icons';
 import { OptionsPanel } from './options';
 import { palette } from './palette';
-import { authorLabel, mixColor, titleLabel, untitled, WorkField } from './work-fields';
+import { mixColor, untitled } from './work-fields';
 
 const words = {
   tools: { pt: 'Ferramentas', en: 'Tools' },
@@ -28,33 +29,55 @@ const words = {
   mix: { pt: 'Misturar cor', en: 'Mix color' },
 } satisfies Record<string, L10n>;
 
+function showHelpOnFocus(app: App, control: HTMLButtonElement, hint: L10n) {
+  const show = () => {
+    if (!app.surface.inGesture) app.store.set({ hint });
+  };
+  control.addEventListener('pointerenter', show);
+  control.addEventListener('focusin', show);
+}
+
 function actionButton(app: App, action: WorkAction) {
-  const control = button(action.label, action.icon, () => app.run(() => action.run(app)));
+  const label = action.id === 'present' ? { pt: 'Apresentar', en: 'Present' } : action.label;
+  const control = button(label, action.icon, () => app.run(() => action.run(app)));
+  control.setAttribute('aria-label', t(action.label));
+  if (action.hint) showHelpOnFocus(app, control, action.hint);
   control.dataset.focus = action.id;
   return control;
 }
 
 export function mountShell(app: App, root: HTMLElement) {
-  const title = new WorkField(titleLabel, untitled, value => app.documents.editProject({ title: value }));
-  const author = new WorkField(authorLabel, { pt: 'O teu nome', en: 'Your name' }, value => app.documents.editProject({ author: value }));
+  const title = h('strong', 'work-title');
+  const author = h('span', 'work-author');
+  const card = h('button', 'work-card', art(icons.open), title, author);
+  card.type = 'button';
+  showHelpOnFocus(app, card, { pt: 'Dá um nome ao trabalho e diz quem o fez e para quem é.',
+    en: 'Name the work and say who made it and who it is for.' });
+  card.addEventListener('click', () => showWorkDetails(app));
   const className = h('small', 'class-name');
-  const brand = h('div', 'brand', art(icons.pingo), h('span', '', t({ pt: 'Garatuja', en: 'Garatuja' })), className);
+  const brand = h('div', 'brand', art(icons.pingo), h('div', '', 'Garatuja', className));
   const pages = pageStrip(app);
   const preferences = h('div', 'preferences');
-  const header = h('header', 'workbar', brand, h('div', 'work-fields', title.element, author.element), pages, preferences);
   const files = h('div', 'file-actions');
   const featureActions = h('div', 'feature-actions');
+  const header = h('header', 'workbar', brand, card, pages, featureActions);
   const history = h('div', 'history-actions');
-  const ribbon = h('div', 'ribbon', files, featureActions, history);
   const toolbox = h('div', 'tool-grid');
-  const toolboxHeading = h('h2', 'panel-title');
-  const toolsPanel = h('aside', 'tools panel', toolboxHeading, toolbox);
+  const toolDeck = h('div', 'tool-deck', toolbox);
+  const toolsPanel = h('aside', 'tools panel', toolDeck, history, files);
   const options = new OptionsPanel();
   const stage = h('main', 'stage', app.surface.element);
   const keyboardCursor = h('span', 'keyboard-cursor');
   keyboardCursor.hidden = true;
   app.surface.element.append(keyboardCursor);
   const workspace = h('div', 'workspace', toolsPanel, stage, options.element);
+  const stacked = matchMedia('(orientation: portrait), (max-width: 800px)');
+  const arrangeFocus = () => {
+    workspace.prepend(stacked.matches ? stage : toolsPanel);
+    (stacked.matches ? toolDeck : toolsPanel).append(files);
+  };
+  arrangeFocus();
+  stacked.addEventListener('change', arrangeFocus);
   const colors = h('div', 'palette');
   const hint = h('p', 'hint');
   hint.id = 'pingo-hint';
@@ -67,7 +90,7 @@ export function mountShell(app: App, root: HTMLElement) {
   let undo: HTMLButtonElement;
   let redo: HTMLButtonElement;
 
-  root.append(header, ribbon, workspace, footer, app.toasts.element);
+  root.append(header, workspace, footer, app.toasts.element);
   app.surface.element.tabIndex = 0;
   app.surface.element.setAttribute('role', 'group');
   app.surface.element.setAttribute('aria-describedby', 'pingo-hint');
@@ -85,15 +108,17 @@ export function mountShell(app: App, root: HTMLElement) {
     const { locale, level } = state.settings;
     const language = !previous || locale !== previous.settings.locale;
     const settings = language || state.settings !== previous?.settings;
-    root.classList.toggle('left-handed', state.settings.leftHanded);
-    root.classList.toggle('high-contrast', state.settings.highContrast);
+    root.classList.toggle('simple-desk', level === 1);
     app.surface.element.classList.toggle('large-cursor', state.settings.largeCursor);
     app.surface.element.classList.toggle('picking', state.pickingColor);
     app.surface.element.inert = state.busy;
     className.textContent = state.settings.className;
-    title.update(state.project.title);
-    author.update(state.project.author);
-    title.input.disabled = author.input.disabled = state.busy;
+    title.textContent = state.project.title.trim() || t(untitled);
+    author.textContent = state.project.author.trim();
+    author.hidden = !author.textContent;
+    card.disabled = state.busy;
+    card.setAttribute('aria-label', [t({ pt: 'Dados do trabalho', en: 'Work details' }),
+      title.textContent, author.textContent].filter(Boolean).join(', '));
 
     if (settings) {
       const sound = state.settings.sound;
@@ -101,16 +126,14 @@ export function mountShell(app: App, root: HTMLElement) {
       const soundToggle = button({ pt: 'Som', en: 'Sound' }, sound ? icons.sound : icons.mute, () => app.configure({ sound: !sound }));
       soundToggle.setAttribute('aria-label', t(soundLabel));
       soundToggle.dataset.focus = 'sound';
+      showHelpOnFocus(app, soundToggle, sound
+        ? { pt: 'Toca para desligar os sons do ateliê.', en: 'Tap to turn the studio sounds off.' }
+        : { pt: 'Toca para ligar os sons do ateliê.', en: 'Tap to turn the studio sounds on.' });
       pressed(soundToggle, sound);
-      const levelLabel = level === 1 ? { pt: 'Simples', en: 'Simple' } : { pt: 'Completa', en: 'Full' };
-      const levelToggle = button(levelLabel, icons.level, () => app.configure({ level: level === 1 ? 2 : 1 }));
-      levelToggle.dataset.focus = 'level';
-      levelToggle.setAttribute('aria-label', t(level === 1
-        ? { pt: 'Interface simples', en: 'Simple interface' } : { pt: 'Interface completa', en: 'Full interface' }));
-      pressed(levelToggle, level === 1);
       const settingsButton = button(words.settings, icons.settings, () => app.openScreen('settings.child'));
       settingsButton.dataset.focus = 'settings';
-      replaceControls(preferences, [soundToggle, levelToggle, settingsButton]);
+      showHelpOnFocus(app, settingsButton, { pt: 'Escolhe como queres usar a Garatuja.', en: 'Choose how you want to use Garatuja.' });
+      replaceControls(preferences, [soundToggle, settingsButton]);
       refreshPreferences();
     }
 
@@ -120,11 +143,14 @@ export function mountShell(app: App, root: HTMLElement) {
       actionButtons = actions.map(action => [action, actionButton(app, action)]);
       const print = button(printLabel, icons.print, () => app.run(() => printWork(app)));
       print.dataset.focus = 'print';
+      showHelpOnFocus(app, print, { pt: 'Prepara uma página ou o livro inteiro para imprimir.',
+        en: 'Prepare a page or the whole book for printing.' });
       const basic = actionButtons.filter(([action]) => action.placement === 'files').map(([, control]) => control);
       if (state.settings.allowPrint) basic.push(print);
       replaceControls(files, basic);
       const text = button(words.writing, icons.text, () => editWriting(app));
       text.dataset.focus = 'writing';
+      showHelpOnFocus(app, text, { pt: 'Escreve o texto que esta página ilustra.', en: 'Write the text this page illustrates.' });
       replaceControls(featureActions, [text, ...actionButtons.filter(([action]) => action.placement !== 'files').map(([, control]) => control)]);
       refreshFiles();
       refreshActions();
@@ -140,9 +166,10 @@ export function mountShell(app: App, root: HTMLElement) {
       undo = button(words.undo, icons.undo, () => app.undo());
       redo = button(words.redo, icons.redo, () => app.redo());
       undo.dataset.focus = 'undo';
+      showHelpOnFocus(app, undo, { pt: 'Volta atrás um passo.', en: 'Go back one step.' });
+      showHelpOnFocus(app, redo, { pt: 'Volta a pôr o que tiraste.', en: 'Put back what you took away.' });
       redo.dataset.focus = 'redo';
       replaceControls(history, [undo, redo]);
-      toolboxHeading.textContent = t(words.tools);
       toolsPanel.setAttribute('aria-label', t(words.tools));
       app.surface.element.setAttribute('aria-label', t(words.paper));
       const listen = button(words.listen, icons.sound, () => {
@@ -151,7 +178,8 @@ export function mountShell(app: App, root: HTMLElement) {
           en: 'Reading aloud needs a voice installed on this device.',
         });
       });
-      help.replaceChildren(art(icons.pingo), hint, listen);
+      help.replaceChildren(art(icons.pingo), hint, listen, preferences);
+      refreshPreferences();
       for (const [bar, label] of [[preferences, words.settings], [files, words.files],
         [featureActions, words.actions], [history, words.history], [toolbox, words.tools], [colors, words.colors]] as const) {
         bar.setAttribute('aria-label', t(label));
@@ -175,7 +203,7 @@ export function mountShell(app: App, root: HTMLElement) {
 
     if (language || state.toolId !== previous?.toolId || state.color !== previous.color ||
       level !== previous.settings.level || state.options !== previous.options || state.registryVersion !== previous.registryVersion) {
-      options.update(app.tool, state, (id, value) => app.setOption(id, value), spec => app.option(app.tool, spec), app.renderOptions());
+      options.update(app.tool, state, (id, value) => app.setOption(id, value), hint => { if (!app.surface.inGesture) app.say(hint); }, spec => app.option(app.tool, spec), app.renderOptions());
     }
 
     if (language || state.color !== previous?.color || state.pickingColor !== previous?.pickingColor) {
@@ -194,6 +222,7 @@ export function mountShell(app: App, root: HTMLElement) {
       pressed(mix, !paletteColor);
       picker.dataset.focus = 'picker';
       mix.dataset.focus = 'mix';
+      showHelpOnFocus(app, mix, { pt: 'Escolhe uma cor para juntar à paleta.', en: 'Choose a color to add to the palette.' });
       if (!paletteColor) mix.style.setProperty('--custom-color', state.color);
       replaceControls(colors, [...swatches, picker, mix]);
       refreshColors();

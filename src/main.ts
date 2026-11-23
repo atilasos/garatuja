@@ -1,5 +1,3 @@
-import '@fontsource/andika/latin-400.css';
-import '@fontsource/andika/latin-700.css';
 import './ui/style.css';
 import { createPage, createProject } from './core/document';
 import { setLocale, t } from './core/i18n';

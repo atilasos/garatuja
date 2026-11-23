@@ -18,10 +18,6 @@
 .new-work { display: grid; gap: 14px; }
 .new-step { display: grid; gap: 8px; }
 .step-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.08rem; }
-.step-number {
-  display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
-  background: var(--selected); border: 2px solid var(--selected-edge); font-size: .95rem;
-}
 .paper-colors { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
 .paper-swatch { flex-direction: column; gap: 4px; padding: 6px 2px; font-size: .78rem; min-height: 72px; }
 .paper-chip {
@@ -30,6 +26,7 @@
 }
 .paper-swatch[aria-pressed="true"] .paper-chip { border-radius: 50%; width: 34px; height: 34px; border: 3px solid var(--selected-edge); }
 .model-group { display: grid; gap: 4px; }
+.model-group > h4 { margin: 4px 0; }
 .model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
 .model-choice {
   flex-direction: column; gap: 6px; padding: 8px 6px; min-height: 150px; font-size: .86rem;

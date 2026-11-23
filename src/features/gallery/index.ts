@@ -21,11 +21,11 @@ export default {
     const trash = new Trash(app.storage);
     app.registerScreen('gallery.new', newWork);
     app.registerScreen('gallery.open', app => openWork(app, trash));
-    app.registerAction({ id: 'new', label: { pt: 'Novo', en: 'New' }, icon: icons.new,
+    app.registerAction({ id: 'new', hint: { pt: 'Começa um trabalho com papel e modelo à tua escolha.', en: 'Start a work with your choice of paper and template.' }, label: { pt: 'Novo', en: 'New' }, icon: icons.new,
       placement: 'files', order: 10, run: app => app.openScreen('gallery.new') });
-    app.registerAction({ id: 'open', label: { pt: 'Abrir', en: 'Open' }, icon: icons.open,
+    app.registerAction({ id: 'open', hint: { pt: 'Abre a galeria para voltares a um trabalho ou levares um ficheiro contigo.', en: 'Open the gallery to return to a work or take a file with you.' }, label: { pt: 'Abrir', en: 'Open' }, icon: icons.open,
       placement: 'files', order: 20, run: app => app.openScreen('gallery.open') });
-    app.registerAction({ id: 'save', label: { pt: 'Guardar', en: 'Save' }, icon: icons.save,
+    app.registerAction({ id: 'save', hint: { pt: 'Guarda o trabalho neste dispositivo.', en: 'Save your work on this device.' }, label: { pt: 'Guardar', en: 'Save' }, icon: icons.save,
       placement: 'files', order: 30, run: saveWork });
     window.addEventListener('keydown', event => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;

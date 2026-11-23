@@ -11,13 +11,12 @@ const words = {
   title: { pt: 'Como se usa', en: 'How to use' },
   hello: {
     pt: 'Olá! Eu sou o Pingo. Escolhe uma ferramenta, escolhe uma cor e desenha na folha.',
-    en: 'Hello! I am Pingo. Pick a tool, pick a colour and draw on the paper.',
+    en: 'Hello! I am Pingo. Pick a tool, pick a color and draw on the paper.',
   },
   tools: { pt: 'Ferramentas', en: 'Tools' },
   work: { pt: 'O trabalho', en: 'Your work' },
   keys: { pt: 'Teclado', en: 'Keyboard' },
   listen: { pt: 'Ouvir', en: 'Listen' },
-  helpButton: { pt: 'Ajuda', en: 'Help' },
 } satisfies Record<string, L10n>;
 
 const workCards: { icon: IconSvg; label: L10n; text: L10n }[] = [
@@ -73,7 +72,6 @@ export default {
   id: 'help',
   mount(app) {
     app.registerScreen('help.show', showHelp);
-    app.registerAction({ id: 'help', label: words.helpButton, icon: extraIcons.help, order: 90, run: app => app.openScreen('help.show') });
     window.addEventListener('keydown', event => {
       if (event.key !== 'F1' || document.querySelector('dialog[open]')) return;
       event.preventDefault();

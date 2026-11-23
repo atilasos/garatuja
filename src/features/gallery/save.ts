@@ -70,10 +70,10 @@ export async function saveWork(app: App) {
   const missing = !project.title.trim() || !project.author.trim() || !project.audience.trim();
   if (!missing || invited.has(project.id)) return;
   invited.add(project.id);
-  inviteDetails(app);
+  showWorkDetails(app, true);
 }
 
-export function inviteDetails(app: App) {
+export function showWorkDetails(app: App, saved = false) {
   const { project } = app.store.get();
   const title = field(titleLabel, words.titlePlaceholder, project.title, value => app.documents.editProject({ title: value }));
   const author = field(authorLabel, words.authorPlaceholder, project.author, value => app.documents.editProject({ author: value }));
@@ -83,10 +83,10 @@ export function inviteDetails(app: App) {
   const done = button(words.ready, extraIcons.check, () => close(), 'primary');
   const later = button(words.later, icons.close, () => close());
   const close = app.modal({
-    title: words.heading,
+    title: saved ? words.heading : { pt: 'Dados do trabalho', en: 'Work details' },
     content: h('div', 'dialog-stack',
-      h('p', 'pingo-note', art(icons.pingo), h('span', '', t(words.invite))),
+      saved ? h('p', 'pingo-note', art(icons.pingo), h('span', '', t(words.invite))) : null,
       title.element, author.element, audience.element,
-      h('div', 'dialog-actions', later, done)),
+      h('div', 'dialog-actions', saved ? later : null, done)),
   });
 }

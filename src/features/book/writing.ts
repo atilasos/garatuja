@@ -3,7 +3,6 @@ import type { Settings } from '../../core/store';
 import type { App } from '../../ui/app';
 import { button, h } from '../../ui/dom';
 import { icons } from '../../ui/icons';
-import { WorkField } from '../../ui/work-fields';
 import './writing.css';
 
 export const audienceLabel = { pt: 'Para quem é?', en: 'Who is it for?' };
@@ -14,9 +13,7 @@ export function writingText(value: string, settings: Settings) {
 }
 
 export function editWriting(app: App) {
-  const { project, settings } = app.store.get();
-  const audience = new WorkField(audienceLabel, { pt: 'Escreve para quem é', en: 'Write who it is for' }, value => app.documents.editProject({ audience: value }));
-  audience.update(project.audience);
+  const { settings } = app.store.get();
   const text = h('textarea', 'book-writing');
   text.value = writingText(app.documents.page.text, settings);
   text.autofocus = true;
@@ -49,7 +46,7 @@ export function editWriting(app: App) {
   listen.disabled = !text.value.trim();
   app.modal({
     title: textLabel,
-    content: h('div', 'dialog-stack', audience.element, h('label', 'work-field', h('span', '', t(textLabel)), text),
+    content: h('div', 'dialog-stack', h('label', 'work-field', h('span', '', t(textLabel)), text),
       settings.readAloud ? listen : null, notice),
     onClose: () => {
       if (settings.readAloud && 'speechSynthesis' in window) window.speechSynthesis.cancel();

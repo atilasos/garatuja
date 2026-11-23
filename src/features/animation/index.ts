@@ -122,7 +122,7 @@ export default {
   mount(app) {
     app.registerScreen('animation.play', animateWork);
     app.registerAction({
-      id: 'animate', label: animate, icon: pageIcons.play, order: 5,
+      id: 'animate', hint: { pt: 'Vê as páginas a passar como um filme.', en: 'Watch your pages play like a film.' }, label: animate, icon: pageIcons.play, order: 5,
       disabled: app => app.store.get().project.pages.length < 2,
       run: app => app.openScreen('animation.play'),
     });

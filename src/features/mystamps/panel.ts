@@ -68,6 +68,8 @@ function transforms(app: App) {
     sizeRow.append(item);
   }
   roving(sizeRow, sizeLabel);
+  if (app.store.get().settings.level === 1) return h('div', 'stamp-transforms',
+    h('h3', 'option-title', t(sizeLabel)), sizeRow);
   const toggles = h('div', 'stamp-toggle-row');
   for (const spec of stampTool.options) {
     if (spec.kind !== 'toggle') continue;

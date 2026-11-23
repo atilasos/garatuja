@@ -24,16 +24,20 @@ const words = {
     pt: 'Não encontrei uma voz em português neste dispositivo, por isso a leitura fica em silêncio.',
     en: 'No voice for this language is installed on this device, so reading stays silent.',
   },
-  mixed: { pt: 'Cor misturada', en: 'Mixed colour' },
+  mixed: { pt: 'Cor misturada', en: 'Mixed color' },
 } satisfies Record<string, L10n>;
 
-type Toggle = { key: 'sound' | 'readAloud' | 'leftHanded' | 'largeCursor'; label: L10n; on: string; off?: string };
+type Toggle = { key: 'sound' | 'readAloud' | 'leftHanded' | 'largeCursor' | 'uppercase' | 'highContrast' | 'fixedClick'; label: L10n; on: string; off?: string };
 
 const toggles: Toggle[] = [
   { key: 'sound', label: words.sound, on: icons.sound, off: icons.mute },
   { key: 'readAloud', label: words.listen, on: extraIcons.listen },
   { key: 'leftHanded', label: words.left, on: extraIcons.hand },
   { key: 'largeCursor', label: words.cursor, on: extraIcons.cursor },
+  { key: 'uppercase', label: { pt: 'Só maiúsculas', en: 'Capital letters only' }, on: extraIcons.uppercase },
+  { key: 'highContrast', label: { pt: 'Alto contraste', en: 'High contrast' }, on: extraIcons.contrast },
+  { key: 'fixedClick', label: { pt: 'Clique fixo', en: 'Click to start and stop' }, on: extraIcons.cursor },
+
 ];
 
 /** Settings that belong to the child: big icon + word buttons, no gate. */
@@ -66,10 +70,11 @@ function childSettings(app: App) {
   render();
   roving(grid, words.mine);
   const help = button(words.help, extraIcons.help, () => { close(); app.openScreen('help.show'); });
+  const credits = button({ pt: 'Créditos', en: 'Credits' }, extraIcons.help, () => { close(); app.openScreen('credits.show'); });
   const adult = holdButton(app, words.adult, extraIcons.adult, () => { close(); app.openScreen('teacher.gate'); });
   const close = app.modal({
     title: words.title,
-    content: h('div', 'dialog-stack', grid, h('div', 'dialog-actions spread', help, adult)),
+    content: h('div', 'dialog-stack', grid, h('div', 'dialog-actions spread', help, credits, adult)),
   });
 }
 
